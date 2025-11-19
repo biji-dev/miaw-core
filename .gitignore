@@ -8,6 +8,7 @@ dist/
 
 # Session data (sensitive)
 sessions/
+test-sessions/
 *.session.json
 
 # Logs
@@ -20,6 +21,7 @@ pino-*.log*
 
 # Environment variables
 .env
+.env.test
 .env.local
 .env.*.local
 
