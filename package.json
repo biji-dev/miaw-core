@@ -1,0 +1,33 @@
+{
+  "name": "miaw-core",
+  "version": "0.1.0",
+  "description": "Simplified WhatsApp API wrapper for Baileys - Multiple Instance of App WhatsApp",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "whatsapp-api",
+    "whatsapp-bot",
+    "multi-instance"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "pino": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
