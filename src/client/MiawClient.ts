@@ -137,6 +137,13 @@ export class MiawClient extends EventEmitter {
       if (m.type !== 'notify') return;
 
       for (const msg of m.messages) {
+        // Debug: Log raw Baileys message structure
+        if (this.options.debug) {
+          console.log('\n========== RAW BAILEYS MESSAGE ==========');
+          console.log(JSON.stringify(msg, null, 2));
+          console.log('=========================================\n');
+        }
+
         const normalized = MessageHandler.normalize({ messages: [msg] });
         if (normalized) {
           this.emit('message', normalized);

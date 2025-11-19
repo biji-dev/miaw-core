@@ -14,6 +14,13 @@ export class MessageHandler {
 
       const isGroup = message.key.remoteJid?.endsWith('@g.us') || false;
 
+      // Extract phone number and name from message key
+      // For groups: use participant info, for DM: use sender info
+      const senderPhone = isGroup
+        ? message.key.participantPn
+        : message.key.senderPn;
+      const senderName = message.pushName;
+
       // Extract text content based on message type
       let text: string | undefined;
       let type: MiawMessage['type'] = 'unknown';
@@ -42,6 +49,8 @@ export class MessageHandler {
       const normalized: MiawMessage = {
         id: message.key.id || '',
         from: message.key.remoteJid || '',
+        senderPhone,
+        senderName,
         text,
         timestamp: message.messageTimestamp
           ? Number(message.messageTimestamp)
@@ -69,19 +78,27 @@ export class MessageHandler {
 
   /**
    * Format a phone number to WhatsApp JID format
-   * @param phoneNumber - Phone number (can include country code)
-   * @returns WhatsApp JID (e.g., '1234567890@s.whatsapp.net')
+   * @param phoneNumber - Phone number (can include country code) or existing JID
+   * @returns WhatsApp JID (e.g., '1234567890@s.whatsapp.net', 'xxxxx@lid', 'xxxxx@g.us')
    */
   static formatPhoneToJid(phoneNumber: string): string {
-    // Remove all non-digit characters
-    const cleaned = phoneNumber.replace(/\D/g, '');
-
-    // Check if it's a group
-    if (phoneNumber.includes('@g.us')) {
+    // If already has a valid WhatsApp suffix, return as-is
+    // Supports: @s.whatsapp.net, @lid, @g.us, @c.us, @broadcast, @newsletter
+    if (
+      phoneNumber.includes('@s.whatsapp.net') ||
+      phoneNumber.includes('@lid') ||
+      phoneNumber.includes('@g.us') ||
+      phoneNumber.includes('@c.us') ||
+      phoneNumber.includes('@broadcast') ||
+      phoneNumber.includes('@newsletter')
+    ) {
       return phoneNumber;
     }
 
-    // Return formatted JID
+    // Remove all non-digit characters for phone numbers
+    const cleaned = phoneNumber.replace(/\D/g, '');
+
+    // Return formatted JID with standard suffix
     return `${cleaned}@s.whatsapp.net`;
   }
 

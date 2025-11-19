@@ -31,8 +31,24 @@ export interface MiawMessage {
   /** Unique message ID */
   id: string;
 
-  /** Sender's WhatsApp ID (e.g., '1234567890@s.whatsapp.net') */
+  /**
+   * Sender's WhatsApp JID (Jabber ID)
+   *
+   * Possible formats:
+   * - Standard: '1234567890@s.whatsapp.net' (traditional phone number)
+   * - Link ID: '1234567890@lid' (privacy-enhanced, used when phone number is hidden)
+   * - Group: '123456789@g.us' (group chats)
+   *
+   * Note: @lid format was introduced by WhatsApp for enhanced privacy.
+   * You can send messages to @lid addresses directly - no conversion needed.
+   */
   from: string;
+
+  /** Sender's phone number (if available, extracted from Baileys message key) */
+  senderPhone?: string;
+
+  /** Sender's display name (pushName from WhatsApp) */
+  senderName?: string;
 
   /** Message text content */
   text?: string;
