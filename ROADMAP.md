@@ -14,12 +14,14 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 ## Design Philosophy
 
 Miaw Core is designed to be:
+
 - **Simple** - Easy to use API for common use cases
 - **Focused** - Core features that most bots need
 - **Maintainable** - Clean codebase, not bloated
 - **Production-ready** - Reliable and performant
 
 We prioritize features based on:
+
 1. **Usage frequency** - What 90% of bots actually need
 2. **Essential vs. nice-to-have** - Core functionality first
 3. **Maintainability** - Keep the library focused and clean
@@ -29,27 +31,32 @@ We prioritize features based on:
 ## Implemented Features (v0.1.0) ✅
 
 ### Core Messaging
+
 - **Text Message Send** - Send text messages to individuals and groups
 - **Text Message Receive** - Receive and parse incoming text messages
 - **Normalized Message Format** - Simplified, clean message structure
 - **Phone Number Formatting** - Automatic JID formatting
 
 ### Connection Management
+
 - **Auto-Reconnection** - Automatic reconnection with configurable retry
 - **Connection State Tracking** - Monitor connection state changes
 - **Graceful Disconnect** - Clean shutdown and logout
 - **Connection Events** - QR, ready, disconnected, reconnecting
 
 ### Authentication & Sessions
+
 - **QR Code Authentication** - First-time authentication via QR code
 - **Session Persistence** - File-based session storage and auto-reload
 - **Multi-File Auth State** - Uses Baileys' multi-file auth state
 
 ### Multiple Instances
+
 - **Instance Management** - Run multiple WhatsApp connections in one process
 - **Isolated Sessions** - Each instance has separate auth and state
 
 ### Developer Experience
+
 - **TypeScript Support** - Full type definitions and type safety
 - **Event-Driven API** - Clean event emitter pattern
 - **Error Handling** - Structured error reporting
@@ -64,12 +71,14 @@ We prioritize features based on:
 **Focus:** Send and receive rich media
 
 #### Send Media
+
 - [ ] **Send Images** - Send images with optional captions and mentions
 - [ ] **Send Videos** - Send video files with captions
 - [ ] **Send Audio** - Send audio messages
 - [ ] **Send Documents** - Send PDF, DOC, and other document types
 
 #### Receive Media
+
 - [ ] **Receive All Media Types** - Parse incoming media messages
 - [ ] **Download Media** - Built-in utilities to download received media files
 - [ ] **Media Metadata** - Extract file info (size, mimetype, filename)
@@ -92,12 +101,14 @@ We prioritize features based on:
 **Focus:** Contact validation and basic group support
 
 #### Contact Operations
+
 - [ ] **Check Phone Number on WhatsApp** - Verify if number is registered (validation before sending)
 - [ ] **Get Contact Info** - Fetch contact name and basic info
 - [ ] **Get Profile Picture URL** - Retrieve contact profile picture
 - [ ] **Fetch Contact Status** - Get contact's about/status text
 
 #### Basic Group Support
+
 - [ ] **Send to Groups** - Send messages to group chats
 - [ ] **Get Group Info** - Fetch group metadata (name, participants, description)
 - [ ] **Get Group Participants** - List all group members
@@ -133,12 +144,14 @@ We prioritize features based on:
 **Focus:** Full group administration
 
 #### Group Operations
+
 - [ ] **Create Group** - Create new WhatsApp groups
 - [ ] **Add Participants** - Add members to groups
 - [ ] **Remove Participants** - Remove members from groups
 - [ ] **Leave Group** - Exit from groups
 
 #### Group Administration
+
 - [ ] **Promote to Admin** - Grant admin permissions
 - [ ] **Demote from Admin** - Remove admin permissions
 - [ ] **Update Group Name** - Change group subject/title
@@ -146,6 +159,7 @@ We prioritize features based on:
 - [ ] **Update Group Picture** - Change group icon
 
 #### Group Invites
+
 - [ ] **Generate Invite Link** - Create group invite link
 - [ ] **Revoke Invite Link** - Invalidate invite link
 - [ ] **Accept Group Invite** - Join group via invite code
@@ -198,12 +212,14 @@ We prioritize features based on:
 **Focus:** Production scalability and performance
 
 #### Custom Storage
+
 - [ ] **Pluggable Storage Interface** - Abstract storage layer for sessions
 - [ ] **Redis Adapter** - Store sessions in Redis
 - [ ] **MongoDB Adapter** - MongoDB session storage
 - [ ] **PostgreSQL Adapter** - PostgreSQL session storage
 
 #### Performance Optimization
+
 - [ ] **Message Queuing** - Queue messages for reliable delivery
 - [ ] **Rate Limiting** - Built-in rate limit handling and automatic retry
 - [ ] **Media Caching** - Cache uploaded media to avoid re-uploads
@@ -228,6 +244,7 @@ We prioritize features based on:
 Features available in Baileys but **rarely needed** for most bots. May be added based on community demand:
 
 ### Messaging
+
 - **Stickers** - Send/receive sticker messages
 - **Location Sharing** - Share location coordinates
 - **Contact Cards (vCard)** - Share contact information
@@ -235,12 +252,14 @@ Features available in Baileys but **rarely needed** for most bots. May be added 
 - **Pin Messages** - Pin messages in chats with expiry options
 
 ### Chat Management
+
 - **Archive/Unarchive Chat** - Move chats to/from archive
 - **Mute/Unmute Chat** - Disable/enable chat notifications
 - **Mark Chat Unread** - Mark conversations as unread
 - **Disappearing Messages** - Configure message auto-delete timer
 
 ### Privacy Controls
+
 - **Last Seen Privacy** - Configure who can see last seen
 - **Online Privacy** - Control who sees online status
 - **Profile Picture Privacy** - Set profile picture visibility
@@ -250,23 +269,27 @@ Features available in Baileys but **rarely needed** for most bots. May be added 
 - **Call Privacy** - Configure call permissions
 
 ### Advanced Group Features
+
 - **Group Settings** - Announcement mode, locked settings
 - **Join Approval Mode** - Require admin approval for new members
 - **Ephemeral Messages in Groups** - Disappearing messages for groups
 - **Group Request Participants** - Get pending join requests
 
 ### Contact Management
+
 - **Block/Unblock Contacts** - Programmatically block contacts
 - **Fetch Blocklist** - Get list of blocked contacts
 - **Add/Edit/Remove Contacts** - Manage contact list programmatically
 
 ### Newsletter & Communities (Baileys 6.7+)
+
 - **Newsletter Operations** - Create, subscribe, manage newsletters
 - **Newsletter Reactions** - React to newsletter messages
 - **Newsletter Administration** - Manage admins, subscribers
 - **Communities Support** - WhatsApp Communities feature
 
 ### Developer Tools
+
 - **Webhook Support** - HTTP webhooks for events
 - **CLI Tools** - Command-line interface for testing
 - **Mock Client** - Mock MiawClient for unit testing
@@ -275,6 +298,7 @@ Features available in Baileys but **rarely needed** for most bots. May be added 
 - **Health Check Endpoint** - Status monitoring
 
 ### Business (Advanced)
+
 - **Business Catalogs** - Manage product catalogs
 - **Business Hours** - Configure business operating hours
 - **Business Profile Management** - Full business profile customization
@@ -284,6 +308,7 @@ Features available in Baileys but **rarely needed** for most bots. May be added 
 ## Why These Are "Future Considerations"
 
 These features are:
+
 - **Low usage frequency** - Needed by < 10% of bots
 - **Complexity vs. value** - Add significant code for niche use cases
 - **Maintainability** - Keeping library focused and simple
@@ -291,6 +316,7 @@ These features are:
 - **Community-driven** - Will add if there's strong demand
 
 If you need any of these features, please:
+
 1. Open a GitHub issue explaining your use case
 2. Show community interest (👍 reactions)
 3. We'll prioritize based on demand
@@ -299,20 +325,20 @@ If you need any of these features, please:
 
 ## Version Planning Summary
 
-| Version | Focus | Status |
-|---------|-------|--------|
-| v0.1.0 | Foundation (text, sessions, reconnection) | ✅ Released |
-| v0.2.0 | Media essentials (send/receive/download) | 📋 Planned |
-| v0.3.0 | Message context (reply, edits, reactions) | 📋 Planned |
-| v0.4.0 | Validation & basic social (check number, groups, contacts) | 📋 Planned |
-| v0.5.0 | UX polish (read receipts, typing, presence) | 📋 Planned |
-| v0.6.0 | Advanced messaging (react, forward, edit, delete) | 📋 Planned |
-| v0.7.0 | Group management (full admin capabilities) | 📋 Planned |
-| v0.8.0 | Profile management (customize bot profile) | 📋 Planned |
-| v0.9.0 | Business features (products, labels) | 📋 Planned |
-| v1.0.0 | **Production ready** (first stable release) | 🎯 Goal |
-| v1.1.0 | Performance & reliability (storage, queuing) | 💡 Future |
-| v1.2.0 | Interactive messages (polls, buttons, lists) | 💡 Future |
+| Version | Focus                                                      | Status      |
+| ------- | ---------------------------------------------------------- | ----------- |
+| v0.1.0  | Foundation (text, sessions, reconnection)                  | ✅ Released |
+| v0.2.0  | Media essentials (send/receive/download)                   | 📋 Planned  |
+| v0.3.0  | Message context (reply, edits, reactions)                  | 📋 Planned  |
+| v0.4.0  | Validation & basic social (check number, groups, contacts) | 📋 Planned  |
+| v0.5.0  | UX polish (read receipts, typing, presence)                | 📋 Planned  |
+| v0.6.0  | Advanced messaging (react, forward, edit, delete)          | 📋 Planned  |
+| v0.7.0  | Group management (full admin capabilities)                 | 📋 Planned  |
+| v0.8.0  | Profile management (customize bot profile)                 | 📋 Planned  |
+| v0.9.0  | Business features (products, labels)                       | 📋 Planned  |
+| v1.0.0  | **Production ready** (first stable release)                | 🎯 Goal     |
+| v1.1.0  | Performance & reliability (storage, queuing)               | 💡 Future   |
+| v1.2.0  | Interactive messages (polls, buttons, lists)               | 💡 Future   |
 
 ---
 
@@ -330,6 +356,7 @@ This roadmap is aligned with **@whiskeysockets/baileys v6.7.21+**:
 ## How to Request Features
 
 ### For Core Features (< 1.0.0)
+
 If you think a feature should be in the core library:
 
 1. **Check this roadmap** - See if it's already planned
@@ -338,6 +365,7 @@ If you think a feature should be in the core library:
 4. **Provide use cases** - Real-world examples
 
 ### For Future Considerations
+
 If you need a feature from Future Considerations:
 
 1. **Open a GitHub issue** - Describe your use case
@@ -363,6 +391,7 @@ Want to help implement a feature?
 ## Completed Milestones
 
 ### 2025-11-19 - v0.1.0 Initial Release
+
 - ✅ Project architecture and setup
 - ✅ TypeScript with strict mode
 - ✅ Core MiawClient implementation
