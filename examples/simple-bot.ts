@@ -9,6 +9,7 @@
  */
 
 import { MiawClient } from '../src';
+import qrcode from 'qrcode-terminal';
 
 // Create a new client instance
 const client = new MiawClient({
@@ -21,13 +22,16 @@ const client = new MiawClient({
 client.on('qr', (qr) => {
   console.log('\n=================================');
   console.log('QR Code received! Scan with WhatsApp:');
-  console.log(qr);
   console.log('=================================\n');
 
-  // In a real app, you might want to:
-  // - Display QR as image using qrcode-terminal
+  // Display QR code in terminal
+  qrcode.generate(qr, { small: true });
+
+  console.log('\n=================================\n');
+
+  // In a real app, you might also want to:
   // - Send it to a web dashboard
-  // - Save it as an image
+  // - Save it as an image file
 });
 
 // When client is ready and connected
