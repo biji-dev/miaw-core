@@ -14,7 +14,12 @@ module.exports = {
   verbose: true,
   // Transform TypeScript files with ts-jest, ESM modules with babel
   transform: {
-    '^.+\\.tsx?$': 'ts-jest',
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.test.json',
+      },
+    ],
     '^.+\\.m?jsx?$': 'babel-jest',
   },
   // Don't transform node_modules except @whiskeysockets
