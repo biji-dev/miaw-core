@@ -29,30 +29,30 @@ npm install miaw-core
 ## Quick Start
 
 ```typescript
-import { MiawClient } from 'miaw-core';
+import { MiawClient } from "miaw-core";
 
 // Create client
 const client = new MiawClient({
-  instanceId: 'my-bot',
-  sessionPath: './sessions'
+  instanceId: "my-bot",
+  sessionPath: "./sessions",
 });
 
 // Handle QR code
-client.on('qr', (qr) => {
-  console.log('Scan this QR code:', qr);
+client.on("qr", (qr) => {
+  console.log("Scan this QR code:", qr);
 });
 
 // When ready
-client.on('ready', () => {
-  console.log('Bot is ready!');
+client.on("ready", () => {
+  console.log("Bot is ready!");
 });
 
 // Receive messages
-client.on('message', async (message) => {
-  console.log('Received:', message.text);
+client.on("message", async (message) => {
+  console.log("Received:", message.text);
 
   // Reply
-  await client.sendText(message.from, 'Hello!');
+  await client.sendText(message.from, "Hello!");
 });
 
 // Start
@@ -60,52 +60,6 @@ await client.connect();
 ```
 
 For more examples and detailed usage, see the [Usage Guide](./USAGE.md).
-
-## API Quick Reference
-
-### Core Methods
-
-```typescript
-// Connection
-await client.connect()
-await client.disconnect()
-client.isConnected()
-client.getConnectionState()
-
-// Messaging
-await client.sendText(to, text)
-
-// Info
-client.getInstanceId()
-```
-
-### Events
-
-```typescript
-client.on('qr', (qr) => {})              // QR code for authentication
-client.on('ready', () => {})              // Client connected
-client.on('message', (msg) => {})         // New message received
-client.on('connection', (state) => {})    // Connection state changed
-client.on('disconnected', (reason) => {}) // Disconnected
-client.on('reconnecting', (attempt) => {})// Reconnecting
-client.on('error', (error) => {})         // Error occurred
-client.on('session_saved', () => {})      // Session persisted
-```
-
-### Configuration
-
-```typescript
-new MiawClient({
-  instanceId: 'bot-id',          // Required: Unique identifier
-  sessionPath: './sessions',     // Optional: Session storage path
-  debug: false,                  // Optional: Enable logging
-  autoReconnect: true,           // Optional: Auto-reconnect
-  maxReconnectAttempts: Infinity,// Optional: Max reconnect attempts
-  reconnectDelay: 3000,          // Optional: Reconnect delay (ms)
-})
-```
-
-For complete API documentation, see the [Usage Guide](./USAGE.md).
 
 ## Current Capabilities (v0.1.0)
 
@@ -137,7 +91,7 @@ Miaw Core handles these Baileys complexities for you:
 
 ## Project Structure
 
-```
+```text
 miaw-core/
 ├── src/
 │   ├── client/          # Main MiawClient class
@@ -162,15 +116,10 @@ Contributions are welcome! To contribute:
 5. Submit a pull request
 
 Please include:
+
 - Tests for new features
 - Updated documentation
 - Examples if applicable
-
-## Support
-
-- **Documentation:** [USAGE.md](./USAGE.md)
-- **Issues:** [GitHub Issues](https://github.com/yourusername/miaw-core/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/miaw-core/discussions)
 
 ## License
 
