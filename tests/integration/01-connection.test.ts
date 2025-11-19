@@ -3,6 +3,7 @@
  */
 import { MiawClient } from '../../src';
 import { createTestClient, waitForEvent, TEST_CONFIG } from '../setup';
+import qrcode from 'qrcode-terminal';
 
 describe('Connection & Authentication', () => {
   let client: MiawClient;
@@ -16,27 +17,30 @@ describe('Connection & Authentication', () => {
   test('test_initial_connection', async () => {
     client = createTestClient();
 
-    // Listen for QR or ready event
-    const qrPromise = waitForEvent(client, 'qr', 5000).catch(() => null);
-    const readyPromise = waitForEvent(client, 'ready', TEST_CONFIG.connectTimeout);
+    // Listen for QR code and display it
+    client.on('qr', (qr) => {
+      console.log('\n=================================');
+      console.log('QR CODE REQUIRED - Scan with WhatsApp');
+      console.log('=================================\n');
+
+      // Display QR code in terminal
+      qrcode.generate(qr, { small: true });
+
+      console.log('\n=================================');
+      console.log('Waiting for QR scan...');
+      console.log('=================================\n');
+    });
 
     // Connect
     await client.connect();
 
-    // Either QR is shown (first time) or ready is emitted (session exists)
-    const qr = await qrPromise;
-    if (qr) {
-      console.log('\n=== QR CODE REQUIRED ===');
-      console.log('Please scan the QR code with your test WhatsApp number');
-      console.log('QR Code:', qr);
-      console.log('========================\n');
-    }
-
     // Wait for ready
-    await readyPromise;
+    await waitForEvent(client, 'ready', TEST_CONFIG.connectTimeout);
 
     // Verify connection
     expect(client.getInstanceId()).toBe(TEST_CONFIG.instanceId);
+
+    console.log('✅ Connection successful!');
   }, TEST_CONFIG.connectTimeout + 5000);
 
   test('test_session_persistence', async () => {
