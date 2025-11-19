@@ -1,5 +1,4 @@
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
@@ -13,4 +12,13 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testTimeout: 60000, // 60 seconds for integration tests
   verbose: true,
+  // Transform TypeScript files with ts-jest, ESM modules with babel
+  transform: {
+    '^.+\\.tsx?$': 'ts-jest',
+    '^.+\\.m?jsx?$': 'babel-jest',
+  },
+  // Don't transform node_modules except @whiskeysockets
+  transformIgnorePatterns: [
+    'node_modules/(?!@whiskeysockets)',
+  ],
 };
