@@ -614,125 +614,17 @@ if (result.success) {
 
 ## Complete Example
 
-Full-featured bot with all current capabilities:
+For a full-featured bot demonstrating all current capabilities, see:
 
-```typescript
-import { MiawClient, MiawMessage } from 'miaw-core';
+**[examples/simple-bot.ts](./examples/simple-bot.ts)**
 
-// Configure client
-const client = new MiawClient({
-  instanceId: 'my-advanced-bot',
-  sessionPath: './sessions',
-  debug: true,
-  autoReconnect: true,
-  maxReconnectAttempts: 5,
-  reconnectDelay: 3000,
-});
-
-// QR Code handling
-client.on('qr', (qr) => {
-  console.log('\n📱 Scan this QR code with WhatsApp:');
-  console.log(qr);
-  // Or use qrcode-terminal for visual display
-});
-
-// Ready event
-client.on('ready', () => {
-  console.log('✅ Bot is ready!');
-  console.log(`Instance: ${client.getInstanceId()}`);
-});
-
-// Message handler
-client.on('message', async (msg: MiawMessage) => {
-  // Ignore own messages
-  if (msg.fromMe) return;
-
-  // Only handle text messages
-  if (msg.type !== 'text' || !msg.text) return;
-
-  console.log(`\n📨 New message from ${msg.from}`);
-  console.log(`Text: ${msg.text}`);
-
-  // Command handling
-  const text = msg.text.toLowerCase();
-
-  if (text === '/start') {
-    await client.sendText(msg.from,
-      'Welcome! 👋\n\nAvailable commands:\n' +
-      '/help - Show commands\n' +
-      '/ping - Test response\n' +
-      '/info - Bot information'
-    );
-  }
-  else if (text === '/ping') {
-    await client.sendText(msg.from, 'Pong! 🏓');
-  }
-  else if (text === '/info') {
-    const state = client.getConnectionState();
-    await client.sendText(msg.from,
-      `🤖 Bot Information\n\n` +
-      `Instance: ${client.getInstanceId()}\n` +
-      `State: ${state}\n` +
-      `Connected: ${client.isConnected()}`
-    );
-  }
-  else if (text === '/help') {
-    await client.sendText(msg.from,
-      '📚 Help\n\n' +
-      'This bot demonstrates Miaw Core capabilities:\n' +
-      '• Auto-reconnection\n' +
-      '• Session persistence\n' +
-      '• Text message send/receive\n' +
-      '• Command handling'
-    );
-  }
-  else {
-    // Echo unknown messages
-    await client.sendText(msg.from, `You said: ${msg.text}`);
-  }
-});
-
-// Connection monitoring
-client.on('connection', (state) => {
-  console.log(`🔌 Connection: ${state}`);
-});
-
-client.on('disconnected', (reason) => {
-  console.log(`❌ Disconnected: ${reason || 'unknown'}`);
-});
-
-client.on('reconnecting', (attempt) => {
-  console.log(`🔄 Reconnecting... Attempt ${attempt}`);
-});
-
-// Error handling
-client.on('error', (error) => {
-  console.error('❌ Error:', error.message);
-});
-
-// Session saved
-client.on('session_saved', () => {
-  console.log('💾 Session saved');
-});
-
-// Start bot
-(async () => {
-  try {
-    console.log('🚀 Starting bot...');
-    await client.connect();
-  } catch (error) {
-    console.error('Failed to start:', error);
-    process.exit(1);
-  }
-})();
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n👋 Shutting down...');
-  await client.disconnect();
-  process.exit(0);
-});
-```
+The example includes:
+- QR code authentication handling
+- Message receiving and command processing
+- Connection state monitoring
+- Auto-reconnection handling
+- Error handling
+- Graceful shutdown
 
 ---
 
