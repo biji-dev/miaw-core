@@ -1,10 +1,13 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "composite": true,
     "types": ["jest", "node"],
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "outDir": "./dist-test",
+    "rootDir": "./"
   },
   "include": ["tests/**/*", "src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "examples"]
 }
