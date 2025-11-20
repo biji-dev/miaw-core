@@ -38,31 +38,45 @@ client.on("qr", (qr) => {
 client.on("ready", () => {
   console.log("✓ Bot is ready and connected!");
   console.log(`Instance ID: ${client.getInstanceId()}`);
+  console.log("\nNote: LID to phone number mapping is built from incoming messages.");
+  console.log("You'll see resolved phone numbers for outgoing messages after");
+  console.log("receiving at least one message from that contact.\n");
 });
 
-// Handle incoming messages
+// Handle all messages (incoming and outgoing)
 client.on("message", async (message) => {
-  // Ignore messages from yourself
-  if (message.fromMe) return;
-
   // Determine JID type for display
   let jidType = "Unknown";
   if (message.from.includes("@s.whatsapp.net")) jidType = "Standard (Phone)";
   else if (message.from.includes("@lid")) jidType = "Link ID (Privacy)";
   else if (message.from.includes("@g.us")) jidType = "Group";
 
-  console.log("\n--- New Message ---");
+  // Resolve LID to phone number if possible
+  const resolvedJid = client.resolveLidToJid(message.from);
+  const resolvedPhone = client.getPhoneFromJid(message.from);
+
+  const direction = message.fromMe ? "OUTGOING" : "INCOMING";
+  console.log(`\n--- ${direction} Message ---`);
   console.log(`From (JID): ${message.from}`);
   console.log(`JID Type: ${jidType}`);
-  console.log(`Phone Number: ${message.senderPhone || "N/A"}`);
+
+  // Show resolved phone number for LID messages
+  if (message.from.includes("@lid") && resolvedJid !== message.from) {
+    console.log(`Resolved JID: ${resolvedJid}`);
+    console.log(`Resolved Phone: ${resolvedPhone || "N/A"}`);
+  } else {
+    console.log(`Phone Number: ${message.senderPhone || resolvedPhone || "N/A"}`);
+  }
+
   console.log(`Sender Name: ${message.senderName || "N/A"}`);
   console.log(`Text: ${message.text}`);
   console.log(`Type: ${message.type}`);
   console.log(`Is Group: ${message.isGroup}`);
+  console.log(`From Me: ${message.fromMe}`);
   console.log(`Timestamp: ${new Date(message.timestamp * 1000).toISOString()}`);
 
-  // Simple echo bot - reply with the same message
-  if (message.text) {
+  // Only echo for incoming messages
+  if (!message.fromMe && message.text) {
     const response = `Echo: ${message.text}`;
     const result1 = await client.sendText(message.from, response);
     const result2 =
@@ -70,10 +84,10 @@ client.on("message", async (message) => {
       (await client.sendText(message.senderPhone, response));
 
     if (result1.success || (result2 && result2.success)) {
-      console.log(`✓ Sent reply: ${response}`);
+      console.log(`Sent reply: ${response}`);
     } else {
       console.error(
-        `✗ Failed to send: ${result1.error || (result2 && result2?.error)}`
+        `Failed to send: ${result1.error || (result2 && result2?.error)}`
       );
     }
   }

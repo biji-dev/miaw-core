@@ -28,6 +28,7 @@ export class MiawClient extends EventEmitter {
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private logger: any;
+  private lidToJidMap: Map<string, string> = new Map();
 
   constructor(options: MiawClientOptions) {
     super();
@@ -132,6 +133,24 @@ export class MiawClient extends EventEmitter {
       this.emit('session_saved');
     });
 
+    // Contact updates - build LID to JID mapping
+    this.socket.ev.on('contacts.upsert', (contacts) => {
+      this.updateLidToJidMapping(contacts);
+    });
+
+    this.socket.ev.on('contacts.update', (contacts) => {
+      this.updateLidToJidMapping(contacts);
+    });
+
+    // Chat updates - extract LID mappings from chat data
+    this.socket.ev.on('chats.upsert', (chats) => {
+      this.updateLidFromChats(chats);
+    });
+
+    this.socket.ev.on('chats.update', (chats) => {
+      this.updateLidFromChats(chats);
+    });
+
     // Messages
     this.socket.ev.on('messages.upsert', async (m) => {
       if (m.type !== 'notify') return;
@@ -144,12 +163,119 @@ export class MiawClient extends EventEmitter {
           console.log('=========================================\n');
         }
 
+        // Build LID to JID mapping from incoming messages
+        // Incoming messages have remoteJid (phone) and senderLid (LID)
+        if (!msg.key.fromMe && msg.key.senderLid && msg.key.remoteJid) {
+          const lid = msg.key.senderLid.endsWith('@lid')
+            ? msg.key.senderLid
+            : `${msg.key.senderLid}@lid`;
+          this.lidToJidMap.set(lid, msg.key.remoteJid);
+
+          if (this.options.debug) {
+            console.log(`[LID Mapping] ${lid} -> ${msg.key.remoteJid}`);
+          }
+        }
+
         const normalized = MessageHandler.normalize({ messages: [msg] });
         if (normalized) {
           this.emit('message', normalized);
         }
       }
     });
+  }
+
+  /**
+   * Update LID to JID mapping from contacts
+   */
+  private updateLidToJidMapping(contacts: any[]): void {
+    for (const contact of contacts) {
+      // Contact has both lid and jid - create mapping
+      if (contact.lid && contact.id && !contact.id.endsWith('@lid')) {
+        this.lidToJidMap.set(contact.lid, contact.id);
+        if (this.options.debug) {
+          console.log(`[Contact LID Mapping] ${contact.lid} -> ${contact.id}`);
+        }
+      }
+      // Also check if id is the LID and jid field exists
+      if (contact.id?.endsWith('@lid') && contact.jid) {
+        this.lidToJidMap.set(contact.id, contact.jid);
+        if (this.options.debug) {
+          console.log(`[Contact LID Mapping] ${contact.id} -> ${contact.jid}`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Update LID to JID mapping from chat data
+   */
+  private updateLidFromChats(chats: any[]): void {
+    for (const chat of chats) {
+      // Chat may have both id (could be phone or LID) and lidJid
+      if (chat.lidJid && chat.id && !chat.id.endsWith('@lid')) {
+        const lid = chat.lidJid.endsWith('@lid')
+          ? chat.lidJid
+          : `${chat.lidJid}@lid`;
+        this.lidToJidMap.set(lid, chat.id);
+        if (this.options.debug) {
+          console.log(`[Chat LID Mapping] ${lid} -> ${chat.id}`);
+        }
+      }
+      // Reverse: if id is LID and we have a phone JID
+      if (chat.id?.endsWith('@lid') && chat.jid) {
+        this.lidToJidMap.set(chat.id, chat.jid);
+        if (this.options.debug) {
+          console.log(`[Chat LID Mapping] ${chat.id} -> ${chat.jid}`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Resolve LID to phone number JID
+   * @param lid - The LID format JID (e.g., '12345@lid')
+   * @returns The phone number JID if found, or the original LID
+   */
+  resolveLidToJid(lid: string): string {
+    if (!lid?.endsWith('@lid')) {
+      return lid;
+    }
+    return this.lidToJidMap.get(lid) || lid;
+  }
+
+  /**
+   * Get phone number from LID or JID
+   * @param jid - Any JID format
+   * @returns Phone number string or undefined
+   */
+  getPhoneFromJid(jid: string): string | undefined {
+    const resolved = this.resolveLidToJid(jid);
+    if (resolved.endsWith('@s.whatsapp.net')) {
+      return resolved.replace('@s.whatsapp.net', '');
+    }
+    return undefined;
+  }
+
+  /**
+   * Manually register a LID to phone number mapping
+   * Useful for persisting mappings across sessions
+   * @param lid - The LID (e.g., '12345@lid' or just '12345')
+   * @param phoneJid - The phone JID (e.g., '6281234567890@s.whatsapp.net' or just '6281234567890')
+   */
+  registerLidMapping(lid: string, phoneJid: string): void {
+    const normalizedLid = lid.includes('@') ? lid : `${lid}@lid`;
+    const normalizedJid = phoneJid.includes('@')
+      ? phoneJid
+      : `${phoneJid}@s.whatsapp.net`;
+    this.lidToJidMap.set(normalizedLid, normalizedJid);
+  }
+
+  /**
+   * Get all registered LID mappings
+   * Useful for persisting mappings to storage
+   */
+  getLidMappings(): Map<string, string> {
+    return new Map(this.lidToJidMap);
   }
 
   /**
