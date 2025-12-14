@@ -186,6 +186,42 @@
 | `test_reaction_emoji_field`        | Reaction has emoji                 | `emoji` field contains reaction         |
 | `test_reaction_is_removal_field`   | Reaction has isRemoval flag        | `isRemoval` indicates if removed        |
 
+### 3.4 Contact Validation & Group Info Tests (v0.4.0)
+
+**Purpose**: Verify contact validation and group information features
+
+#### Check Number
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_check_valid_number`          | Check valid WhatsApp number        | Returns exists=true with JID            |
+| `test_check_invalid_number`        | Check invalid number               | Returns exists=false                    |
+| `test_check_number_with_formatting`| Check number with +, -, spaces     | Cleans and checks correctly             |
+| `test_check_multiple_numbers`      | Batch check multiple numbers       | Returns array of results                |
+
+#### Contact Info
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_get_contact_info`            | Get contact information            | Returns ContactInfo with JID, status    |
+| `test_get_business_profile`        | Get business profile               | Returns BusinessProfile or null         |
+
+#### Profile Picture
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_get_profile_picture_low_res` | Get low-res profile picture        | Returns URL or null                     |
+| `test_get_profile_picture_high_res`| Get high-res profile picture       | Returns URL or null                     |
+
+#### Group Info
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_get_group_info`              | Get group metadata                 | Returns GroupInfo with participants     |
+| `test_get_group_participants`      | Get group participant list         | Returns array of GroupParticipant       |
+| `test_get_group_info_invalid_jid`  | Get info for invalid group JID     | Returns null                            |
+| `test_get_group_profile_picture`   | Get group profile picture          | Returns URL or null                     |
+
 ### 4. JID Format Handling Tests
 
 **Purpose**: Ensure all WhatsApp JID formats are handled correctly

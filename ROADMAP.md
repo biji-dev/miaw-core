@@ -4,9 +4,9 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 0.3.0
+**Current Version:** 0.4.0
 **Baileys Version:** 6.7.21+
-**Status:** Message Context Release
+**Status:** Validation & Social Release
 **Last Updated:** 2025-12-14
 
 ---
@@ -96,22 +96,23 @@ We prioritize features based on:
 
 ---
 
-### v0.4.0 - Validation & Basic Social
+### v0.4.0 - Validation & Basic Social ✅
 
 **Focus:** Contact validation and basic group support
 
 #### Contact Operations
 
-- [ ] **Check Phone Number on WhatsApp** - Verify if number is registered (validation before sending)
-- [ ] **Get Contact Info** - Fetch contact name and basic info
-- [ ] **Get Profile Picture URL** - Retrieve contact profile picture
-- [ ] **Fetch Contact Status** - Get contact's about/status text
+- [x] **Check Phone Number on WhatsApp** - Verify if number is registered (validation before sending)
+- [x] **Get Contact Info** - Fetch contact name and basic info
+- [x] **Get Profile Picture URL** - Retrieve contact profile picture
+- [x] **Fetch Contact Status** - Get contact's about/status text
+- [x] **Get Business Profile** - Fetch business profile information
 
 #### Basic Group Support
 
-- [ ] **Send to Groups** - Send messages to group chats
-- [ ] **Get Group Info** - Fetch group metadata (name, participants, description)
-- [ ] **Get Group Participants** - List all group members
+- [x] **Send to Groups** - Send messages to group chats (already in v0.1.0)
+- [x] **Get Group Info** - Fetch group metadata (name, participants, description)
+- [x] **Get Group Participants** - List all group members
 
 ---
 
@@ -330,7 +331,7 @@ If you need any of these features, please:
 | v0.1.0  | Foundation (text, sessions, reconnection)                  | ✅ Released |
 | v0.2.0  | Media essentials (send/receive/download)                   | ✅ Released |
 | v0.3.0  | Message context (reply, edits, reactions)                  | ✅ Released |
-| v0.4.0  | Validation & basic social (check number, groups, contacts) | 📋 Planned  |
+| v0.4.0  | Validation & basic social (check number, groups, contacts) | ✅ Released |
 | v0.5.0  | UX polish (read receipts, typing, presence)                | 📋 Planned  |
 | v0.6.0  | Advanced messaging (react, forward, edit, delete)          | 📋 Planned  |
 | v0.7.0  | Group management (full admin capabilities)                 | 📋 Planned  |
@@ -390,6 +391,18 @@ Want to help implement a feature?
 
 ## Completed Milestones
 
+### 2025-12-14 - v0.4.0 Validation & Basic Social
+
+- ✅ `checkNumber()` - Verify if phone number is on WhatsApp
+- ✅ `checkNumbers()` - Batch check multiple phone numbers
+- ✅ `getContactInfo()` - Fetch contact info including status
+- ✅ `getBusinessProfile()` - Get business account profile
+- ✅ `getProfilePicture()` - Get profile picture URL (low/high res)
+- ✅ `getGroupInfo()` - Fetch group metadata
+- ✅ `getGroupParticipants()` - List all group members
+- ✅ New types: CheckNumberResult, ContactInfo, BusinessProfile, GroupInfo, GroupParticipant
+- ✅ Integration tests for all contact/group features
+
 ### 2025-12-14 - v0.3.0 Message Context
 
 - ✅ Reply to messages (quoted) for all send methods
@@ -448,5 +461,5 @@ Want to help implement a feature?
 
 **Last Updated:** 2025-12-14
 **Status:** Active Development
-**Next Release:** v0.4.0 (Validation & Basic Social)
-**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 → ... → v1.0.0 (Production Ready)
+**Next Release:** v0.5.0 (UX Polish)
+**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 → ... → v1.0.0 (Production Ready)

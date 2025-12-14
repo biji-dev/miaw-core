@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-12-14
+
+### Added
+
+- **Contact Validation**
+  - `checkNumber()` - Verify if phone number is on WhatsApp
+  - `checkNumbers()` - Batch check multiple phone numbers
+  - Returns `CheckNumberResult` with exists flag and JID
+
+- **Contact Information**
+  - `getContactInfo()` - Fetch contact info including status
+  - `getBusinessProfile()` - Get business account profile details
+  - `getProfilePicture()` - Get profile picture URL (supports low/high res)
+
+- **Group Information**
+  - `getGroupInfo()` - Fetch group metadata (name, description, settings)
+  - `getGroupParticipants()` - List all group members with roles
+
+- **New Types**
+  - `CheckNumberResult` - Result of number validation
+  - `ContactInfo` - Contact information structure
+  - `BusinessProfile` - Business profile data
+  - `GroupInfo` - Group metadata
+  - `GroupParticipant` - Group member with role
+
+- **Integration Tests**
+  - Contact validation tests
+  - Group info tests
+
 ## [0.3.0] - 2025-12-14
 
 ### Added
@@ -117,6 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - @hapi/boom ^10.0.1
 - pino ^8.19.0
 
+[0.4.0]: https://github.com/biji-dev/miaw-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/biji-dev/miaw-core/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/biji-dev/miaw-core/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/biji-dev/miaw-core/releases/tag/v0.1.0
