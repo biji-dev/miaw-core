@@ -29,6 +29,8 @@ import {
   BusinessProfile,
   GroupParticipant,
   GroupInfo,
+  PresenceStatus,
+  PresenceUpdate,
 } from '../types';
 import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
@@ -226,6 +228,28 @@ export class MiawClient extends EventEmitter {
         }
 
         this.emit('message_reaction', reactionData);
+      }
+    });
+
+    // Presence updates
+    this.socket.ev.on('presence.update', (presence) => {
+      const jid = presence.id;
+      const presences = presence.presences;
+
+      for (const [participantJid, presenceData] of Object.entries(presences)) {
+        const update: PresenceUpdate = {
+          jid: participantJid || jid,
+          status: presenceData.lastKnownPresence as PresenceUpdate['status'],
+          lastSeen: presenceData.lastSeen,
+        };
+
+        if (this.options.debug) {
+          console.log('\n========== PRESENCE UPDATE ==========');
+          console.log(JSON.stringify(update, null, 2));
+          console.log('=====================================\n');
+        }
+
+        this.emit('presence', update);
       }
     });
   }
@@ -966,6 +990,142 @@ export class MiawClient extends EventEmitter {
   async getGroupParticipants(groupJid: string): Promise<GroupParticipant[] | null> {
     const groupInfo = await this.getGroupInfo(groupJid);
     return groupInfo?.participants || null;
+  }
+
+  // ============================================
+  // UX Methods (v0.5.0)
+  // ============================================
+
+  /**
+   * Mark a message as read (send read receipt)
+   * @param message - The MiawMessage to mark as read
+   * @returns true if successful, false otherwise
+   */
+  async markAsRead(message: MiawMessage): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot mark as read. Connection state: ${this.connectionState}`);
+      }
+
+      if (!message.raw?.key) {
+        throw new Error('Message does not contain raw Baileys key data.');
+      }
+
+      await this.socket.readMessages([message.raw.key]);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to mark as read:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send typing indicator to a chat
+   * @param to - Recipient phone number, JID, or group JID
+   */
+  async sendTyping(to: string): Promise<void> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot send typing. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+      await this.socket.sendPresenceUpdate('composing', jid);
+    } catch (error) {
+      this.logger.error('Failed to send typing indicator:', error);
+    }
+  }
+
+  /**
+   * Send recording indicator to a chat (shows "recording audio...")
+   * @param to - Recipient phone number, JID, or group JID
+   */
+  async sendRecording(to: string): Promise<void> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot send recording. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+      await this.socket.sendPresenceUpdate('recording', jid);
+    } catch (error) {
+      this.logger.error('Failed to send recording indicator:', error);
+    }
+  }
+
+  /**
+   * Stop typing/recording indicator (send paused state)
+   * @param to - Recipient phone number, JID, or group JID
+   */
+  async stopTyping(to: string): Promise<void> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot stop typing. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+      await this.socket.sendPresenceUpdate('paused', jid);
+    } catch (error) {
+      this.logger.error('Failed to stop typing indicator:', error);
+    }
+  }
+
+  /**
+   * Set bot's presence status (online/offline)
+   * @param status - 'available' (online) or 'unavailable' (offline)
+   */
+  async setPresence(status: PresenceStatus): Promise<void> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot set presence. Connection state: ${this.connectionState}`);
+      }
+
+      await this.socket.sendPresenceUpdate(status);
+    } catch (error) {
+      this.logger.error('Failed to set presence:', error);
+    }
+  }
+
+  /**
+   * Subscribe to presence updates for a contact
+   * After subscribing, you'll receive 'presence' events when the contact's status changes
+   * @param jidOrPhone - Contact's JID or phone number to monitor
+   */
+  async subscribePresence(jidOrPhone: string): Promise<void> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot subscribe to presence. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      await this.socket.presenceSubscribe(jid);
+    } catch (error) {
+      this.logger.error('Failed to subscribe to presence:', error);
+    }
   }
 
   /**
