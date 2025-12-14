@@ -4,9 +4,9 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 0.2.0
+**Current Version:** 0.3.0
 **Baileys Version:** 6.7.21+
-**Status:** Media Essentials Release
+**Status:** Message Context Release
 **Last Updated:** 2025-12-14
 
 ---
@@ -85,14 +85,14 @@ We prioritize features based on:
 
 ---
 
-### v0.3.0 - Message Context
+### v0.3.0 - Message Context ✅
 
 **Focus:** Conversational context and message updates
 
-- [ ] **Reply to Messages** - Quote/reply to specific messages (contextual conversation)
-- [ ] **Receive Edit Notifications** - Detect when messages are edited by others
-- [ ] **Receive Delete Notifications** - Detect when messages are deleted by others
-- [ ] **Receive Reactions** - Parse and handle incoming message reactions
+- [x] **Reply to Messages** - Quote/reply to specific messages (contextual conversation)
+- [x] **Receive Edit Notifications** - Detect when messages are edited by others
+- [x] **Receive Delete Notifications** - Detect when messages are deleted by others
+- [x] **Receive Reactions** - Parse and handle incoming message reactions
 
 ---
 
@@ -329,7 +329,7 @@ If you need any of these features, please:
 | ------- | ---------------------------------------------------------- | ----------- |
 | v0.1.0  | Foundation (text, sessions, reconnection)                  | ✅ Released |
 | v0.2.0  | Media essentials (send/receive/download)                   | ✅ Released |
-| v0.3.0  | Message context (reply, edits, reactions)                  | 📋 Planned  |
+| v0.3.0  | Message context (reply, edits, reactions)                  | ✅ Released |
 | v0.4.0  | Validation & basic social (check number, groups, contacts) | 📋 Planned  |
 | v0.5.0  | UX polish (read receipts, typing, presence)                | 📋 Planned  |
 | v0.6.0  | Advanced messaging (react, forward, edit, delete)          | 📋 Planned  |
@@ -390,6 +390,16 @@ Want to help implement a feature?
 
 ## Completed Milestones
 
+### 2025-12-14 - v0.3.0 Message Context
+
+- ✅ Reply to messages (quoted) for all send methods
+- ✅ `message_edit` event for edit notifications
+- ✅ `message_delete` event for delete notifications
+- ✅ `message_reaction` event for reactions
+- ✅ `MessageEdit`, `MessageDelete`, `MessageReaction` types
+- ✅ Integration tests for all message context features
+- ✅ Updated TESTS.md with message context test cases
+
 ### 2025-12-14 - v0.2.0 Media Essentials
 
 - ✅ `sendImage()` with caption and view-once support
@@ -438,5 +448,5 @@ Want to help implement a feature?
 
 **Last Updated:** 2025-12-14
 **Status:** Active Development
-**Next Release:** v0.3.0 (Message Context)
-**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 → ... → v1.0.0 (Production Ready)
+**Next Release:** v0.4.0 (Validation & Basic Social)
+**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 → ... → v1.0.0 (Production Ready)

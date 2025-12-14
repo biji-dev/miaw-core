@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-12-14
+
+### Added
+
+- **Reply to Messages (Quoted)**
+  - All send methods now support `quoted` option
+  - Pass `MiawMessage` to reply to specific messages
+  - Works with `sendText()`, `sendImage()`, `sendDocument()`, `sendVideo()`, `sendAudio()`
+
+- **Edit Notifications**
+  - `message_edit` event when messages are edited
+  - `MessageEdit` type with messageId, chatId, newText, editTimestamp
+
+- **Delete Notifications**
+  - `message_delete` event when messages are deleted/revoked
+  - `MessageDelete` type with messageId, chatId, fromMe, participant
+
+- **Reactions**
+  - `message_reaction` event when messages receive reactions
+  - `MessageReaction` type with messageId, chatId, reactorId, emoji, isRemoval
+
+- **New Types**
+  - `MessageEdit` - Edit notification data
+  - `MessageDelete` - Delete notification data
+  - `MessageReaction` - Reaction notification data
+
+- **Integration Tests**
+  - Message context tests for all v0.3.0 features
+
+### Changed
+
+- `SendTextOptions.quoted` now accepts `MiawMessage` instead of string
+- `SendImageOptions.quoted`, `SendDocumentOptions.quoted`, `SendVideoOptions.quoted`, `SendAudioOptions.quoted` now accept `MiawMessage`
+
 ## [0.2.0] - 2025-12-14
 
 ### Added
@@ -83,5 +117,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - @hapi/boom ^10.0.1
 - pino ^8.19.0
 
+[0.3.0]: https://github.com/biji-dev/miaw-core/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/biji-dev/miaw-core/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/biji-dev/miaw-core/releases/tag/v0.1.0

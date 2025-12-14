@@ -146,6 +146,46 @@
 | `test_download_non_media_fails`    | Attempt download on text message   | Returns null, logs error gracefully     |
 | `test_download_without_raw_fails`  | Download message without raw field | Returns null, logs error gracefully     |
 
+### 3.3 Message Context Tests (v0.3.0)
+
+**Purpose**: Verify message context features (replies, edits, deletes, reactions)
+
+#### Reply to Messages (Quoted)
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_reply_text_to_message`       | Reply to message with text         | Text sent as reply with quote visible   |
+| `test_reply_text_without_raw_field`| Reply with invalid MiawMessage     | Sends normally (quote ignored)          |
+| `test_reply_image_to_message`      | Reply to message with image        | Image sent as reply with quote visible  |
+| `test_reply_document_to_message`   | Reply to message with document     | Document sent as reply with quote       |
+| `test_reply_video_to_message`      | Reply to message with video        | Video sent as reply with quote visible  |
+| `test_reply_audio_to_message`      | Reply to message with audio        | Audio sent as reply with quote visible  |
+| `test_reply_to_group_message`      | Reply to message in group          | Reply appears in group with quote       |
+| `test_reply_to_own_message`        | Reply to bot's own message         | Self-reply works if raw available       |
+
+#### Edit Notifications
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_receive_edit_notification`   | Receive edit notification          | `message_edit` event fires              |
+| `test_edit_notification_has_new_text` | Edit contains new text          | `newText` field has updated content     |
+| `test_edit_notification_has_timestamp` | Edit has timestamp             | `editTimestamp` is valid number         |
+
+#### Delete Notifications
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_receive_delete_notification` | Receive delete notification        | `message_delete` event fires            |
+| `test_delete_notification_has_fromMe` | Delete has fromMe field         | `fromMe` boolean indicates sender       |
+
+#### Reactions
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_receive_reaction`            | Receive reaction to message        | `message_reaction` event fires          |
+| `test_reaction_emoji_field`        | Reaction has emoji                 | `emoji` field contains reaction         |
+| `test_reaction_is_removal_field`   | Reaction has isRemoval flag        | `isRemoval` indicates if removed        |
+
 ### 4. JID Format Handling Tests
 
 **Purpose**: Ensure all WhatsApp JID formats are handled correctly
@@ -355,5 +395,5 @@ When Baileys changes:
 
 ---
 
-_Last Updated: 2025-11-19_
-_Version: 0.1.0_
+_Last Updated: 2025-12-14_
+_Version: 0.3.0_
