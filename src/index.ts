@@ -23,6 +23,11 @@ export {
   MessageEdit,
   MessageDelete,
   MessageReaction,
+  CheckNumberResult,
+  ContactInfo,
+  BusinessProfile,
+  GroupParticipant,
+  GroupInfo,
 } from './types';
 
 // Utility exports for advanced users

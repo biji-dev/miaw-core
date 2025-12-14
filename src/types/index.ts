@@ -311,3 +311,100 @@ export interface SendMessageResult {
   /** Error message if failed */
   error?: string;
 }
+
+/**
+ * Result of checking if a phone number is on WhatsApp
+ */
+export interface CheckNumberResult {
+  /** Whether the number exists on WhatsApp */
+  exists: boolean;
+
+  /** The JID if the number exists */
+  jid?: string;
+
+  /** Error message if check failed */
+  error?: string;
+}
+
+/**
+ * Contact information
+ */
+export interface ContactInfo {
+  /** Contact's JID */
+  jid: string;
+
+  /** Contact's display name (if available) */
+  name?: string;
+
+  /** Contact's phone number */
+  phone?: string;
+
+  /** Contact's status/about text */
+  status?: string;
+
+  /** Whether this is a business account */
+  isBusiness?: boolean;
+}
+
+/**
+ * Business profile information
+ */
+export interface BusinessProfile {
+  /** Business description */
+  description?: string;
+
+  /** Business category */
+  category?: string;
+
+  /** Business website */
+  website?: string;
+
+  /** Business email */
+  email?: string;
+
+  /** Business address */
+  address?: string;
+}
+
+/**
+ * Group participant information
+ */
+export interface GroupParticipant {
+  /** Participant's JID */
+  jid: string;
+
+  /** Participant's role in the group */
+  role: 'admin' | 'superadmin' | 'member';
+}
+
+/**
+ * Group metadata information
+ */
+export interface GroupInfo {
+  /** Group JID */
+  jid: string;
+
+  /** Group name/subject */
+  name: string;
+
+  /** Group description */
+  description?: string;
+
+  /** Group owner JID */
+  owner?: string;
+
+  /** Group creation timestamp */
+  createdAt?: number;
+
+  /** Number of participants */
+  participantCount: number;
+
+  /** List of participants */
+  participants: GroupParticipant[];
+
+  /** Whether only admins can send messages */
+  announce?: boolean;
+
+  /** Whether only admins can edit group info */
+  restrict?: boolean;
+}
