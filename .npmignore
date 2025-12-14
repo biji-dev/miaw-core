@@ -1,0 +1,36 @@
+# Source files (dist/ is published)
+src/
+
+# Tests
+tests/
+*.test.ts
+*.spec.ts
+jest.config.js
+.env.test
+.env.test.example
+test-sessions/
+
+# Examples
+examples/
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+
+# Documentation (README.md is included by default)
+CLAUDE.md
+TESTS.md
+ROADMAP.md
+
+# Sessions (runtime data)
+sessions/
+
+# Build artifacts
+*.tsbuildinfo
+
+# Misc
+.DS_Store
+*.log
+coverage/
