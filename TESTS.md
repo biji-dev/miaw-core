@@ -222,6 +222,34 @@
 | `test_get_group_info_invalid_jid`  | Get info for invalid group JID     | Returns null                            |
 | `test_get_group_profile_picture`   | Get group profile picture          | Returns URL or null                     |
 
+### 3.5 UX Polish Tests (v0.5.0)
+
+**Purpose**: Verify read receipts, typing indicators, and presence features
+
+#### Read Receipts
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_mark_as_read_requires_raw_message` | markAsRead needs raw field   | Returns false without raw data          |
+| `test_mark_as_read_with_received_message` | Mark actual message as read | Returns true, read receipt sent         |
+
+#### Typing & Recording Indicators
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_send_typing_indicator`       | Send typing indicator              | Contact sees "typing..."                |
+| `test_send_recording_indicator`    | Send recording indicator           | Contact sees "recording audio..."       |
+| `test_send_typing_to_group`        | Send typing indicator to group     | Group members see typing indicator      |
+
+#### Presence
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_set_presence_available`      | Set bot presence to online         | Presence updated to 'available'         |
+| `test_set_presence_unavailable`    | Set bot presence to offline        | Presence updated to 'unavailable'       |
+| `test_subscribe_presence`          | Subscribe to contact presence      | `presence` events received on changes   |
+| `test_presence_event_structure`    | Verify PresenceUpdate type         | Contains jid, status, lastSeen fields   |
+
 ### 4. JID Format Handling Tests
 
 **Purpose**: Ensure all WhatsApp JID formats are handled correctly
@@ -432,4 +460,4 @@ When Baileys changes:
 ---
 
 _Last Updated: 2025-12-14_
-_Version: 0.3.0_
+_Version: 0.5.0_

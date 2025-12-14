@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-12-14
+
+### Added
+
+- **Read Receipts**
+  - `markAsRead()` - Mark messages as read (send read receipt)
+  - Returns boolean indicating success
+
+- **Typing & Recording Indicators**
+  - `sendTyping()` - Send "typing..." indicator to a chat
+  - `sendRecording()` - Send "recording audio..." indicator
+  - `stopTyping()` - Stop typing/recording indicator (send paused state)
+  - Works with both individual contacts and groups
+
+- **Presence Management**
+  - `setPresence()` - Set bot's online/offline status ('available' or 'unavailable')
+  - `subscribePresence()` - Subscribe to contact's presence updates
+  - `presence` event - Emitted when subscribed contact's presence changes
+
+- **New Types**
+  - `PresenceStatus` - Union type for 'available' | 'unavailable'
+  - `PresenceUpdate` - Presence notification data (jid, status, lastSeen)
+
+- **Integration Tests**
+  - UX polish tests for all v0.5.0 features
+
 ## [0.4.0] - 2025-12-14
 
 ### Added
@@ -146,6 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - @hapi/boom ^10.0.1
 - pino ^8.19.0
 
+[0.5.0]: https://github.com/biji-dev/miaw-core/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/biji-dev/miaw-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/biji-dev/miaw-core/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/biji-dev/miaw-core/compare/v0.1.0...v0.2.0

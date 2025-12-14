@@ -4,9 +4,9 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 0.4.0
+**Current Version:** 0.5.0
 **Baileys Version:** 6.7.21+
-**Status:** Validation & Social Release
+**Status:** UX Polish Release
 **Last Updated:** 2025-12-14
 
 ---
@@ -116,15 +116,15 @@ We prioritize features based on:
 
 ---
 
-### v0.5.0 - UX Polish
+### v0.5.0 - UX Polish ✅
 
 **Focus:** Better user experience and bot interaction
 
-- [ ] **Read Receipts** - Mark messages as read
-- [ ] **Typing Indicator** - Send "typing..." status while preparing response
-- [ ] **Recording Indicator** - Send "recording audio..." status
-- [ ] **Presence Updates** - Set online/offline/available status
-- [ ] **Presence Subscribe** - Monitor contact's online/offline status
+- [x] **Read Receipts** - Mark messages as read
+- [x] **Typing Indicator** - Send "typing..." status while preparing response
+- [x] **Recording Indicator** - Send "recording audio..." status
+- [x] **Presence Updates** - Set online/offline/available status
+- [x] **Presence Subscribe** - Monitor contact's online/offline status
 
 ---
 
@@ -332,7 +332,7 @@ If you need any of these features, please:
 | v0.2.0  | Media essentials (send/receive/download)                   | ✅ Released |
 | v0.3.0  | Message context (reply, edits, reactions)                  | ✅ Released |
 | v0.4.0  | Validation & basic social (check number, groups, contacts) | ✅ Released |
-| v0.5.0  | UX polish (read receipts, typing, presence)                | 📋 Planned  |
+| v0.5.0  | UX polish (read receipts, typing, presence)                | ✅ Released |
 | v0.6.0  | Advanced messaging (react, forward, edit, delete)          | 📋 Planned  |
 | v0.7.0  | Group management (full admin capabilities)                 | 📋 Planned  |
 | v0.8.0  | Profile management (customize bot profile)                 | 📋 Planned  |
@@ -390,6 +390,18 @@ Want to help implement a feature?
 ---
 
 ## Completed Milestones
+
+### 2025-12-14 - v0.5.0 UX Polish
+
+- ✅ `markAsRead()` - Mark messages as read (send read receipts)
+- ✅ `sendTyping()` - Send "typing..." indicator to contacts
+- ✅ `sendRecording()` - Send "recording audio..." indicator
+- ✅ `stopTyping()` - Stop typing/recording indicator
+- ✅ `setPresence()` - Set online/offline presence status
+- ✅ `subscribePresence()` - Subscribe to contact presence updates
+- ✅ `presence` event for receiving presence updates
+- ✅ New types: PresenceStatus, PresenceUpdate
+- ✅ Integration tests for all UX features
 
 ### 2025-12-14 - v0.4.0 Validation & Basic Social
 
@@ -461,5 +473,5 @@ Want to help implement a feature?
 
 **Last Updated:** 2025-12-14
 **Status:** Active Development
-**Next Release:** v0.5.0 (UX Polish)
-**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 → ... → v1.0.0 (Production Ready)
+**Next Release:** v0.6.0 (Advanced Messaging)
+**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 → ... → v1.0.0 (Production Ready)
