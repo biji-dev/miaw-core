@@ -118,6 +118,69 @@ export type ConnectionState =
   | 'qr_required';
 
 /**
+ * Message edit notification
+ */
+export interface MessageEdit {
+  /** The message ID that was edited */
+  messageId: string;
+
+  /** The chat/conversation JID where the message was edited */
+  chatId: string;
+
+  /** New text content after edit */
+  newText?: string;
+
+  /** Timestamp of the edit (Unix timestamp in milliseconds) */
+  editTimestamp: number;
+
+  /** Original raw Baileys message for advanced use */
+  raw?: any;
+}
+
+/**
+ * Message delete notification
+ */
+export interface MessageDelete {
+  /** The message ID that was deleted */
+  messageId: string;
+
+  /** The chat/conversation JID where the message was deleted */
+  chatId: string;
+
+  /** Whether the message was deleted by the sender (true) or recipient (false) */
+  fromMe: boolean;
+
+  /** Participant who deleted (for group chats) */
+  participant?: string;
+
+  /** Original raw Baileys message for advanced use */
+  raw?: any;
+}
+
+/**
+ * Reaction to a message
+ */
+export interface MessageReaction {
+  /** The message ID that received the reaction */
+  messageId: string;
+
+  /** The chat/conversation JID */
+  chatId: string;
+
+  /** The reactor's JID (who sent the reaction) */
+  reactorId: string;
+
+  /** Emoji reaction text (empty string means reaction was removed) */
+  emoji: string;
+
+  /** Whether the reaction was removed (emoji will be empty) */
+  isRemoval: boolean;
+
+  /** Original raw Baileys reaction for advanced use */
+  raw?: any;
+}
+
+/**
  * Events emitted by MiawClient
  */
 export interface MiawClientEvents {
@@ -129,6 +192,15 @@ export interface MiawClientEvents {
 
   /** Emitted when a new message is received */
   message: (message: MiawMessage) => void;
+
+  /** Emitted when a message is edited */
+  message_edit: (edit: MessageEdit) => void;
+
+  /** Emitted when a message is deleted/revoked */
+  message_delete: (deletion: MessageDelete) => void;
+
+  /** Emitted when a message receives a reaction */
+  message_reaction: (reaction: MessageReaction) => void;
 
   /** Emitted when connection state changes */
   connection: (state: ConnectionState) => void;
@@ -150,8 +222,8 @@ export interface MiawClientEvents {
  * Options for sending text messages
  */
 export interface SendTextOptions {
-  /** Quote/reply to a specific message ID */
-  quoted?: string;
+  /** Quote/reply to a specific message (pass the MiawMessage to reply to) */
+  quoted?: MiawMessage;
 }
 
 /**
@@ -168,8 +240,8 @@ export interface SendImageOptions {
   /** Image caption */
   caption?: string;
 
-  /** Quote/reply to a specific message ID */
-  quoted?: string;
+  /** Quote/reply to a specific message (pass the MiawMessage to reply to) */
+  quoted?: MiawMessage;
 
   /** Send as view-once message (disappears after viewing) */
   viewOnce?: boolean;
@@ -188,8 +260,8 @@ export interface SendDocumentOptions {
   /** MIME type (e.g., 'application/pdf'). Auto-detected from fileName if not provided */
   mimetype?: string;
 
-  /** Quote/reply to a specific message ID */
-  quoted?: string;
+  /** Quote/reply to a specific message (pass the MiawMessage to reply to) */
+  quoted?: MiawMessage;
 }
 
 /**
@@ -199,8 +271,8 @@ export interface SendVideoOptions {
   /** Video caption */
   caption?: string;
 
-  /** Quote/reply to a specific message ID */
-  quoted?: string;
+  /** Quote/reply to a specific message (pass the MiawMessage to reply to) */
+  quoted?: MiawMessage;
 
   /** Send as view-once message (disappears after viewing) */
   viewOnce?: boolean;
@@ -216,8 +288,8 @@ export interface SendVideoOptions {
  * Options for sending audio messages
  */
 export interface SendAudioOptions {
-  /** Quote/reply to a specific message ID */
-  quoted?: string;
+  /** Quote/reply to a specific message (pass the MiawMessage to reply to) */
+  quoted?: MiawMessage;
 
   /** Send as voice note (PTT - push to talk). Shows as voice message instead of audio file */
   ptt?: boolean;

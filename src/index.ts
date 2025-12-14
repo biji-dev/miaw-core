@@ -20,6 +20,9 @@ export {
   SendDocumentOptions,
   SendVideoOptions,
   SendAudioOptions,
+  MessageEdit,
+  MessageDelete,
+  MessageReaction,
 } from './types';
 
 // Utility exports for advanced users
