@@ -1,4 +1,4 @@
-import { MiawMessage } from '../types';
+import { MiawMessage, MediaInfo } from '../types';
 
 /**
  * Handles message normalization and parsing
@@ -21,29 +21,47 @@ export class MessageHandler {
         : message.key.senderPn;
       const senderName = message.pushName;
 
-      // Extract text content based on message type
+      // Extract text content and type based on message type
       let text: string | undefined;
       let type: MiawMessage['type'] = 'unknown';
+      let media: MediaInfo | undefined;
 
-      if (message.message?.conversation) {
-        text = message.message.conversation;
+      // Check for view-once messages first
+      const viewOnceMessage = message.message?.viewOnceMessage?.message ||
+                              message.message?.viewOnceMessageV2?.message ||
+                              message.message?.viewOnceMessageV2Extension?.message;
+      const actualMessage = viewOnceMessage || message.message;
+      const isViewOnce = !!viewOnceMessage;
+
+      if (actualMessage?.conversation) {
+        text = actualMessage.conversation;
         type = 'text';
-      } else if (message.message?.extendedTextMessage?.text) {
-        text = message.message.extendedTextMessage.text;
+      } else if (actualMessage?.extendedTextMessage?.text) {
+        text = actualMessage.extendedTextMessage.text;
         type = 'text';
-      } else if (message.message?.imageMessage?.caption) {
-        text = message.message.imageMessage.caption;
+      } else if (actualMessage?.imageMessage) {
+        const imgMsg = actualMessage.imageMessage;
+        text = imgMsg.caption;
         type = 'image';
-      } else if (message.message?.videoMessage?.caption) {
-        text = message.message.videoMessage.caption;
+        media = this.extractImageMetadata(imgMsg, isViewOnce);
+      } else if (actualMessage?.videoMessage) {
+        const vidMsg = actualMessage.videoMessage;
+        text = vidMsg.caption;
         type = 'video';
-      } else if (message.message?.documentMessage) {
-        text = message.message.documentMessage.caption;
+        media = this.extractVideoMetadata(vidMsg, isViewOnce);
+      } else if (actualMessage?.documentMessage) {
+        const docMsg = actualMessage.documentMessage;
+        text = docMsg.caption;
         type = 'document';
-      } else if (message.message?.audioMessage) {
+        media = this.extractDocumentMetadata(docMsg);
+      } else if (actualMessage?.audioMessage) {
+        const audMsg = actualMessage.audioMessage;
         type = 'audio';
-      } else if (message.message?.stickerMessage) {
+        media = this.extractAudioMetadata(audMsg);
+      } else if (actualMessage?.stickerMessage) {
+        const stkMsg = actualMessage.stickerMessage;
         type = 'sticker';
+        media = this.extractStickerMetadata(stkMsg);
       }
 
       const normalized: MiawMessage = {
@@ -59,6 +77,7 @@ export class MessageHandler {
         participant: isGroup ? message.key.participant : undefined,
         fromMe: message.key.fromMe || false,
         type,
+        media,
         raw: message,
       };
 
@@ -67,6 +86,69 @@ export class MessageHandler {
       console.error('Failed to normalize message:', error);
       return null;
     }
+  }
+
+  /**
+   * Extract metadata from image message
+   */
+  private static extractImageMetadata(imgMsg: any, isViewOnce: boolean): MediaInfo {
+    return {
+      mimetype: imgMsg.mimetype,
+      fileSize: imgMsg.fileLength ? Number(imgMsg.fileLength) : undefined,
+      width: imgMsg.width,
+      height: imgMsg.height,
+      viewOnce: isViewOnce,
+    };
+  }
+
+  /**
+   * Extract metadata from video message
+   */
+  private static extractVideoMetadata(vidMsg: any, isViewOnce: boolean): MediaInfo {
+    return {
+      mimetype: vidMsg.mimetype,
+      fileSize: vidMsg.fileLength ? Number(vidMsg.fileLength) : undefined,
+      width: vidMsg.width,
+      height: vidMsg.height,
+      duration: vidMsg.seconds,
+      gifPlayback: vidMsg.gifPlayback || false,
+      viewOnce: isViewOnce,
+    };
+  }
+
+  /**
+   * Extract metadata from document message
+   */
+  private static extractDocumentMetadata(docMsg: any): MediaInfo {
+    return {
+      mimetype: docMsg.mimetype,
+      fileSize: docMsg.fileLength ? Number(docMsg.fileLength) : undefined,
+      fileName: docMsg.fileName,
+    };
+  }
+
+  /**
+   * Extract metadata from audio message
+   */
+  private static extractAudioMetadata(audMsg: any): MediaInfo {
+    return {
+      mimetype: audMsg.mimetype,
+      fileSize: audMsg.fileLength ? Number(audMsg.fileLength) : undefined,
+      duration: audMsg.seconds,
+      ptt: audMsg.ptt || false,
+    };
+  }
+
+  /**
+   * Extract metadata from sticker message
+   */
+  private static extractStickerMetadata(stkMsg: any): MediaInfo {
+    return {
+      mimetype: stkMsg.mimetype,
+      fileSize: stkMsg.fileLength ? Number(stkMsg.fileLength) : undefined,
+      width: stkMsg.width,
+      height: stkMsg.height,
+    };
   }
 
   /**
