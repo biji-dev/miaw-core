@@ -21,6 +21,9 @@ import {
   SendVideoOptions,
   SendAudioOptions,
   MiawMessage,
+  MessageEdit,
+  MessageDelete,
+  MessageReaction,
 } from '../types';
 import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
@@ -172,6 +175,13 @@ export class MiawClient extends EventEmitter {
           console.log('=========================================\n');
         }
 
+        // Check for protocol messages (edits and deletes)
+        const protocolMessage = msg.message?.protocolMessage;
+        if (protocolMessage) {
+          this.handleProtocolMessage(msg, protocolMessage);
+          continue; // Don't process as regular message
+        }
+
         // Build LID to JID mapping from incoming messages
         // Incoming messages have remoteJid (phone) and senderLid (LID)
         if (!msg.key.fromMe && msg.key.senderLid && msg.key.remoteJid) {
@@ -191,6 +201,83 @@ export class MiawClient extends EventEmitter {
         }
       }
     });
+
+    // Reactions
+    this.socket.ev.on('messages.reaction', (reactions) => {
+      for (const { key, reaction } of reactions) {
+        const reactionData: MessageReaction = {
+          messageId: key.id || '',
+          chatId: key.remoteJid || '',
+          reactorId: reaction.key?.participant || reaction.key?.remoteJid || '',
+          emoji: reaction.text || '',
+          isRemoval: !reaction.text,
+          raw: { key, reaction },
+        };
+
+        if (this.options.debug) {
+          console.log('\n========== REACTION ==========');
+          console.log(JSON.stringify(reactionData, null, 2));
+          console.log('==============================\n');
+        }
+
+        this.emit('message_reaction', reactionData);
+      }
+    });
+  }
+
+  /**
+   * Handle protocol messages (edits, deletes)
+   */
+  private handleProtocolMessage(msg: any, protocolMessage: any): void {
+    const type = protocolMessage.type;
+    const key = protocolMessage.key;
+
+    // Type 0 = REVOKE (delete)
+    if (type === 0 && key) {
+      const deletion: MessageDelete = {
+        messageId: key.id || '',
+        chatId: key.remoteJid || msg.key.remoteJid || '',
+        fromMe: key.fromMe || false,
+        participant: key.participant,
+        raw: msg,
+      };
+
+      if (this.options.debug) {
+        console.log('\n========== MESSAGE DELETED ==========');
+        console.log(JSON.stringify(deletion, null, 2));
+        console.log('=====================================\n');
+      }
+
+      this.emit('message_delete', deletion);
+    }
+
+    // Type 14 = MESSAGE_EDIT
+    if (type === 14 && protocolMessage.editedMessage) {
+      const editedMessage = protocolMessage.editedMessage;
+      const newText =
+        editedMessage.conversation ||
+        editedMessage.extendedTextMessage?.text ||
+        editedMessage.imageMessage?.caption ||
+        editedMessage.videoMessage?.caption;
+
+      const edit: MessageEdit = {
+        messageId: key?.id || '',
+        chatId: key?.remoteJid || msg.key.remoteJid || '',
+        newText,
+        editTimestamp: protocolMessage.timestampMs
+          ? Number(protocolMessage.timestampMs)
+          : Date.now(),
+        raw: msg,
+      };
+
+      if (this.options.debug) {
+        console.log('\n========== MESSAGE EDITED ==========');
+        console.log(JSON.stringify(edit, null, 2));
+        console.log('====================================\n');
+      }
+
+      this.emit('message_edit', edit);
+    }
   }
 
   /**
@@ -342,11 +429,14 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Send a text message
+   * @param to - Recipient phone number or JID
+   * @param text - Text content to send
+   * @param options - Optional settings (quoted for reply)
    */
   async sendText(
     to: string,
     text: string,
-    _options?: SendTextOptions
+    options?: SendTextOptions
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
@@ -359,9 +449,10 @@ export class MiawClient extends EventEmitter {
 
       const jid = MessageHandler.formatPhoneToJid(to);
 
-      const result = await this.socket.sendMessage(jid, {
-        text,
-      });
+      // Build send options (for quoting/replying)
+      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+
+      const result = await this.socket.sendMessage(jid, { text }, sendOptions);
 
       return {
         success: true,
@@ -405,7 +496,10 @@ export class MiawClient extends EventEmitter {
         viewOnce: options?.viewOnce,
       };
 
-      const result = await this.socket.sendMessage(jid, imageContent);
+      // Build send options (for quoting/replying)
+      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+
+      const result = await this.socket.sendMessage(jid, imageContent, sendOptions);
 
       return {
         success: true,
@@ -464,7 +558,10 @@ export class MiawClient extends EventEmitter {
         caption: options?.caption,
       };
 
-      const result = await this.socket.sendMessage(jid, documentContent);
+      // Build send options (for quoting/replying)
+      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+
+      const result = await this.socket.sendMessage(jid, documentContent, sendOptions);
 
       return {
         success: true,
@@ -510,7 +607,10 @@ export class MiawClient extends EventEmitter {
         ptv: options?.ptv,
       };
 
-      const result = await this.socket.sendMessage(jid, videoContent);
+      // Build send options (for quoting/replying)
+      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+
+      const result = await this.socket.sendMessage(jid, videoContent, sendOptions);
 
       return {
         success: true,
@@ -560,7 +660,10 @@ export class MiawClient extends EventEmitter {
         ptt: options?.ptt,
       };
 
-      const result = await this.socket.sendMessage(jid, audioContent);
+      // Build send options (for quoting/replying)
+      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+
+      const result = await this.socket.sendMessage(jid, audioContent, sendOptions);
 
       return {
         success: true,
