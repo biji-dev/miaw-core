@@ -202,6 +202,9 @@ export interface MiawClientEvents {
   /** Emitted when a message receives a reaction */
   message_reaction: (reaction: MessageReaction) => void;
 
+  /** Emitted when a contact's presence changes (online/offline/typing) */
+  presence: (update: PresenceUpdate) => void;
+
   /** Emitted when connection state changes */
   connection: (state: ConnectionState) => void;
 
@@ -407,4 +410,23 @@ export interface GroupInfo {
 
   /** Whether only admins can edit group info */
   restrict?: boolean;
+}
+
+/**
+ * Presence status types
+ */
+export type PresenceStatus = 'available' | 'unavailable';
+
+/**
+ * Presence update from a contact
+ */
+export interface PresenceUpdate {
+  /** Contact's JID */
+  jid: string;
+
+  /** Last known presence status */
+  status: 'available' | 'unavailable' | 'composing' | 'recording' | 'paused';
+
+  /** Last seen timestamp (if available) */
+  lastSeen?: number;
 }

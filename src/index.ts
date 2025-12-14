@@ -28,6 +28,8 @@ export {
   BusinessProfile,
   GroupParticipant,
   GroupInfo,
+  PresenceStatus,
+  PresenceUpdate,
 } from './types';
 
 // Utility exports for advanced users
