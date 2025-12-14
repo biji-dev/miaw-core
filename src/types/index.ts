@@ -25,6 +25,38 @@ export interface MiawClientOptions {
 }
 
 /**
+ * Media metadata extracted from media messages
+ */
+export interface MediaInfo {
+  /** MIME type of the media (e.g., 'image/jpeg', 'video/mp4') */
+  mimetype?: string;
+
+  /** File size in bytes */
+  fileSize?: number;
+
+  /** Original filename (for documents) */
+  fileName?: string;
+
+  /** Width in pixels (for images/videos) */
+  width?: number;
+
+  /** Height in pixels (for images/videos) */
+  height?: number;
+
+  /** Duration in seconds (for audio/video) */
+  duration?: number;
+
+  /** Whether this is a voice note / PTT (for audio) */
+  ptt?: boolean;
+
+  /** Whether this is a GIF playback video */
+  gifPlayback?: boolean;
+
+  /** Whether this is a view-once message */
+  viewOnce?: boolean;
+}
+
+/**
  * Normalized message structure - simplified from Baileys
  */
 export interface MiawMessage {
@@ -50,7 +82,7 @@ export interface MiawMessage {
   /** Sender's display name (pushName from WhatsApp) */
   senderName?: string;
 
-  /** Message text content */
+  /** Message text content (text or caption for media) */
   text?: string;
 
   /** Timestamp when message was sent (Unix timestamp in seconds) */
@@ -67,6 +99,9 @@ export interface MiawMessage {
 
   /** Message type */
   type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'unknown';
+
+  /** Media metadata (only present for media messages: image, video, audio, document, sticker) */
+  media?: MediaInfo;
 
   /** Original raw message from Baileys (for advanced use) */
   raw?: any;
@@ -117,6 +152,78 @@ export interface MiawClientEvents {
 export interface SendTextOptions {
   /** Quote/reply to a specific message ID */
   quoted?: string;
+}
+
+/**
+ * Media source - can be a file path, URL, or Buffer
+ */
+export type MediaSource =
+  | string // File path or URL
+  | Buffer;
+
+/**
+ * Options for sending image messages
+ */
+export interface SendImageOptions {
+  /** Image caption */
+  caption?: string;
+
+  /** Quote/reply to a specific message ID */
+  quoted?: string;
+
+  /** Send as view-once message (disappears after viewing) */
+  viewOnce?: boolean;
+}
+
+/**
+ * Options for sending document messages
+ */
+export interface SendDocumentOptions {
+  /** Document caption */
+  caption?: string;
+
+  /** Custom filename to display (e.g., 'report.pdf') */
+  fileName?: string;
+
+  /** MIME type (e.g., 'application/pdf'). Auto-detected from fileName if not provided */
+  mimetype?: string;
+
+  /** Quote/reply to a specific message ID */
+  quoted?: string;
+}
+
+/**
+ * Options for sending video messages
+ */
+export interface SendVideoOptions {
+  /** Video caption */
+  caption?: string;
+
+  /** Quote/reply to a specific message ID */
+  quoted?: string;
+
+  /** Send as view-once message (disappears after viewing) */
+  viewOnce?: boolean;
+
+  /** Play as GIF (loops, no audio) */
+  gifPlayback?: boolean;
+
+  /** Send as video note (circular video, like Telegram) */
+  ptv?: boolean;
+}
+
+/**
+ * Options for sending audio messages
+ */
+export interface SendAudioOptions {
+  /** Quote/reply to a specific message ID */
+  quoted?: string;
+
+  /** Send as voice note (PTT - push to talk). Shows as voice message instead of audio file */
+  ptt?: boolean;
+
+  /** MIME type (e.g., 'audio/mp4', 'audio/ogg; codecs=opus'). Auto-detected if not provided */
+  mimetype?: string;
 }
 
 /**

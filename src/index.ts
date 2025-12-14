@@ -10,10 +10,16 @@ export { MiawClient } from './client/MiawClient';
 export {
   MiawClientOptions,
   MiawMessage,
+  MediaInfo,
   ConnectionState,
   SendTextOptions,
   SendMessageResult,
   MiawClientEvents,
+  MediaSource,
+  SendImageOptions,
+  SendDocumentOptions,
+  SendVideoOptions,
+  SendAudioOptions,
 } from './types';
 
 // Utility exports for advanced users
