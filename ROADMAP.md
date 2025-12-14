@@ -4,10 +4,10 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 0.1.0
+**Current Version:** 0.2.0
 **Baileys Version:** 6.7.21+
-**Status:** Initial Release
-**Last Updated:** 2025-11-19
+**Status:** Media Essentials Release
+**Last Updated:** 2025-12-14
 
 ---
 
@@ -66,22 +66,22 @@ We prioritize features based on:
 
 ## Planned Features - Core (< 1.0.0)
 
-### v0.2.0 - Media Essentials
+### v0.2.0 - Media Essentials ✅
 
 **Focus:** Send and receive rich media
 
 #### Send Media
 
-- [ ] **Send Images** - Send images with optional captions and mentions
-- [ ] **Send Videos** - Send video files with captions
-- [ ] **Send Audio** - Send audio messages
-- [ ] **Send Documents** - Send PDF, DOC, and other document types
+- [x] **Send Images** - Send images with optional captions, view-once support
+- [x] **Send Videos** - Send video files with captions, GIF playback, video notes (PTV)
+- [x] **Send Audio** - Send audio messages, voice notes (PTT) support
+- [x] **Send Documents** - Send PDF, DOC, and other document types with auto-mimetype detection
 
 #### Receive Media
 
-- [ ] **Receive All Media Types** - Parse incoming media messages
-- [ ] **Download Media** - Built-in utilities to download received media files
-- [ ] **Media Metadata** - Extract file info (size, mimetype, filename)
+- [x] **Receive All Media Types** - Parse incoming media messages with full metadata
+- [x] **Download Media** - Built-in `downloadMedia()` utility for received media
+- [x] **Media Metadata** - Extract file info (size, mimetype, filename, dimensions, duration)
 
 ---
 
@@ -328,7 +328,7 @@ If you need any of these features, please:
 | Version | Focus                                                      | Status      |
 | ------- | ---------------------------------------------------------- | ----------- |
 | v0.1.0  | Foundation (text, sessions, reconnection)                  | ✅ Released |
-| v0.2.0  | Media essentials (send/receive/download)                   | 📋 Planned  |
+| v0.2.0  | Media essentials (send/receive/download)                   | ✅ Released |
 | v0.3.0  | Message context (reply, edits, reactions)                  | 📋 Planned  |
 | v0.4.0  | Validation & basic social (check number, groups, contacts) | 📋 Planned  |
 | v0.5.0  | UX polish (read receipts, typing, presence)                | 📋 Planned  |
@@ -390,6 +390,18 @@ Want to help implement a feature?
 
 ## Completed Milestones
 
+### 2025-12-14 - v0.2.0 Media Essentials
+
+- ✅ `sendImage()` with caption and view-once support
+- ✅ `sendDocument()` with auto-mimetype detection
+- ✅ `sendVideo()` with caption, GIF playback, and PTV (video notes)
+- ✅ `sendAudio()` with PTT (voice notes) support
+- ✅ `downloadMedia()` utility for received media
+- ✅ `MediaInfo` type with full metadata extraction
+- ✅ View-once message detection
+- ✅ Integration tests for all media types
+- ✅ Updated TESTS.md with media test cases
+
 ### 2025-11-19 - v0.1.0 Initial Release
 
 - ✅ Project architecture and setup
@@ -424,7 +436,7 @@ Want to help implement a feature?
 
 ---
 
-**Last Updated:** 2025-11-19
+**Last Updated:** 2025-12-14
 **Status:** Active Development
-**Next Release:** v0.2.0 (Media Essentials)
-**Path to Stable:** v0.1.0 → v0.2.0 → ... → v1.0.0 (Production Ready)
+**Next Release:** v0.3.0 (Message Context)
+**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 → ... → v1.0.0 (Production Ready)

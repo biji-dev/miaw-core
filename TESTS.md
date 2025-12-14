@@ -91,6 +91,61 @@
 | `test_send_when_disconnected`  | Send while disconnected      | Returns error, doesn't crash              |
 | `test_send_invalid_jid`        | Send to malformed JID        | Returns error gracefully                  |
 
+### 3.1 Media Sending Tests (v0.2.0)
+
+**Purpose**: Verify media messages can be sent correctly
+
+#### Image Sending
+
+| Test Case                        | Description                   | Success Criteria                          |
+| -------------------------------- | ----------------------------- | ----------------------------------------- |
+| `test_send_image_from_path`      | Send image using file path    | Image sent, messageId returned            |
+| `test_send_image_with_caption`   | Send image with caption text  | Image + caption sent successfully         |
+| `test_send_image_from_buffer`    | Send image from Buffer        | Buffer converted to image, sent           |
+| `test_send_image_view_once`      | Send view-once image          | View-once flag applied, sent              |
+| `test_send_image_to_group`       | Send image to group           | Image appears in group chat               |
+| `test_send_image_when_disconnected` | Send image while disconnected | Returns error, doesn't crash           |
+
+#### Document Sending
+
+| Test Case                          | Description                     | Success Criteria                        |
+| ---------------------------------- | ------------------------------- | --------------------------------------- |
+| `test_send_document_from_path`     | Send document using file path   | Document sent, messageId returned       |
+| `test_send_document_with_filename` | Send document with custom name  | Custom filename shown to recipient      |
+| `test_send_document_with_caption`  | Send document with caption      | Document + caption sent successfully    |
+| `test_send_document_pdf`           | Send PDF document               | PDF mimetype detected/applied           |
+| `test_send_document_from_buffer`   | Send document from Buffer       | Buffer sent as document                 |
+
+#### Video Sending
+
+| Test Case                        | Description                   | Success Criteria                          |
+| -------------------------------- | ----------------------------- | ----------------------------------------- |
+| `test_send_video_from_path`      | Send video using file path    | Video sent, messageId returned            |
+| `test_send_video_with_caption`   | Send video with caption text  | Video + caption sent successfully         |
+| `test_send_video_as_gif`         | Send video with gifPlayback   | Video plays as GIF loop                   |
+| `test_send_video_from_buffer`    | Send video from Buffer        | Buffer converted to video, sent           |
+
+#### Audio Sending
+
+| Test Case                        | Description                   | Success Criteria                          |
+| -------------------------------- | ----------------------------- | ----------------------------------------- |
+| `test_send_audio_from_path`      | Send audio using file path    | Audio sent, messageId returned            |
+| `test_send_audio_as_voice_note`  | Send audio as PTT (voice)     | Audio shown as voice note                 |
+| `test_send_audio_from_buffer`    | Send audio from Buffer        | Buffer converted to audio, sent           |
+
+### 3.2 Media Download Tests (v0.2.0)
+
+**Purpose**: Verify media can be downloaded from received messages
+
+| Test Case                          | Description                        | Success Criteria                        |
+| ---------------------------------- | ---------------------------------- | --------------------------------------- |
+| `test_download_image`              | Download image from message        | Returns Buffer with image data          |
+| `test_download_video`              | Download video from message        | Returns Buffer with video data          |
+| `test_download_audio`              | Download audio from message        | Returns Buffer with audio data          |
+| `test_download_document`           | Download document from message     | Returns Buffer with document data       |
+| `test_download_non_media_fails`    | Attempt download on text message   | Returns null, logs error gracefully     |
+| `test_download_without_raw_fails`  | Download message without raw field | Returns null, logs error gracefully     |
+
 ### 4. JID Format Handling Tests
 
 **Purpose**: Ensure all WhatsApp JID formats are handled correctly
