@@ -24,6 +24,11 @@ import {
   MessageEdit,
   MessageDelete,
   MessageReaction,
+  CheckNumberResult,
+  ContactInfo,
+  BusinessProfile,
+  GroupParticipant,
+  GroupInfo,
 } from '../types';
 import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
@@ -713,6 +718,254 @@ export class MiawClient extends EventEmitter {
       this.logger.error('Failed to download media:', error);
       return null;
     }
+  }
+
+  // ============================================
+  // Contact & Validation Methods (v0.4.0)
+  // ============================================
+
+  /**
+   * Check if a phone number is registered on WhatsApp
+   * @param phone - Phone number to check (with country code, e.g., '6281234567890')
+   * @returns CheckNumberResult with exists flag and JID if found
+   */
+  async checkNumber(phone: string): Promise<CheckNumberResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot check number. Connection state: ${this.connectionState}`);
+      }
+
+      // Clean phone number - remove non-digits
+      const cleanPhone = phone.replace(/\D/g, '');
+
+      const results = await this.socket.onWhatsApp(cleanPhone);
+      const result = results?.[0];
+
+      return {
+        exists: !!result?.exists,
+        jid: result?.jid,
+      };
+    } catch (error) {
+      this.logger.error('Failed to check number:', error);
+      return {
+        exists: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Check multiple phone numbers on WhatsApp (batch check)
+   * @param phones - Array of phone numbers to check
+   * @returns Array of CheckNumberResult
+   */
+  async checkNumbers(phones: string[]): Promise<CheckNumberResult[]> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot check numbers. Connection state: ${this.connectionState}`);
+      }
+
+      // Clean all phone numbers
+      const cleanPhones = phones.map((p) => p.replace(/\D/g, ''));
+
+      const results = await this.socket.onWhatsApp(...cleanPhones);
+
+      return (results || []).map((result) => ({
+        exists: !!result?.exists,
+        jid: result?.jid,
+      }));
+    } catch (error) {
+      this.logger.error('Failed to check numbers:', error);
+      return phones.map(() => ({
+        exists: false,
+        error: (error as Error).message,
+      }));
+    }
+  }
+
+  /**
+   * Get contact information including status
+   * @param jidOrPhone - Contact's JID or phone number
+   * @returns ContactInfo or null if not found
+   */
+  async getContactInfo(jidOrPhone: string): Promise<ContactInfo | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get contact info. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+
+      // Fetch status
+      let status: string | undefined;
+      try {
+        const statusResult = await this.socket.fetchStatus(jid);
+        // fetchStatus returns an array, get first result
+        const firstResult = Array.isArray(statusResult) ? statusResult[0] : statusResult;
+        status = (firstResult as any)?.status?.status || undefined;
+      } catch {
+        // Status might not be available
+      }
+
+      // Check if business account
+      let isBusiness = false;
+      try {
+        const businessProfile = await this.socket.getBusinessProfile(jid);
+        isBusiness = !!businessProfile;
+      } catch {
+        // Not a business account or not available
+      }
+
+      // Extract phone from JID
+      const phone = jid.endsWith('@s.whatsapp.net')
+        ? jid.replace('@s.whatsapp.net', '')
+        : undefined;
+
+      return {
+        jid,
+        phone,
+        status,
+        isBusiness,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get contact info:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get business profile information
+   * @param jidOrPhone - Contact's JID or phone number
+   * @returns BusinessProfile or null if not a business account
+   */
+  async getBusinessProfile(jidOrPhone: string): Promise<BusinessProfile | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get business profile. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      const profile = await this.socket.getBusinessProfile(jid);
+
+      if (!profile) {
+        return null;
+      }
+
+      return {
+        description: profile.description || undefined,
+        category: profile.category || undefined,
+        website: Array.isArray(profile.website) ? profile.website[0] : profile.website,
+        email: profile.email || undefined,
+        address: profile.address || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get business profile:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get profile picture URL for a contact or group
+   * @param jidOrPhone - Contact's JID, phone number, or group JID
+   * @param highRes - Whether to get high resolution image (default: false)
+   * @returns Profile picture URL or null if not available
+   */
+  async getProfilePicture(
+    jidOrPhone: string,
+    highRes: boolean = false
+  ): Promise<string | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get profile picture. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      const url = await this.socket.profilePictureUrl(jid, highRes ? 'image' : 'preview');
+
+      return url || null;
+    } catch (error) {
+      // Profile picture might not be available (privacy settings)
+      this.logger.debug('Profile picture not available:', error);
+      return null;
+    }
+  }
+
+  // ============================================
+  // Group Methods (v0.4.0)
+  // ============================================
+
+  /**
+   * Get group metadata/information
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @returns GroupInfo or null if not found
+   */
+  async getGroupInfo(groupJid: string): Promise<GroupInfo | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get group info. Connection state: ${this.connectionState}`);
+      }
+
+      // Ensure it's a group JID
+      if (!groupJid.endsWith('@g.us')) {
+        throw new Error('Invalid group JID. Must end with @g.us');
+      }
+
+      const metadata = await this.socket.groupMetadata(groupJid);
+
+      const participants: GroupParticipant[] = metadata.participants.map((p) => ({
+        jid: p.id,
+        role: p.admin === 'superadmin' ? 'superadmin' : p.admin === 'admin' ? 'admin' : 'member',
+      }));
+
+      return {
+        jid: metadata.id,
+        name: metadata.subject,
+        description: metadata.desc || undefined,
+        owner: metadata.owner || undefined,
+        createdAt: metadata.creation,
+        participantCount: metadata.participants.length,
+        participants,
+        announce: metadata.announce,
+        restrict: metadata.restrict,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get group info:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get list of participants in a group
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @returns Array of GroupParticipant or null if group not found
+   */
+  async getGroupParticipants(groupJid: string): Promise<GroupParticipant[] | null> {
+    const groupInfo = await this.getGroupInfo(groupJid);
+    return groupInfo?.participants || null;
   }
 
   /**
