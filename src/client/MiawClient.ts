@@ -3,6 +3,8 @@ import makeWASocket, {
   WASocket,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  AnyMessageContent,
+  downloadMediaMessage,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { EventEmitter } from 'events';
@@ -13,7 +15,14 @@ import {
   SendTextOptions,
   SendMessageResult,
   MiawClientEvents,
+  MediaSource,
+  SendImageOptions,
+  SendDocumentOptions,
+  SendVideoOptions,
+  SendAudioOptions,
+  MiawMessage,
 } from '../types';
+import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
 import { MessageHandler } from '../handlers/MessageHandler';
 
@@ -365,6 +374,286 @@ export class MiawClient extends EventEmitter {
         error: (error as Error).message,
       };
     }
+  }
+
+  /**
+   * Send an image message
+   * @param to - Recipient phone number or JID
+   * @param image - Image source (file path, URL, or Buffer)
+   * @param options - Optional settings (caption, viewOnce)
+   */
+  async sendImage(
+    to: string,
+    image: MediaSource,
+    options?: SendImageOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+
+      // Build image message payload
+      const imageContent: AnyMessageContent = {
+        image: Buffer.isBuffer(image) ? image : { url: image },
+        caption: options?.caption,
+        viewOnce: options?.viewOnce,
+      };
+
+      const result = await this.socket.sendMessage(jid, imageContent);
+
+      return {
+        success: true,
+        messageId: result?.key?.id || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to send image:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send a document message
+   * @param to - Recipient phone number or JID
+   * @param document - Document source (file path, URL, or Buffer)
+   * @param options - Optional settings (fileName, mimetype, caption)
+   */
+  async sendDocument(
+    to: string,
+    document: MediaSource,
+    options?: SendDocumentOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+
+      // Determine filename and mimetype
+      let fileName = options?.fileName;
+      let mimetype = options?.mimetype;
+
+      // If document is a file path string and no fileName provided, extract from path
+      if (!Buffer.isBuffer(document) && !fileName) {
+        fileName = path.basename(document);
+      }
+
+      // Auto-detect mimetype from fileName if not provided
+      if (!mimetype && fileName) {
+        mimetype = this.getMimetypeFromFileName(fileName);
+      }
+
+      // Build document message payload
+      const documentContent: AnyMessageContent = {
+        document: Buffer.isBuffer(document) ? document : { url: document },
+        fileName: fileName || 'document',
+        mimetype: mimetype || 'application/octet-stream',
+        caption: options?.caption,
+      };
+
+      const result = await this.socket.sendMessage(jid, documentContent);
+
+      return {
+        success: true,
+        messageId: result?.key?.id || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to send document:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send a video message
+   * @param to - Recipient phone number or JID
+   * @param video - Video source (file path, URL, or Buffer)
+   * @param options - Optional settings (caption, viewOnce, gifPlayback, ptv)
+   */
+  async sendVideo(
+    to: string,
+    video: MediaSource,
+    options?: SendVideoOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+
+      // Build video message payload
+      const videoContent: AnyMessageContent = {
+        video: Buffer.isBuffer(video) ? video : { url: video },
+        caption: options?.caption,
+        viewOnce: options?.viewOnce,
+        gifPlayback: options?.gifPlayback,
+        ptv: options?.ptv,
+      };
+
+      const result = await this.socket.sendMessage(jid, videoContent);
+
+      return {
+        success: true,
+        messageId: result?.key?.id || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to send video:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send an audio message
+   * @param to - Recipient phone number or JID
+   * @param audio - Audio source (file path, URL, or Buffer)
+   * @param options - Optional settings (ptt for voice note, mimetype)
+   */
+  async sendAudio(
+    to: string,
+    audio: MediaSource,
+    options?: SendAudioOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+
+      // Determine mimetype
+      let mimetype = options?.mimetype;
+      if (!mimetype && !Buffer.isBuffer(audio)) {
+        mimetype = this.getAudioMimetypeFromFileName(audio);
+      }
+
+      // Build audio message payload
+      const audioContent: AnyMessageContent = {
+        audio: Buffer.isBuffer(audio) ? audio : { url: audio },
+        mimetype: mimetype || 'audio/mp4',
+        ptt: options?.ptt,
+      };
+
+      const result = await this.socket.sendMessage(jid, audioContent);
+
+      return {
+        success: true,
+        messageId: result?.key?.id || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to send audio:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Download media from a received message
+   * @param message - The MiawMessage containing media (must have raw field with original Baileys message)
+   * @returns Buffer containing the media data, or null if download fails
+   */
+  async downloadMedia(message: MiawMessage): Promise<Buffer | null> {
+    try {
+      if (!message.raw) {
+        throw new Error('Message does not contain raw Baileys data. Cannot download media.');
+      }
+
+      // Check if this is a media message
+      const mediaTypes = ['image', 'video', 'audio', 'document', 'sticker'];
+      if (!mediaTypes.includes(message.type)) {
+        throw new Error(`Message type '${message.type}' is not a downloadable media type.`);
+      }
+
+      const buffer = await downloadMediaMessage(
+        message.raw,
+        'buffer',
+        {},
+        {
+          logger: this.logger,
+          // reuploadRequest allows re-uploading expired media
+          reuploadRequest: this.socket
+            ? this.socket.updateMediaMessage
+            : async (msg) => msg,
+        }
+      );
+
+      return buffer as Buffer;
+    } catch (error) {
+      this.logger.error('Failed to download media:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get audio MIME type from file extension
+   */
+  private getAudioMimetypeFromFileName(fileName: string): string {
+    const ext = path.extname(fileName).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.mp3': 'audio/mpeg',
+      '.mp4': 'audio/mp4',
+      '.m4a': 'audio/mp4',
+      '.ogg': 'audio/ogg; codecs=opus',
+      '.opus': 'audio/ogg; codecs=opus',
+      '.wav': 'audio/wav',
+      '.aac': 'audio/aac',
+      '.flac': 'audio/flac',
+    };
+    return mimeTypes[ext] || 'audio/mp4';
+  }
+
+  /**
+   * Get MIME type from file extension
+   */
+  private getMimetypeFromFileName(fileName: string): string {
+    const ext = path.extname(fileName).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.txt': 'text/plain',
+      '.csv': 'text/csv',
+      '.json': 'application/json',
+      '.xml': 'application/xml',
+      '.zip': 'application/zip',
+      '.rar': 'application/x-rar-compressed',
+      '.7z': 'application/x-7z-compressed',
+      '.tar': 'application/x-tar',
+      '.gz': 'application/gzip',
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
   }
 
   /**
