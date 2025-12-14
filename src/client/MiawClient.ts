@@ -993,6 +993,246 @@ export class MiawClient extends EventEmitter {
   }
 
   // ============================================
+  // Advanced Messaging Methods (v0.6.0)
+  // ============================================
+
+  /**
+   * Send a reaction to a message
+   * @param message - The MiawMessage to react to (must have raw field)
+   * @param emoji - Emoji to react with (e.g., '❤️', '👍'). Empty string removes reaction.
+   * @returns SendMessageResult
+   */
+  async sendReaction(
+    message: MiawMessage,
+    emoji: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot send reaction. Connection state: ${this.connectionState}`);
+      }
+
+      if (!message.raw?.key) {
+        throw new Error('Message does not contain raw Baileys key data. Cannot send reaction.');
+      }
+
+      const jid = message.raw.key.remoteJid;
+      if (!jid) {
+        throw new Error('Message does not have a valid chat JID.');
+      }
+
+      const result = await this.socket.sendMessage(jid, {
+        react: {
+          text: emoji,
+          key: message.raw.key,
+        },
+      });
+
+      return {
+        success: true,
+        messageId: result?.key?.id || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to send reaction:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Remove a reaction from a message (alias for sendReaction with empty string)
+   * @param message - The MiawMessage to remove reaction from
+   * @returns SendMessageResult
+   */
+  async removeReaction(message: MiawMessage): Promise<SendMessageResult> {
+    return this.sendReaction(message, '');
+  }
+
+  /**
+   * Forward a message to another chat
+   * @param message - The MiawMessage to forward (must have raw field)
+   * @param to - Recipient phone number, JID, or group JID
+   * @returns SendMessageResult
+   */
+  async forwardMessage(
+    message: MiawMessage,
+    to: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot forward message. Connection state: ${this.connectionState}`);
+      }
+
+      if (!message.raw) {
+        throw new Error('Message does not contain raw Baileys data. Cannot forward.');
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+
+      const result = await this.socket.sendMessage(jid, {
+        forward: message.raw,
+      });
+
+      return {
+        success: true,
+        messageId: result?.key?.id || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to forward message:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Edit a previously sent message (must be your own message, within 15 minutes)
+   * @param message - The MiawMessage to edit (must be fromMe and have raw field)
+   * @param newText - New text content for the message
+   * @returns SendMessageResult
+   */
+  async editMessage(
+    message: MiawMessage,
+    newText: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot edit message. Connection state: ${this.connectionState}`);
+      }
+
+      if (!message.raw?.key) {
+        throw new Error('Message does not contain raw Baileys key data. Cannot edit.');
+      }
+
+      if (!message.fromMe) {
+        throw new Error('Can only edit your own messages.');
+      }
+
+      const jid = message.raw.key.remoteJid;
+      if (!jid) {
+        throw new Error('Message does not have a valid chat JID.');
+      }
+
+      const result = await this.socket.sendMessage(jid, {
+        text: newText,
+        edit: message.raw.key,
+      });
+
+      return {
+        success: true,
+        messageId: result?.key?.id || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to edit message:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Delete a message for everyone (must be your own message or admin in group)
+   * @param message - The MiawMessage to delete (must have raw field)
+   * @returns SendMessageResult
+   */
+  async deleteMessage(message: MiawMessage): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot delete message. Connection state: ${this.connectionState}`);
+      }
+
+      if (!message.raw?.key) {
+        throw new Error('Message does not contain raw Baileys key data. Cannot delete.');
+      }
+
+      const jid = message.raw.key.remoteJid;
+      if (!jid) {
+        throw new Error('Message does not have a valid chat JID.');
+      }
+
+      const result = await this.socket.sendMessage(jid, {
+        delete: message.raw.key,
+      });
+
+      return {
+        success: true,
+        messageId: result?.key?.id || undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to delete message:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Delete a message for yourself only (does not affect other participants)
+   * @param message - The MiawMessage to delete locally (must have raw field)
+   * @param deleteMedia - Whether to also delete associated media files (default: true)
+   * @returns boolean indicating success
+   */
+  async deleteMessageForMe(
+    message: MiawMessage,
+    deleteMedia: boolean = true
+  ): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot delete message. Connection state: ${this.connectionState}`);
+      }
+
+      if (!message.raw?.key) {
+        throw new Error('Message does not contain raw Baileys key data. Cannot delete.');
+      }
+
+      const jid = message.raw.key.remoteJid;
+      if (!jid) {
+        throw new Error('Message does not have a valid chat JID.');
+      }
+
+      await this.socket.chatModify(
+        {
+          deleteForMe: {
+            deleteMedia,
+            key: message.raw.key,
+            timestamp: message.timestamp,
+          },
+        },
+        jid
+      );
+
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to delete message for me:', error);
+      return false;
+    }
+  }
+
+  // ============================================
   // UX Methods (v0.5.0)
   // ============================================
 

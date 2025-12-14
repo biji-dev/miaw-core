@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-12-14
+
+### Added
+
+- **Send Reactions**
+  - `sendReaction()` - Send emoji reactions to messages (e.g., '❤️', '👍')
+  - `removeReaction()` - Remove your reaction from a message
+
+- **Forward Messages**
+  - `forwardMessage()` - Forward any message to another chat
+
+- **Edit Messages**
+  - `editMessage()` - Edit your own messages (within WhatsApp's 15-minute window)
+
+- **Delete Messages**
+  - `deleteMessage()` - Delete messages for everyone (your own messages)
+  - `deleteMessageForMe()` - Delete messages locally (only for yourself)
+
 ## [0.5.0] - 2025-12-14
 
 ### Added
@@ -172,6 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - @hapi/boom ^10.0.1
 - pino ^8.19.0
 
+[0.6.0]: https://github.com/biji-dev/miaw-core/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/biji-dev/miaw-core/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/biji-dev/miaw-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/biji-dev/miaw-core/compare/v0.2.0...v0.3.0

@@ -9,6 +9,7 @@ This document covers all current capabilities of Miaw Core. It will be updated a
 - [Configuration](#configuration)
 - [Authentication](#authentication)
 - [Sending Messages](#sending-messages)
+- [Advanced Messaging](#advanced-messaging)
 - [Receiving Messages](#receiving-messages)
 - [Connection Management](#connection-management)
 - [Multiple Instances](#multiple-instances)
@@ -169,6 +170,126 @@ Same API for individual and group chats:
 ```typescript
 // Send to group (use group JID)
 await client.sendText("123456789@g.us", "Hello everyone!");
+```
+
+## Advanced Messaging
+
+### Send Reactions
+
+React to messages with emojis:
+
+```typescript
+client.on("message", async (msg) => {
+  // React to the message with a heart
+  const result = await client.sendReaction(msg, "❤️");
+
+  if (result.success) {
+    console.log("Reaction sent!");
+  }
+});
+
+// Other common reactions
+await client.sendReaction(msg, "👍"); // Thumbs up
+await client.sendReaction(msg, "😂"); // Laughing
+await client.sendReaction(msg, "😮"); // Surprised
+await client.sendReaction(msg, "😢"); // Sad
+await client.sendReaction(msg, "🙏"); // Pray/Thanks
+```
+
+### Remove Reactions
+
+Remove your reaction from a message:
+
+```typescript
+// Remove reaction (sends empty string)
+await client.removeReaction(msg);
+
+// Or equivalently:
+await client.sendReaction(msg, "");
+```
+
+### Forward Messages
+
+Forward a message to another chat:
+
+```typescript
+client.on("message", async (msg) => {
+  // Forward this message to another contact
+  const result = await client.forwardMessage(msg, "0987654321");
+
+  if (result.success) {
+    console.log("Message forwarded!");
+  }
+});
+
+// Forward to a group
+await client.forwardMessage(msg, "123456789@g.us");
+```
+
+### Edit Messages
+
+Edit your own sent messages (within WhatsApp's 15-minute window):
+
+```typescript
+// Send a message and keep the reference
+const result = await client.sendText("1234567890", "Hello, Wordl!");
+
+// Later, fix the typo by editing
+// Note: You need to store/retrieve the sent message object
+client.on("message", async (msg) => {
+  if (msg.fromMe && msg.text === "Hello, Wordl!") {
+    await client.editMessage(msg, "Hello, World!");
+  }
+});
+```
+
+**Important:** You can only edit your own messages (`fromMe: true`).
+
+### Delete Messages
+
+Delete messages for everyone:
+
+```typescript
+client.on("message", async (msg) => {
+  // Delete this message for everyone
+  const result = await client.deleteMessage(msg);
+
+  if (result.success) {
+    console.log("Message deleted for everyone!");
+  }
+});
+```
+
+Delete messages only for yourself:
+
+```typescript
+// Delete message locally (others still see it)
+const success = await client.deleteMessageForMe(msg);
+
+// Optionally, also delete associated media files
+await client.deleteMessageForMe(msg, true); // deleteMedia = true (default)
+await client.deleteMessageForMe(msg, false); // keep media files
+```
+
+### Auto-React Bot Example
+
+Bot that automatically reacts to messages:
+
+```typescript
+client.on("message", async (msg) => {
+  if (msg.fromMe) return;
+
+  // React based on keywords
+  const text = msg.text?.toLowerCase() || "";
+
+  if (text.includes("thank")) {
+    await client.sendReaction(msg, "🙏");
+  } else if (text.includes("love")) {
+    await client.sendReaction(msg, "❤️");
+  } else if (text.includes("funny") || text.includes("lol")) {
+    await client.sendReaction(msg, "😂");
+  }
+});
 ```
 
 ## Receiving Messages

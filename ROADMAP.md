@@ -4,9 +4,9 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 0.5.0
+**Current Version:** 0.6.0
 **Baileys Version:** 6.7.21+
-**Status:** UX Polish Release
+**Status:** Advanced Messaging Release
 **Last Updated:** 2025-12-14
 
 ---
@@ -128,15 +128,16 @@ We prioritize features based on:
 
 ---
 
-### v0.6.0 - Advanced Messaging
+### v0.6.0 - Advanced Messaging ✅
 
 **Focus:** Advanced message operations
 
-- [ ] **Send Reactions** - React to messages with emojis
-- [ ] **Forward Messages** - Forward messages to other chats
-- [ ] **Edit Own Messages** - Edit messages you've sent
-- [ ] **Delete Own Messages** - Delete messages you've sent
-- [ ] **Star Messages** - Star/unstar important messages
+- [x] **Send Reactions** - React to messages with emojis
+- [x] **Remove Reactions** - Remove your reaction from messages
+- [x] **Forward Messages** - Forward messages to other chats
+- [x] **Edit Own Messages** - Edit messages you've sent (within 15-minute window)
+- [x] **Delete Own Messages** - Delete messages for everyone
+- [x] **Delete Messages For Me** - Delete messages locally only
 
 ---
 
@@ -333,7 +334,7 @@ If you need any of these features, please:
 | v0.3.0  | Message context (reply, edits, reactions)                  | ✅ Released |
 | v0.4.0  | Validation & basic social (check number, groups, contacts) | ✅ Released |
 | v0.5.0  | UX polish (read receipts, typing, presence)                | ✅ Released |
-| v0.6.0  | Advanced messaging (react, forward, edit, delete)          | 📋 Planned  |
+| v0.6.0  | Advanced messaging (react, forward, edit, delete)          | ✅ Released |
 | v0.7.0  | Group management (full admin capabilities)                 | 📋 Planned  |
 | v0.8.0  | Profile management (customize bot profile)                 | 📋 Planned  |
 | v0.9.0  | Business features (products, labels)                       | 📋 Planned  |
@@ -390,6 +391,15 @@ Want to help implement a feature?
 ---
 
 ## Completed Milestones
+
+### 2025-12-14 - v0.6.0 Advanced Messaging
+
+- ✅ `sendReaction()` - Send emoji reactions to messages
+- ✅ `removeReaction()` - Remove reactions from messages
+- ✅ `forwardMessage()` - Forward messages to other chats
+- ✅ `editMessage()` - Edit your own sent messages (within 15-minute window)
+- ✅ `deleteMessage()` - Delete messages for everyone
+- ✅ `deleteMessageForMe()` - Delete messages locally only
 
 ### 2025-12-14 - v0.5.0 UX Polish
 
@@ -473,5 +483,5 @@ Want to help implement a feature?
 
 **Last Updated:** 2025-12-14
 **Status:** Active Development
-**Next Release:** v0.6.0 (Advanced Messaging)
-**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 → ... → v1.0.0 (Production Ready)
+**Next Release:** v0.7.0 (Group Management)
+**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 ✅ → v0.7.0 → ... → v1.0.0 (Production Ready)
