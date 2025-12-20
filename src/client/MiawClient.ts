@@ -31,6 +31,11 @@ import {
   GroupInfo,
   PresenceStatus,
   PresenceUpdate,
+  // v0.7.0 Group Management
+  ParticipantOperationResult,
+  CreateGroupResult,
+  GroupOperationResult,
+  GroupInviteInfo,
 } from '../types';
 import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
@@ -1365,6 +1370,447 @@ export class MiawClient extends EventEmitter {
       await this.socket.presenceSubscribe(jid);
     } catch (error) {
       this.logger.error('Failed to subscribe to presence:', error);
+    }
+  }
+
+  // ============================================
+  // Group Management Methods (v0.7.0)
+  // ============================================
+
+  /**
+   * Helper method for group participant operations
+   */
+  private async groupParticipantsOperation(
+    groupJid: string,
+    participants: string[],
+    action: 'add' | 'remove' | 'promote' | 'demote'
+  ): Promise<ParticipantOperationResult[]> {
+    if (!this.socket) {
+      throw new Error('Not connected. Call connect() first.');
+    }
+
+    if (this.connectionState !== 'connected') {
+      throw new Error(`Cannot perform group operation. Connection state: ${this.connectionState}`);
+    }
+
+    if (!groupJid.endsWith('@g.us')) {
+      throw new Error('Invalid group JID. Must end with @g.us');
+    }
+
+    // Format participant JIDs
+    const formattedParticipants = participants.map((p) =>
+      MessageHandler.formatPhoneToJid(p)
+    );
+
+    const results = await this.socket.groupParticipantsUpdate(
+      groupJid,
+      formattedParticipants,
+      action
+    );
+
+    return results.map((result) => ({
+      jid: result.jid || '',
+      status: result.status,
+      success: result.status === '200',
+    }));
+  }
+
+  /**
+   * Create a new WhatsApp group
+   * @param name - Group name/subject
+   * @param participants - Array of phone numbers or JIDs to add as initial members
+   * @returns CreateGroupResult with group info if successful
+   */
+  async createGroup(
+    name: string,
+    participants: string[]
+  ): Promise<CreateGroupResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot create group. Connection state: ${this.connectionState}`);
+      }
+
+      // Format participant JIDs
+      const formattedParticipants = participants.map((p) =>
+        MessageHandler.formatPhoneToJid(p)
+      );
+
+      const metadata = await this.socket.groupCreate(name, formattedParticipants);
+
+      const groupParticipants: GroupParticipant[] = metadata.participants.map((p) => ({
+        jid: p.id,
+        role: p.admin === 'superadmin' ? 'superadmin' : p.admin === 'admin' ? 'admin' : 'member',
+      }));
+
+      return {
+        success: true,
+        groupJid: metadata.id,
+        groupInfo: {
+          jid: metadata.id,
+          name: metadata.subject,
+          description: metadata.desc || undefined,
+          owner: metadata.owner || undefined,
+          createdAt: metadata.creation,
+          participantCount: metadata.participants.length,
+          participants: groupParticipants,
+          announce: metadata.announce,
+          restrict: metadata.restrict,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to create group:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Add participants to a group
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @param participants - Array of phone numbers or JIDs to add
+   * @returns Array of ParticipantOperationResult for each participant
+   */
+  async addParticipants(
+    groupJid: string,
+    participants: string[]
+  ): Promise<ParticipantOperationResult[]> {
+    try {
+      return await this.groupParticipantsOperation(groupJid, participants, 'add');
+    } catch (error) {
+      this.logger.error('Failed to add participants:', error);
+      return participants.map((p) => ({
+        jid: MessageHandler.formatPhoneToJid(p),
+        status: 'error',
+        success: false,
+      }));
+    }
+  }
+
+  /**
+   * Remove participants from a group
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @param participants - Array of phone numbers or JIDs to remove
+   * @returns Array of ParticipantOperationResult for each participant
+   */
+  async removeParticipants(
+    groupJid: string,
+    participants: string[]
+  ): Promise<ParticipantOperationResult[]> {
+    try {
+      return await this.groupParticipantsOperation(groupJid, participants, 'remove');
+    } catch (error) {
+      this.logger.error('Failed to remove participants:', error);
+      return participants.map((p) => ({
+        jid: MessageHandler.formatPhoneToJid(p),
+        status: 'error',
+        success: false,
+      }));
+    }
+  }
+
+  /**
+   * Leave a group
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @returns GroupOperationResult
+   */
+  async leaveGroup(groupJid: string): Promise<GroupOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot leave group. Connection state: ${this.connectionState}`);
+      }
+
+      if (!groupJid.endsWith('@g.us')) {
+        throw new Error('Invalid group JID. Must end with @g.us');
+      }
+
+      await this.socket.groupLeave(groupJid);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to leave group:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Promote participants to group admin
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @param participants - Array of phone numbers or JIDs to promote
+   * @returns Array of ParticipantOperationResult for each participant
+   */
+  async promoteToAdmin(
+    groupJid: string,
+    participants: string[]
+  ): Promise<ParticipantOperationResult[]> {
+    try {
+      return await this.groupParticipantsOperation(groupJid, participants, 'promote');
+    } catch (error) {
+      this.logger.error('Failed to promote participants:', error);
+      return participants.map((p) => ({
+        jid: MessageHandler.formatPhoneToJid(p),
+        status: 'error',
+        success: false,
+      }));
+    }
+  }
+
+  /**
+   * Demote admins to regular members
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @param participants - Array of phone numbers or JIDs to demote
+   * @returns Array of ParticipantOperationResult for each participant
+   */
+  async demoteFromAdmin(
+    groupJid: string,
+    participants: string[]
+  ): Promise<ParticipantOperationResult[]> {
+    try {
+      return await this.groupParticipantsOperation(groupJid, participants, 'demote');
+    } catch (error) {
+      this.logger.error('Failed to demote participants:', error);
+      return participants.map((p) => ({
+        jid: MessageHandler.formatPhoneToJid(p),
+        status: 'error',
+        success: false,
+      }));
+    }
+  }
+
+  /**
+   * Update group name/subject
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @param name - New group name
+   * @returns GroupOperationResult
+   */
+  async updateGroupName(
+    groupJid: string,
+    name: string
+  ): Promise<GroupOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update group name. Connection state: ${this.connectionState}`);
+      }
+
+      if (!groupJid.endsWith('@g.us')) {
+        throw new Error('Invalid group JID. Must end with @g.us');
+      }
+
+      await this.socket.groupUpdateSubject(groupJid, name);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to update group name:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Update group description
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @param description - New description (undefined to remove)
+   * @returns GroupOperationResult
+   */
+  async updateGroupDescription(
+    groupJid: string,
+    description?: string
+  ): Promise<GroupOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update group description. Connection state: ${this.connectionState}`);
+      }
+
+      if (!groupJid.endsWith('@g.us')) {
+        throw new Error('Invalid group JID. Must end with @g.us');
+      }
+
+      await this.socket.groupUpdateDescription(groupJid, description);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to update group description:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Update group profile picture
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @param image - Image source (file path, URL, or Buffer)
+   * @returns GroupOperationResult
+   */
+  async updateGroupPicture(
+    groupJid: string,
+    image: MediaSource
+  ): Promise<GroupOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update group picture. Connection state: ${this.connectionState}`);
+      }
+
+      if (!groupJid.endsWith('@g.us')) {
+        throw new Error('Invalid group JID. Must end with @g.us');
+      }
+
+      const imageContent = Buffer.isBuffer(image) ? image : { url: image };
+      await this.socket.updateProfilePicture(groupJid, imageContent);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to update group picture:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Get group invite link
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @returns Full invite link (https://chat.whatsapp.com/...) or null if failed
+   */
+  async getGroupInviteLink(groupJid: string): Promise<string | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get invite link. Connection state: ${this.connectionState}`);
+      }
+
+      if (!groupJid.endsWith('@g.us')) {
+        throw new Error('Invalid group JID. Must end with @g.us');
+      }
+
+      const code = await this.socket.groupInviteCode(groupJid);
+      return code ? `https://chat.whatsapp.com/${code}` : null;
+    } catch (error) {
+      this.logger.error('Failed to get group invite link:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Revoke current group invite link and generate a new one
+   * @param groupJid - Group JID (e.g., '123456789@g.us')
+   * @returns New invite link (https://chat.whatsapp.com/...) or null if failed
+   */
+  async revokeGroupInvite(groupJid: string): Promise<string | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot revoke invite. Connection state: ${this.connectionState}`);
+      }
+
+      if (!groupJid.endsWith('@g.us')) {
+        throw new Error('Invalid group JID. Must end with @g.us');
+      }
+
+      const code = await this.socket.groupRevokeInvite(groupJid);
+      return code ? `https://chat.whatsapp.com/${code}` : null;
+    } catch (error) {
+      this.logger.error('Failed to revoke group invite:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Accept a group invite and join the group
+   * @param inviteCode - Invite code (just the code, or full URL)
+   * @returns Group JID if successful, null if failed
+   */
+  async acceptGroupInvite(inviteCode: string): Promise<string | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot accept invite. Connection state: ${this.connectionState}`);
+      }
+
+      // Extract code from URL if full URL was provided
+      let code = inviteCode;
+      if (inviteCode.includes('chat.whatsapp.com/')) {
+        code = inviteCode.split('chat.whatsapp.com/')[1];
+      }
+
+      const groupJid = await this.socket.groupAcceptInvite(code);
+      return groupJid || null;
+    } catch (error) {
+      this.logger.error('Failed to accept group invite:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get group information from invite code without joining
+   * @param inviteCode - Invite code (just the code, or full URL)
+   * @returns GroupInviteInfo if successful, null if failed
+   */
+  async getGroupInviteInfo(inviteCode: string): Promise<GroupInviteInfo | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get invite info. Connection state: ${this.connectionState}`);
+      }
+
+      // Extract code from URL if full URL was provided
+      let code = inviteCode;
+      if (inviteCode.includes('chat.whatsapp.com/')) {
+        code = inviteCode.split('chat.whatsapp.com/')[1];
+      }
+
+      const metadata = await this.socket.groupGetInviteInfo(code);
+
+      return {
+        jid: metadata.id,
+        name: metadata.subject,
+        description: metadata.desc || undefined,
+        participantCount: metadata.size || metadata.participants?.length || 0,
+        createdAt: metadata.creation,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get group invite info:', error);
+      return null;
     }
   }
 
