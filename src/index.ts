@@ -30,6 +30,11 @@ export {
   GroupInfo,
   PresenceStatus,
   PresenceUpdate,
+  // v0.7.0 Group Management
+  ParticipantOperationResult,
+  CreateGroupResult,
+  GroupOperationResult,
+  GroupInviteInfo,
 } from './types';
 
 // Utility exports for advanced users

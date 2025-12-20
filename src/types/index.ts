@@ -430,3 +430,75 @@ export interface PresenceUpdate {
   /** Last seen timestamp (if available) */
   lastSeen?: number;
 }
+
+// ============================================
+// Group Management Types (v0.7.0)
+// ============================================
+
+/**
+ * Result of a group participant operation (add, remove, promote, demote)
+ */
+export interface ParticipantOperationResult {
+  /** Participant JID */
+  jid: string;
+
+  /**
+   * Operation status code:
+   * - '200' = Success
+   * - '403' = Not authorized (not admin)
+   * - '408' = User left group / doesn't exist
+   * - '409' = Already in group (add) / Not in group (remove)
+   */
+  status: string;
+
+  /** Whether the operation was successful */
+  success: boolean;
+}
+
+/**
+ * Result of creating a group
+ */
+export interface CreateGroupResult {
+  /** Whether the group was created successfully */
+  success: boolean;
+
+  /** Group JID if successful */
+  groupJid?: string;
+
+  /** Group info if successful */
+  groupInfo?: GroupInfo;
+
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Result of a group operation (generic)
+ */
+export interface GroupOperationResult {
+  /** Whether the operation was successful */
+  success: boolean;
+
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Group invite information (preview before joining)
+ */
+export interface GroupInviteInfo {
+  /** Group JID */
+  jid: string;
+
+  /** Group name */
+  name: string;
+
+  /** Group description */
+  description?: string;
+
+  /** Number of participants */
+  participantCount: number;
+
+  /** Group creation timestamp */
+  createdAt?: number;
+}
