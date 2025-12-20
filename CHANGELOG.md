@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2025-12-21
+
+### Added
+
+- **Group Creation**
+  - `createGroup()` - Create new WhatsApp groups with initial participants
+  - Returns `CreateGroupResult` with group JID and metadata
+
+- **Participant Management**
+  - `addParticipants()` - Add members to a group (requires admin)
+  - `removeParticipants()` - Remove members from a group (requires admin)
+  - `leaveGroup()` - Leave a group
+  - Returns `ParticipantOperationResult[]` with status for each participant
+
+- **Admin Management**
+  - `promoteToAdmin()` - Promote members to group admin
+  - `demoteFromAdmin()` - Demote admins to regular members
+
+- **Group Settings**
+  - `updateGroupName()` - Change group name/subject
+  - `updateGroupDescription()` - Set or clear group description
+  - `updateGroupPicture()` - Change group profile picture
+
+- **Group Invites**
+  - `getGroupInviteLink()` - Get group invite link (https://chat.whatsapp.com/...)
+  - `revokeGroupInvite()` - Revoke current link and get new one
+  - `acceptGroupInvite()` - Join group via invite code or URL
+  - `getGroupInviteInfo()` - Preview group info before joining
+
+- **New Types**
+  - `ParticipantOperationResult` - Result of add/remove/promote/demote operations
+  - `CreateGroupResult` - Result of group creation with metadata
+  - `GroupOperationResult` - Generic success/error result for group operations
+  - `GroupInviteInfo` - Group preview info from invite code
+
+- **Integration Tests**
+  - Group management tests for all v0.7.0 features
+
 ## [0.6.0] - 2025-12-14
 
 ### Added

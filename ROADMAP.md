@@ -4,10 +4,10 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 0.6.0
+**Current Version:** 0.7.0
 **Baileys Version:** 6.7.21+
-**Status:** Advanced Messaging Release
-**Last Updated:** 2025-12-14
+**Status:** Group Management Release
+**Last Updated:** 2025-12-21
 
 ---
 
@@ -141,31 +141,31 @@ We prioritize features based on:
 
 ---
 
-### v0.7.0 - Group Management
+### v0.7.0 - Group Management ✅
 
 **Focus:** Full group administration
 
 #### Group Operations
 
-- [ ] **Create Group** - Create new WhatsApp groups
-- [ ] **Add Participants** - Add members to groups
-- [ ] **Remove Participants** - Remove members from groups
-- [ ] **Leave Group** - Exit from groups
+- [x] **Create Group** - Create new WhatsApp groups
+- [x] **Add Participants** - Add members to groups
+- [x] **Remove Participants** - Remove members from groups
+- [x] **Leave Group** - Exit from groups
 
 #### Group Administration
 
-- [ ] **Promote to Admin** - Grant admin permissions
-- [ ] **Demote from Admin** - Remove admin permissions
-- [ ] **Update Group Name** - Change group subject/title
-- [ ] **Update Group Description** - Modify group description
-- [ ] **Update Group Picture** - Change group icon
+- [x] **Promote to Admin** - Grant admin permissions
+- [x] **Demote from Admin** - Remove admin permissions
+- [x] **Update Group Name** - Change group subject/title
+- [x] **Update Group Description** - Modify group description
+- [x] **Update Group Picture** - Change group icon
 
 #### Group Invites
 
-- [ ] **Generate Invite Link** - Create group invite link
-- [ ] **Revoke Invite Link** - Invalidate invite link
-- [ ] **Accept Group Invite** - Join group via invite code
-- [ ] **Get Invite Info** - Preview group info before joining
+- [x] **Generate Invite Link** - Create group invite link
+- [x] **Revoke Invite Link** - Invalidate invite link
+- [x] **Accept Group Invite** - Join group via invite code
+- [x] **Get Invite Info** - Preview group info before joining
 
 ---
 
@@ -335,7 +335,7 @@ If you need any of these features, please:
 | v0.4.0  | Validation & basic social (check number, groups, contacts) | ✅ Released |
 | v0.5.0  | UX polish (read receipts, typing, presence)                | ✅ Released |
 | v0.6.0  | Advanced messaging (react, forward, edit, delete)          | ✅ Released |
-| v0.7.0  | Group management (full admin capabilities)                 | 📋 Planned  |
+| v0.7.0  | Group management (full admin capabilities)                 | ✅ Released |
 | v0.8.0  | Profile management (customize bot profile)                 | 📋 Planned  |
 | v0.9.0  | Business features (products, labels)                       | 📋 Planned  |
 | v1.0.0  | **Production ready** (first stable release)                | 🎯 Goal     |
@@ -391,6 +391,24 @@ Want to help implement a feature?
 ---
 
 ## Completed Milestones
+
+### 2025-12-21 - v0.7.0 Group Management
+
+- ✅ `createGroup()` - Create new WhatsApp groups
+- ✅ `addParticipants()` - Add members to groups
+- ✅ `removeParticipants()` - Remove members from groups
+- ✅ `leaveGroup()` - Exit from groups
+- ✅ `promoteToAdmin()` - Grant admin permissions
+- ✅ `demoteFromAdmin()` - Remove admin permissions
+- ✅ `updateGroupName()` - Change group subject/title
+- ✅ `updateGroupDescription()` - Modify group description
+- ✅ `updateGroupPicture()` - Change group icon
+- ✅ `getGroupInviteLink()` - Get group invite link
+- ✅ `revokeGroupInvite()` - Revoke and generate new invite link
+- ✅ `acceptGroupInvite()` - Join group via invite code
+- ✅ `getGroupInviteInfo()` - Preview group info before joining
+- ✅ New types: ParticipantOperationResult, CreateGroupResult, GroupOperationResult, GroupInviteInfo
+- ✅ Integration tests for all group management features
 
 ### 2025-12-14 - v0.6.0 Advanced Messaging
 
@@ -481,7 +499,7 @@ Want to help implement a feature?
 
 ---
 
-**Last Updated:** 2025-12-14
+**Last Updated:** 2025-12-21
 **Status:** Active Development
-**Next Release:** v0.7.0 (Group Management)
-**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 ✅ → v0.7.0 → ... → v1.0.0 (Production Ready)
+**Next Release:** v0.8.0 (Profile Management)
+**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 ✅ → v0.7.0 ✅ → ... → v1.0.0 (Production Ready)

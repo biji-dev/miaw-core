@@ -292,6 +292,203 @@ client.on("message", async (msg) => {
 });
 ```
 
+## Group Management
+
+Full group administration capabilities for creating and managing WhatsApp groups.
+
+### Create Group
+
+Create a new WhatsApp group:
+
+```typescript
+const result = await client.createGroup("My New Group", [
+  "1234567890", // Phone number
+  "0987654321",
+]);
+
+if (result.success) {
+  console.log("Group created:", result.groupJid);
+  console.log("Group name:", result.groupInfo?.name);
+  console.log("Participants:", result.groupInfo?.participantCount);
+}
+```
+
+### Add Participants
+
+Add members to an existing group (requires admin):
+
+```typescript
+const results = await client.addParticipants("123456789@g.us", [
+  "1234567890",
+  "0987654321",
+]);
+
+for (const result of results) {
+  if (result.success) {
+    console.log(`Added: ${result.jid}`);
+  } else {
+    console.log(`Failed to add ${result.jid}: ${result.status}`);
+  }
+}
+```
+
+### Remove Participants
+
+Remove members from a group (requires admin):
+
+```typescript
+const results = await client.removeParticipants("123456789@g.us", [
+  "1234567890",
+]);
+
+results.forEach((r) => console.log(`${r.jid}: ${r.success ? "Removed" : r.status}`));
+```
+
+### Leave Group
+
+Leave a group:
+
+```typescript
+const result = await client.leaveGroup("123456789@g.us");
+if (result.success) {
+  console.log("Left the group");
+}
+```
+
+### Promote/Demote Admins
+
+Manage group admin roles:
+
+```typescript
+// Promote member to admin
+const promoteResults = await client.promoteToAdmin("123456789@g.us", [
+  "1234567890",
+]);
+
+// Demote admin to member
+const demoteResults = await client.demoteFromAdmin("123456789@g.us", [
+  "1234567890",
+]);
+```
+
+### Update Group Name
+
+Change the group name/subject:
+
+```typescript
+const result = await client.updateGroupName("123456789@g.us", "New Group Name");
+if (result.success) {
+  console.log("Group name updated");
+}
+```
+
+### Update Group Description
+
+Set or clear group description:
+
+```typescript
+// Set description
+await client.updateGroupDescription(
+  "123456789@g.us",
+  "Welcome to our group! Please read the rules."
+);
+
+// Clear description (pass undefined)
+await client.updateGroupDescription("123456789@g.us");
+```
+
+### Update Group Picture
+
+Change the group profile picture:
+
+```typescript
+// From file path
+await client.updateGroupPicture("123456789@g.us", "./group-icon.jpg");
+
+// From URL
+await client.updateGroupPicture("123456789@g.us", "https://example.com/image.jpg");
+
+// From Buffer
+const imageBuffer = fs.readFileSync("./image.png");
+await client.updateGroupPicture("123456789@g.us", imageBuffer);
+```
+
+### Group Invite Links
+
+Manage group invite links:
+
+```typescript
+// Get invite link
+const link = await client.getGroupInviteLink("123456789@g.us");
+console.log("Invite link:", link);
+// Output: https://chat.whatsapp.com/AbCdEfGhIjK
+
+// Revoke current link and get new one
+const newLink = await client.revokeGroupInvite("123456789@g.us");
+console.log("New invite link:", newLink);
+```
+
+### Join Group via Invite
+
+Accept a group invitation:
+
+```typescript
+// Accept with full URL
+const groupJid = await client.acceptGroupInvite(
+  "https://chat.whatsapp.com/AbCdEfGhIjK"
+);
+
+// Or just the code
+const groupJid2 = await client.acceptGroupInvite("AbCdEfGhIjK");
+
+if (groupJid) {
+  console.log("Joined group:", groupJid);
+}
+```
+
+### Preview Group from Invite
+
+Get group info before joining:
+
+```typescript
+const info = await client.getGroupInviteInfo("AbCdEfGhIjK");
+
+if (info) {
+  console.log("Group name:", info.name);
+  console.log("Description:", info.description);
+  console.log("Members:", info.participantCount);
+  console.log("Created:", new Date(info.createdAt! * 1000));
+}
+```
+
+### Group Admin Bot Example
+
+Bot that manages group membership:
+
+```typescript
+client.on("message", async (msg) => {
+  if (!msg.isGroup || msg.fromMe) return;
+
+  const command = msg.text?.toLowerCase();
+  const groupJid = msg.from;
+
+  if (command === "!invite") {
+    const link = await client.getGroupInviteLink(groupJid);
+    await client.sendText(groupJid, `Join link: ${link}`);
+  }
+
+  if (command === "!groupinfo") {
+    const info = await client.getGroupInfo(groupJid);
+    if (info) {
+      await client.sendText(
+        groupJid,
+        `Group: ${info.name}\nMembers: ${info.participantCount}\nDescription: ${info.description || "None"}`
+      );
+    }
+  }
+});
+```
+
 ## Receiving Messages
 
 ### Message Event
