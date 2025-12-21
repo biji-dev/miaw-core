@@ -180,14 +180,38 @@ We prioritize features based on:
 
 ---
 
-### v0.9.0 - Business Features
+### v0.9.0 - Business & Social Features
 
-**Focus:** Business account capabilities
+**Focus:** Business capabilities, channels, and contact management
 
-- [ ] **Get Business Profile** - Fetch business profile information
-- [ ] **Send Product Messages** - Share product catalog items
-- [ ] **Chat Labels** - Add/remove labels to conversations
-- [ ] **Message Labels** - Add/remove labels to specific messages
+#### Label Operations (requires WhatsApp Business)
+- [ ] **Add Chat Label** - Add a label to a conversation
+- [ ] **Remove Chat Label** - Remove a label from a conversation
+- [ ] **Add Message Label** - Add a label to a specific message
+- [ ] **Remove Message Label** - Remove a label from a message
+
+#### Catalog/Product Operations (requires WhatsApp Business)
+- [ ] **Get Catalog** - Fetch product catalog from a business account
+- [ ] **Get Collections** - Fetch catalog collections
+- [ ] **Create Product** - Add a new product to catalog
+- [ ] **Update Product** - Modify an existing product
+- [ ] **Delete Products** - Remove products from catalog
+- [ ] **Get Order Details** - Fetch order information
+
+#### Newsletter/Channel Operations
+- [ ] **Create Newsletter** - Create a WhatsApp channel
+- [ ] **Follow/Unfollow Newsletter** - Subscribe to channels
+- [ ] **Mute/Unmute Newsletter** - Control channel notifications
+- [ ] **Update Newsletter** - Update channel name, description, picture
+- [ ] **Fetch Newsletter Messages** - Get channel message history
+- [ ] **React to Newsletter Message** - React to channel posts
+- [ ] **Delete Newsletter** - Delete a channel you own
+
+#### Contact Management
+- [ ] **Add/Edit Contact** - Add or update a contact
+- [ ] **Remove Contact** - Delete a contact
+
+> Note: `getBusinessProfile()` was already implemented in v0.4.0
 
 ---
 
@@ -252,6 +276,7 @@ Features available in Baileys but **rarely needed** for most bots. May be added 
 - **Contact Cards (vCard)** - Share contact information
 - **Voice Notes (PTT)** - Send push-to-talk audio (currently only regular audio supported)
 - **Pin Messages** - Pin messages in chats with expiry options
+- **Star Messages** - Star/unstar important messages
 
 ### Chat Management
 
@@ -281,14 +306,14 @@ Features available in Baileys but **rarely needed** for most bots. May be added 
 
 - **Block/Unblock Contacts** - Programmatically block contacts
 - **Fetch Blocklist** - Get list of blocked contacts
-- **Add/Edit/Remove Contacts** - Manage contact list programmatically
 
-### Newsletter & Communities (Baileys 6.7+)
+> Note: Add/Edit/Remove contacts moved to v0.9.0
 
-- **Newsletter Operations** - Create, subscribe, manage newsletters
-- **Newsletter Reactions** - React to newsletter messages
-- **Newsletter Administration** - Manage admins, subscribers
+### Communities
+
 - **Communities Support** - WhatsApp Communities feature
+
+> Note: Newsletter/Channel operations moved to v0.9.0
 
 ### Developer Tools
 
@@ -337,7 +362,7 @@ If you need any of these features, please:
 | v0.6.0  | Advanced messaging (react, forward, edit, delete)          | ✅ Released |
 | v0.7.0  | Group management (full admin capabilities)                 | ✅ Released |
 | v0.8.0  | Profile management (customize bot profile)                 | ✅ Released |
-| v0.9.0  | Business features (products, labels)                       | 📋 Planned  |
+| v0.9.0  | Business & social (labels, catalog, channels, contacts)    | 📋 Planned  |
 | v1.0.0  | **Production ready** (first stable release)                | 🎯 Goal     |
 | v1.1.0  | Performance & reliability (storage, queuing)               | 💡 Future   |
 | v1.2.0  | Interactive messages (polls, buttons, lists)               | 💡 Future   |
