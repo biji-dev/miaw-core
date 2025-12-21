@@ -35,6 +35,8 @@ export {
   CreateGroupResult,
   GroupOperationResult,
   GroupInviteInfo,
+  // v0.8.0 Profile Management
+  ProfileOperationResult,
 } from './types';
 
 // Utility exports for advanced users

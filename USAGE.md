@@ -10,6 +10,8 @@ This document covers all current capabilities of Miaw Core. It will be updated a
 - [Authentication](#authentication)
 - [Sending Messages](#sending-messages)
 - [Advanced Messaging](#advanced-messaging)
+- [Group Management](#group-management)
+- [Profile Management](#profile-management)
 - [Receiving Messages](#receiving-messages)
 - [Connection Management](#connection-management)
 - [Multiple Instances](#multiple-instances)
@@ -485,6 +487,91 @@ client.on("message", async (msg) => {
         `Group: ${info.name}\nMembers: ${info.participantCount}\nDescription: ${info.description || "None"}`
       );
     }
+  }
+});
+```
+
+## Profile Management
+
+Customize your bot's WhatsApp profile.
+
+### Update Profile Picture
+
+Change your profile picture:
+
+```typescript
+// From file path
+const result = await client.updateProfilePicture("./my-avatar.jpg");
+
+// From URL
+const result2 = await client.updateProfilePicture("https://example.com/avatar.jpg");
+
+// From Buffer
+const imageBuffer = fs.readFileSync("./avatar.png");
+const result3 = await client.updateProfilePicture(imageBuffer);
+
+if (result.success) {
+  console.log("Profile picture updated!");
+}
+```
+
+### Remove Profile Picture
+
+Remove your profile picture:
+
+```typescript
+const result = await client.removeProfilePicture();
+
+if (result.success) {
+  console.log("Profile picture removed");
+}
+```
+
+### Update Profile Name
+
+Change your display name (push name):
+
+```typescript
+const result = await client.updateProfileName("My Bot Name");
+
+if (result.success) {
+  console.log("Profile name updated!");
+}
+```
+
+### Update Profile Status
+
+Change your "About" text:
+
+```typescript
+const result = await client.updateProfileStatus("Powered by Miaw Core 🤖");
+
+if (result.success) {
+  console.log("Profile status updated!");
+}
+
+// Clear status
+await client.updateProfileStatus("");
+```
+
+### Profile Bot Example
+
+Bot that updates its profile based on commands:
+
+```typescript
+client.on("message", async (msg) => {
+  if (msg.fromMe) return; // Ignore own messages
+
+  const text = msg.text?.toLowerCase();
+
+  if (text === "!setstatus online") {
+    await client.updateProfileStatus("🟢 Online and ready to help!");
+    await client.sendText(msg.from, "Status updated to online!");
+  }
+
+  if (text === "!setstatus busy") {
+    await client.updateProfileStatus("🔴 Busy - response may be delayed");
+    await client.sendText(msg.from, "Status updated to busy!");
   }
 });
 ```

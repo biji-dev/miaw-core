@@ -502,3 +502,18 @@ export interface GroupInviteInfo {
   /** Group creation timestamp */
   createdAt?: number;
 }
+
+// ============================================
+// Profile Management Types (v0.8.0)
+// ============================================
+
+/**
+ * Result of a profile operation (update picture, name, status)
+ */
+export interface ProfileOperationResult {
+  /** Whether the operation was successful */
+  success: boolean;
+
+  /** Error message if failed */
+  error?: string;
+}

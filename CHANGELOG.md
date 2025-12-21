@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2025-12-21
+
+### Added
+
+- **Profile Picture Management**
+  - `updateProfilePicture()` - Update your own profile picture (file path, URL, or Buffer)
+  - `removeProfilePicture()` - Remove your profile picture
+
+- **Profile Information**
+  - `updateProfileName()` - Update your display name (push name)
+  - `updateProfileStatus()` - Update your "About" text
+
+- **New Types**
+  - `ProfileOperationResult` - Result type for profile operations (success/error)
+
+- **Integration Tests**
+  - Profile management tests for all v0.8.0 features
+
 ## [0.7.0] - 2025-12-21
 
 ### Added

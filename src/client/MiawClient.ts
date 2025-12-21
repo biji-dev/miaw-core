@@ -36,6 +36,8 @@ import {
   CreateGroupResult,
   GroupOperationResult,
   GroupInviteInfo,
+  // v0.8.0 Profile Management
+  ProfileOperationResult,
 } from '../types';
 import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
@@ -1811,6 +1813,132 @@ export class MiawClient extends EventEmitter {
     } catch (error) {
       this.logger.error('Failed to get group invite info:', error);
       return null;
+    }
+  }
+
+  // ============================================
+  // Profile Management Methods (v0.8.0)
+  // ============================================
+
+  /**
+   * Update your own profile picture
+   * @param image - Image source (file path, URL, or Buffer)
+   * @returns ProfileOperationResult indicating success or failure
+   */
+  async updateProfilePicture(image: MediaSource): Promise<ProfileOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update profile picture. Connection state: ${this.connectionState}`);
+      }
+
+      const userJid = this.socket.user?.id;
+      if (!userJid) {
+        throw new Error('User JID not available');
+      }
+
+      const imageContent = Buffer.isBuffer(image) ? image : { url: image };
+      await this.socket.updateProfilePicture(userJid, imageContent);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to update profile picture:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Remove your own profile picture
+   * @returns ProfileOperationResult indicating success or failure
+   */
+  async removeProfilePicture(): Promise<ProfileOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot remove profile picture. Connection state: ${this.connectionState}`);
+      }
+
+      const userJid = this.socket.user?.id;
+      if (!userJid) {
+        throw new Error('User JID not available');
+      }
+
+      await this.socket.removeProfilePicture(userJid);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to remove profile picture:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Update your profile display name (push name)
+   * @param name - New display name
+   * @returns ProfileOperationResult indicating success or failure
+   */
+  async updateProfileName(name: string): Promise<ProfileOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update profile name. Connection state: ${this.connectionState}`);
+      }
+
+      if (!name || name.trim().length === 0) {
+        throw new Error('Profile name cannot be empty');
+      }
+
+      await this.socket.updateProfileName(name);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to update profile name:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Update your profile status (About text)
+   * @param status - New status/about text
+   * @returns ProfileOperationResult indicating success or failure
+   */
+  async updateProfileStatus(status: string): Promise<ProfileOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update profile status. Connection state: ${this.connectionState}`);
+      }
+
+      await this.socket.updateProfileStatus(status);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to update profile status:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
     }
   }
 

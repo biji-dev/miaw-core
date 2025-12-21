@@ -4,9 +4,9 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 0.7.0
+**Current Version:** 0.8.0
 **Baileys Version:** 6.7.21+
-**Status:** Group Management Release
+**Status:** Profile Management Release
 **Last Updated:** 2025-12-21
 
 ---
@@ -169,14 +169,14 @@ We prioritize features based on:
 
 ---
 
-### v0.8.0 - Profile Management
+### v0.8.0 - Profile Management ✅
 
 **Focus:** Bot profile customization
 
-- [ ] **Update Profile Picture** - Set/change bot's profile picture
-- [ ] **Remove Profile Picture** - Delete bot's profile picture
-- [ ] **Update Profile Name** - Change bot's display name
-- [ ] **Update Profile Status** - Set bot's about/status text
+- [x] **Update Profile Picture** - Set/change bot's profile picture
+- [x] **Remove Profile Picture** - Delete bot's profile picture
+- [x] **Update Profile Name** - Change bot's display name
+- [x] **Update Profile Status** - Set bot's about/status text
 
 ---
 
@@ -336,7 +336,7 @@ If you need any of these features, please:
 | v0.5.0  | UX polish (read receipts, typing, presence)                | ✅ Released |
 | v0.6.0  | Advanced messaging (react, forward, edit, delete)          | ✅ Released |
 | v0.7.0  | Group management (full admin capabilities)                 | ✅ Released |
-| v0.8.0  | Profile management (customize bot profile)                 | 📋 Planned  |
+| v0.8.0  | Profile management (customize bot profile)                 | ✅ Released |
 | v0.9.0  | Business features (products, labels)                       | 📋 Planned  |
 | v1.0.0  | **Production ready** (first stable release)                | 🎯 Goal     |
 | v1.1.0  | Performance & reliability (storage, queuing)               | 💡 Future   |
@@ -391,6 +391,15 @@ Want to help implement a feature?
 ---
 
 ## Completed Milestones
+
+### 2025-12-21 - v0.8.0 Profile Management
+
+- ✅ `updateProfilePicture()` - Update your own profile picture
+- ✅ `removeProfilePicture()` - Remove your profile picture
+- ✅ `updateProfileName()` - Update your display name (push name)
+- ✅ `updateProfileStatus()` - Update your "About" text
+- ✅ New type: ProfileOperationResult
+- ✅ Integration tests for all profile management features
 
 ### 2025-12-21 - v0.7.0 Group Management
 
@@ -501,5 +510,5 @@ Want to help implement a feature?
 
 **Last Updated:** 2025-12-21
 **Status:** Active Development
-**Next Release:** v0.8.0 (Profile Management)
-**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 ✅ → v0.7.0 ✅ → ... → v1.0.0 (Production Ready)
+**Next Release:** v0.9.0 (Business Features)
+**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 ✅ → v0.7.0 ✅ → v0.8.0 ✅ → ... → v1.0.0 (Production Ready)
