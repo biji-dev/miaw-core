@@ -41,6 +41,10 @@ describe('Media Download', () => {
       return;
     }
 
+    if (!imageMessage) {
+      throw new Error('No image message received');
+    }
+
     const buffer = await client.downloadMedia(imageMessage);
 
     expect(buffer).not.toBeNull();
@@ -64,6 +68,10 @@ describe('Media Download', () => {
     } catch {
       console.log('Skipping: No document message received within timeout');
       return;
+    }
+
+    if (!docMessage) {
+      throw new Error('No document message received');
     }
 
     const buffer = await client.downloadMedia(docMessage);
