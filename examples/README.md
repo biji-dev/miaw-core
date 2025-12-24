@@ -169,6 +169,6 @@ All examples support `!help` to see available commands.
 ## Need More Help?
 
 See the main documentation:
-- [USAGE.md](../USAGE.md) - Complete usage guide
-- [ROADMAP.md](../ROADMAP.md) - Feature roadmap
+- [USAGE.md](../docs/USAGE.md) - Complete usage guide
+- [ROADMAP.md](../docs/ROADMAP.md) - Feature roadmap
 - [CHANGELOG.md](../CHANGELOG.md) - Version history

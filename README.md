@@ -6,9 +6,9 @@ Miaw Core abstracts away the complexity of Baileys, providing a clean, simple AP
 
 ## Documentation
 
-- **[Usage Guide](./USAGE.md)** - Complete guide for all current features
-- **[Migration Guide](./MIGRATION.md)** - Upgrading between versions
-- **[Roadmap](./ROADMAP.md)** - Feature roadmap and development plan
+- **[Usage Guide](./docs/USAGE.md)** - Complete guide for all current features
+- **[Migration Guide](./docs/MIGRATION.md)** - Upgrading between versions
+- **[Roadmap](./docs/ROADMAP.md)** - Feature roadmap and development plan
 - **[Changelog](./CHANGELOG.md)** - Version history and changes
 - **[Examples](./examples/)** - Code examples and sample bots
 
@@ -65,7 +65,7 @@ client.on("message", async (message) => {
 await client.connect();
 ```
 
-For more examples and detailed usage, see the [Usage Guide](./USAGE.md).
+For more examples and detailed usage, see the [Usage Guide](./docs/USAGE.md).
 
 ## Current Capabilities (v1.0.0)
 
@@ -106,7 +106,7 @@ For more examples and detailed usage, see the [Usage Guide](./USAGE.md).
 - ✅ Newsletter/channel operations
 - ✅ Contact management
 
-See [ROADMAP.md](./ROADMAP.md) for planned features.
+See [ROADMAP.md](./docs/ROADMAP.md) for planned features.
 
 ## What Miaw Core Abstracts
 
@@ -133,9 +133,9 @@ miaw-core/
 │   ├── types/           # TypeScript definitions
 │   ├── utils/           # Storage utilities
 │   └── index.ts         # Public API exports
+├── docs/                # Documentation
 ├── examples/            # Usage examples
-├── USAGE.md            # Complete usage guide
-├── ROADMAP.md          # Feature roadmap
+├── tests/               # Unit and integration tests
 └── README.md           # This file
 ```
 
@@ -143,7 +143,7 @@ miaw-core/
 
 Contributions are welcome! To contribute:
 
-1. Check [ROADMAP.md](./ROADMAP.md) for planned features
+1. Check [ROADMAP.md](./docs/ROADMAP.md) for planned features
 2. Open an issue to discuss your idea
 3. Fork the repository
 4. Create a feature branch

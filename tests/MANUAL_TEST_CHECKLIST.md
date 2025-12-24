@@ -1,6 +1,7 @@
 # Manual Test Checklist for v1.0.0
 
 **How to use this checklist:**
+
 1. Run the test bot: `node examples/realworld/group-admin-bot.ts` or your own test bot
 2. For each test, perform the action and check the box when it works
 3. Use `- [ ]` for pending, `- [x]` for completed
@@ -422,23 +423,23 @@ Verify all events are emitted correctly:
 
 ## Test Summary
 
-| Category | Total | Passed | Failed | Skipped |
-|----------|-------|--------|--------|---------|
-| Core Client | 7 | | | |
-| Messaging | 6 | | | |
-| Message Ops | 6 | | | |
-| Contact Info | 5 | | | |
-| Group Info | 2 | | | |
-| Group Mgmt | 11 | | | |
-| Profile Mgmt | 4 | | | |
-| Labels (Biz) | 5 | | | |
-| Catalog (Biz) | 5 | | | |
-| Newsletter | 17 | | | |
-| Contacts | 2 | | | |
-| LID Mapping | 6 | | | |
-| UX Features | 6 | | | |
-| Events | 10+ | | | |
-| **TOTAL** | **81+** | | | |
+| Category      | Total   | Passed | Failed | Skipped |
+| ------------- | ------- | ------ | ------ | ------- |
+| Core Client   | 7       |        |        |         |
+| Messaging     | 6       |        |        |         |
+| Message Ops   | 6       |        |        |         |
+| Contact Info  | 5       |        |        |         |
+| Group Info    | 2       |        |        |         |
+| Group Mgmt    | 11      |        |        |         |
+| Profile Mgmt  | 4       |        |        |         |
+| Labels (Biz)  | 5       |        |        |         |
+| Catalog (Biz) | 5       |        |        |         |
+| Newsletter    | 17      |        |        |         |
+| Contacts      | 2       |        |        |         |
+| LID Mapping   | 6       |        |        |         |
+| UX Features   | 6       |        |        |         |
+| Events        | 10+     |        |        |         |
+| **TOTAL**     | **81+** |        |        |         |
 
 ---
 
