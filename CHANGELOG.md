@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2025-12-24
+
+### Added
+
+#### Examples
+- `01-basic-bot.ts` - Core client, QR authentication, echo bot (v0.1.0)
+- `02-media-bot.ts` - Media sending and downloading (v0.2.0)
+- `03-message-context.ts` - Reply, edit, delete, reactions (v0.3.0)
+- `04-validation-social.ts` - Number validation, contact/group info (v0.4.0)
+- `05-ux-polish.ts` - Read receipts, typing, presence (v0.5.0)
+- `06-advanced-messaging.ts` - Reactions, forward, edit, delete (v0.6.0)
+- `07-group-management.ts` - Full group admin features (v0.7.0)
+- `08-profile-management.ts` - Profile picture, name, status (v0.8.0)
+- `09-business-social.ts` - Labels, catalog, newsletter, contacts (v0.9.0)
+- `examples/README.md` - Examples overview and usage guide
+
+### Changed
+
+- Updated README.md with v0.9.0 capabilities and changelog link
+
 ## [0.9.0] - 2025-12-24
 
 ### Added
