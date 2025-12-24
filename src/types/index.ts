@@ -517,3 +517,283 @@ export interface ProfileOperationResult {
   /** Error message if failed */
   error?: string;
 }
+
+// ============================================
+// Label Types (v0.9.0) - WhatsApp Business only
+// ============================================
+
+/**
+ * WhatsApp predefined label IDs
+ */
+export enum PredefinedLabelId {
+  NewCustomer = 1,
+  NewOrder = 2,
+  PendingPayment = 3,
+  Paid = 4,
+  Shipped = 5,
+}
+
+/**
+ * Label color options (WhatsApp has 20 predefined colors)
+ */
+export enum LabelColor {
+  Color1 = 0,
+  Color2,
+  Color3,
+  Color4,
+  Color5,
+  Color6,
+  Color7,
+  Color8,
+  Color9,
+  Color10,
+  Color11,
+  Color12,
+  Color13,
+  Color14,
+  Color15,
+  Color16,
+  Color17,
+  Color18,
+  Color19,
+  Color20,
+}
+
+/**
+ * Label information
+ */
+export interface Label {
+  /** Unique label ID */
+  id: string;
+  /** Label name */
+  name: string;
+  /** Label color (0-19) */
+  color: LabelColor;
+  /** Whether this label is deleted */
+  deleted?: boolean;
+  /** Predefined label ID (if applicable) */
+  predefinedId?: PredefinedLabelId;
+}
+
+/**
+ * Result of a label operation
+ */
+export interface LabelOperationResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** Error message if failed */
+  error?: string;
+  /** Label ID if successful (for create operations) */
+  labelId?: string;
+}
+
+// ============================================
+// Catalog/Product Types (v0.9.0) - WhatsApp Business only
+// ============================================
+
+/**
+ * Product image URL
+ */
+export interface ProductImage {
+  /** Image URL */
+  url: string;
+  /** Optional image caption */
+  caption?: string;
+}
+
+/**
+ * Product information
+ */
+export interface Product {
+  /** Unique product ID (from WhatsApp) */
+  id?: string;
+  /** Product name/URL (for images) or product data */
+  productUrl?: string;
+  /** Product name */
+  name?: string;
+  /** Product description */
+  description?: string;
+  /** Product price in cents (multiply by 100) */
+  priceAmount1000?: number;
+  /** Product images */
+  images?: ProductImage[];
+  /** Whether product is hidden */
+  isHidden?: boolean;
+  /** Product retailer ID (your internal SKU) */
+  retailerId?: string;
+  /** Product URL */
+  url?: string;
+  /** Product count (for collections) */
+  count?: number;
+}
+
+/**
+ * Product collection
+ */
+export interface ProductCollection {
+  /** Collection ID */
+  id: string;
+  /** Collection name */
+  name: string;
+  /** Products in collection */
+  products?: Product[];
+}
+
+/**
+ * Product catalog result
+ */
+export interface ProductCatalog {
+  /** Whether the request was successful */
+  success: boolean;
+  /** Products in the catalog */
+  products?: Product[];
+  /** Pagination cursor */
+  nextCursor?: string;
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Product operation result (create, update, delete)
+ */
+export interface ProductOperationResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** Product ID if successful */
+  productId?: string;
+  /** Number of products deleted (for delete operations) */
+  deletedCount?: number;
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Options for creating/updating a product
+ */
+export interface ProductOptions {
+  /** Product name */
+  name: string;
+  /** Product description */
+  description?: string;
+  /** Product price in smallest currency unit (e.g., cents for USD) */
+  price: number;
+  /** Product image URLs */
+  imageUrls?: string[];
+  /** Whether product is hidden from catalog */
+  isHidden?: boolean;
+  /** Your internal product ID/SKU */
+  retailerId?: string;
+  /** Product landing page URL */
+  url?: string;
+}
+
+// ============================================
+// Newsletter/Channel Types (v0.9.0)
+// ============================================
+
+/**
+ * Newsletter metadata
+ */
+export interface NewsletterMetadata {
+  /** Newsletter JID */
+  id: string;
+  /** Newsletter name */
+  name: string;
+  /** Newsletter description */
+  description?: string;
+  /** Newsletter picture URL */
+  pictureUrl?: string;
+  /** Subscriber count */
+  subscribers?: number;
+  /** Whether this is a newsletter you created */
+  isCreator?: boolean;
+  /** Whether you're subscribed to this newsletter */
+  isFollowing?: boolean;
+  /** Whether newsletter is muted */
+  isMuted?: boolean;
+  /** Newsletter creation timestamp */
+  createdAt?: number;
+  /** Newsletter update timestamp */
+  updatedAt?: number;
+}
+
+/**
+ * Newsletter message
+ */
+export interface NewsletterMessage {
+  /** Message ID */
+  id: string;
+  /** Newsletter JID */
+  newsletterId: string;
+  /** Message content (text or media) */
+  content?: string;
+  /** Message timestamp */
+  timestamp: number;
+  /** Media URL (if applicable) */
+  mediaUrl?: string;
+  /** Media type */
+  mediaType?: string;
+}
+
+/**
+ * Newsletter messages result
+ */
+export interface NewsletterMessagesResult {
+  /** Whether the request was successful */
+  success: boolean;
+  /** Messages fetched */
+  messages?: NewsletterMessage[];
+  /** Next pagination cursor */
+  nextCursor?: string;
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Newsletter operation result
+ */
+export interface NewsletterOperationResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** Newsletter ID if created */
+  newsletterId?: string;
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Newsletter subscription info
+ */
+export interface NewsletterSubscriptionInfo {
+  /** Subscriber count */
+  subscribers?: number;
+  /** Admin count */
+  adminCount?: number;
+}
+
+// ============================================
+// Contact Management Types (v0.9.0)
+// ============================================
+
+/**
+ * Contact information for adding/editing
+ */
+export interface ContactData {
+  /** Contact's phone number (with country code) */
+  phone: string;
+  /** Contact's display name */
+  name: string;
+  /** Additional contact info (for advanced use) */
+  firstName?: string;
+  lastName?: string;
+}
+
+/**
+ * Contact operation result
+ */
+export interface ContactOperationResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** Error message if failed */
+  error?: string;
+}

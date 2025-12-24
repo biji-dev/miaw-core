@@ -38,6 +38,23 @@ import {
   GroupInviteInfo,
   // v0.8.0 Profile Management
   ProfileOperationResult,
+  // v0.9.0 Labels
+  Label,
+  LabelOperationResult,
+  // v0.9.0 Catalog/Product
+  Product,
+  ProductCatalog,
+  ProductOperationResult,
+  ProductOptions,
+  ProductCollection,
+  // v0.9.0 Newsletter/Channel
+  NewsletterMetadata,
+  NewsletterMessagesResult,
+  NewsletterOperationResult,
+  NewsletterSubscriptionInfo,
+  // v0.9.0 Contact Management
+  ContactData,
+  ContactOperationResult,
 } from '../types';
 import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
@@ -1935,6 +1952,1067 @@ export class MiawClient extends EventEmitter {
       return { success: true };
     } catch (error) {
       this.logger.error('Failed to update profile status:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  // ============================================
+  // Label Methods (v0.9.0) - WhatsApp Business only
+  // ============================================
+
+  /**
+   * Create or edit a label
+   * @param label - Label data (for edit, include the label ID)
+   * @returns LabelOperationResult
+   * @note Requires WhatsApp Business account
+   */
+  async addLabel(label: Label): Promise<LabelOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot add label. Connection state: ${this.connectionState}`);
+      }
+
+      // Build label action body
+      const labelAction: any = {
+        id: label.id,
+        name: label.name,
+        color: label.color,
+        deleted: label.deleted ?? false,
+      };
+
+      if (label.predefinedId !== undefined) {
+        labelAction.predefinedId = label.predefinedId;
+      }
+
+      // Use empty string JID for label creation (affects account, not a specific chat)
+      await this.socket.addLabel('', labelAction);
+
+      return {
+        success: true,
+        labelId: label.id,
+      };
+    } catch (error) {
+      this.logger.error('Failed to add label:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Add a label to a chat
+   * @param chatJidOrPhone - Chat JID or phone number
+   * @param labelId - Label ID to add
+   * @returns LabelOperationResult
+   * @note Requires WhatsApp Business account
+   */
+  async addChatLabel(chatJidOrPhone: string, labelId: string): Promise<LabelOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot add chat label. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(chatJidOrPhone);
+      await this.socket.addChatLabel(jid, labelId);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to add chat label:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Remove a label from a chat
+   * @param chatJidOrPhone - Chat JID or phone number
+   * @param labelId - Label ID to remove
+   * @returns LabelOperationResult
+   * @note Requires WhatsApp Business account
+   */
+  async removeChatLabel(chatJidOrPhone: string, labelId: string): Promise<LabelOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot remove chat label. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(chatJidOrPhone);
+      await this.socket.removeChatLabel(jid, labelId);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to remove chat label:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Add a label to a message
+   * @param chatJidOrPhone - Chat JID or phone number where the message is
+   * @param messageId - Message ID to label
+   * @param labelId - Label ID to add
+   * @returns LabelOperationResult
+   * @note Requires WhatsApp Business account
+   */
+  async addMessageLabel(
+    chatJidOrPhone: string,
+    messageId: string,
+    labelId: string
+  ): Promise<LabelOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot add message label. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(chatJidOrPhone);
+      await this.socket.addMessageLabel(jid, messageId, labelId);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to add message label:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Remove a label from a message
+   * @param chatJidOrPhone - Chat JID or phone number where the message is
+   * @param messageId - Message ID to unlabel
+   * @param labelId - Label ID to remove
+   * @returns LabelOperationResult
+   * @note Requires WhatsApp Business account
+   */
+  async removeMessageLabel(
+    chatJidOrPhone: string,
+    messageId: string,
+    labelId: string
+  ): Promise<LabelOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot remove message label. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(chatJidOrPhone);
+      await this.socket.removeMessageLabel(jid, messageId, labelId);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to remove message label:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  // ============================================
+  // Catalog/Product Methods (v0.9.0) - WhatsApp Business only
+  // ============================================
+
+  /**
+   * Get product catalog from a WhatsApp Business account
+   * @param businessJidOrPhone - Business JID or phone number (default: your own catalog)
+   * @param limit - Maximum number of products to fetch (default: 10)
+   * @param cursor - Pagination cursor for fetching next page
+   * @returns ProductCatalog
+   * @note Requires WhatsApp Business account
+   */
+  async getCatalog(
+    businessJidOrPhone?: string,
+    limit: number = 10,
+    cursor?: string
+  ): Promise<ProductCatalog> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get catalog. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = businessJidOrPhone ? MessageHandler.formatPhoneToJid(businessJidOrPhone) : undefined;
+      const result = await this.socket.getCatalog({ jid, limit, cursor });
+
+      const products: Product[] = (result.products || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        priceAmount1000: p.priceAmount1000,
+        retailerId: p.retailerId,
+        url: p.url,
+        isHidden: p.isHidden,
+        images: p.images?.map((img: any) => ({ url: img.url, caption: img.caption })) || [],
+        count: p.count,
+      }));
+
+      return {
+        success: true,
+        products,
+        nextCursor: result.nextPageCursor,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get catalog:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Get product collections from a WhatsApp Business account
+   * @param businessJidOrPhone - Business JID or phone number (default: your own collections)
+   * @param limit - Maximum number of collections to fetch (default: 51)
+   * @returns Array of ProductCollection
+   * @note Requires WhatsApp Business account
+   */
+  async getCollections(
+    businessJidOrPhone?: string,
+    limit: number = 51
+  ): Promise<ProductCollection[]> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get collections. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = businessJidOrPhone ? MessageHandler.formatPhoneToJid(businessJidOrPhone) : undefined;
+      const result = await this.socket.getCollections(jid, limit);
+
+      return (result.collections || []).map((col: any) => ({
+        id: col.id,
+        name: col.name,
+        products: col.products?.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          priceAmount1000: p.priceAmount1000,
+          retailerId: p.retailerId,
+          images: p.images?.map((img: any) => ({ url: img.url, caption: img.caption })) || [],
+        })),
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get collections:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create a new product in the catalog
+   * @param options - Product options (name, price, images, etc.)
+   * @returns ProductOperationResult with product ID
+   * @note Requires WhatsApp Business account
+   */
+  async createProduct(options: ProductOptions): Promise<ProductOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot create product. Connection state: ${this.connectionState}`);
+      }
+
+      // Convert price from smallest unit to Baileys format (multiply by 1000)
+      const priceAmount1000 = options.price * 10;
+
+      const productData: any = {
+        name: options.name,
+        priceAmount1000,
+        isHidden: options.isHidden ?? false,
+      };
+
+      if (options.description) {
+        productData.description = options.description;
+      }
+
+      if (options.retailerId) {
+        productData.retailerId = options.retailerId;
+      }
+
+      if (options.url) {
+        productData.url = options.url;
+      }
+
+      if (options.imageUrls && options.imageUrls.length > 0) {
+        productData.images = options.imageUrls.map((url) => ({ url }));
+      }
+
+      const result = await this.socket.productCreate(productData);
+
+      return {
+        success: true,
+        productId: result?.id,
+      };
+    } catch (error) {
+      this.logger.error('Failed to create product:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Update an existing product in the catalog
+   * @param productId - Product ID to update
+   * @param options - Product options (name, price, images, etc.)
+   * @returns ProductOperationResult
+   * @note Requires WhatsApp Business account
+   */
+  async updateProduct(productId: string, options: ProductOptions): Promise<ProductOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update product. Connection state: ${this.connectionState}`);
+      }
+
+      // Convert price from smallest unit to Baileys format (multiply by 1000)
+      const priceAmount1000 = options.price * 10;
+
+      const productData: any = {
+        priceAmount1000,
+      };
+
+      if (options.name) {
+        productData.name = options.name;
+      }
+
+      if (options.description !== undefined) {
+        productData.description = options.description;
+      }
+
+      if (options.isHidden !== undefined) {
+        productData.isHidden = options.isHidden;
+      }
+
+      if (options.retailerId) {
+        productData.retailerId = options.retailerId;
+      }
+
+      if (options.url) {
+        productData.url = options.url;
+      }
+
+      if (options.imageUrls && options.imageUrls.length > 0) {
+        productData.images = options.imageUrls.map((url) => ({ url }));
+      }
+
+      const result = await this.socket.productUpdate(productId, productData);
+
+      return {
+        success: true,
+        productId: result?.id,
+      };
+    } catch (error) {
+      this.logger.error('Failed to update product:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Delete products from the catalog
+   * @param productIds - Array of product IDs to delete
+   * @returns ProductOperationResult with deleted count
+   * @note Requires WhatsApp Business account
+   */
+  async deleteProducts(productIds: string[]): Promise<ProductOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot delete products. Connection state: ${this.connectionState}`);
+      }
+
+      if (productIds.length === 0) {
+        throw new Error('At least one product ID is required');
+      }
+
+      const result = await this.socket.productDelete(productIds);
+
+      return {
+        success: true,
+        deletedCount: result.deleted,
+      };
+    } catch (error) {
+      this.logger.error('Failed to delete products:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  // ============================================
+  // Newsletter/Channel Methods (v0.9.0)
+  // ============================================
+
+  /**
+   * Create a new newsletter/channel
+   * @param name - Newsletter name
+   * @param description - Newsletter description
+   * @returns NewsletterOperationResult with newsletter ID
+   */
+  async createNewsletter(name: string, description?: string): Promise<NewsletterOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot create newsletter. Connection state: ${this.connectionState}`);
+      }
+
+      const result = await this.socket.newsletterCreate(name, description || '');
+
+      return {
+        success: true,
+        newsletterId: result?.id,
+      };
+    } catch (error) {
+      this.logger.error('Failed to create newsletter:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Get newsletter metadata
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns NewsletterMetadata or null if not found
+   */
+  async getNewsletterMetadata(newsletterId: string): Promise<NewsletterMetadata | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get newsletter metadata. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      const meta = await this.socket.newsletterMetadata('jid', newsletterId);
+
+      if (!meta) {
+        return null;
+      }
+
+      // Extract picture URL from the picture object if available
+      const pictureUrl = typeof meta.picture === 'string' ? meta.picture : meta.picture?.url;
+
+      return {
+        id: meta.id || newsletterId,
+        name: meta.name || '',
+        description: meta.description,
+        pictureUrl,
+        subscribers: meta.subscribers,
+        isCreator: false, // Baileys doesn't provide this
+        isFollowing: false, // Baileys doesn't provide this
+        isMuted: false, // Baileys doesn't provide this
+        createdAt: meta.creation_time,
+        updatedAt: undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get newsletter metadata:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Follow a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns boolean indicating success
+   */
+  async followNewsletter(newsletterId: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot follow newsletter. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterFollow(newsletterId);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to follow newsletter:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Unfollow a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns boolean indicating success
+   */
+  async unfollowNewsletter(newsletterId: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot unfollow newsletter. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterUnfollow(newsletterId);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to unfollow newsletter:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mute a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns boolean indicating success
+   */
+  async muteNewsletter(newsletterId: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot mute newsletter. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterMute(newsletterId);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to mute newsletter:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Unmute a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns boolean indicating success
+   */
+  async unmuteNewsletter(newsletterId: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot unmute newsletter. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterUnmute(newsletterId);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to unmute newsletter:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Update newsletter name
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param name - New newsletter name
+   * @returns boolean indicating success
+   */
+  async updateNewsletterName(newsletterId: string, name: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update newsletter name. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterUpdateName(newsletterId, name);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to update newsletter name:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Update newsletter description
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param description - New newsletter description
+   * @returns boolean indicating success
+   */
+  async updateNewsletterDescription(newsletterId: string, description: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update newsletter description. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterUpdateDescription(newsletterId, description);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to update newsletter description:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Update newsletter picture
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param image - Image source (file path, URL, or Buffer)
+   * @returns boolean indicating success
+   */
+  async updateNewsletterPicture(newsletterId: string, image: MediaSource): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot update newsletter picture. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      const imageContent = Buffer.isBuffer(image) ? image : { url: image };
+      await this.socket.newsletterUpdatePicture(newsletterId, imageContent);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to update newsletter picture:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Remove newsletter picture
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns boolean indicating success
+   */
+  async removeNewsletterPicture(newsletterId: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot remove newsletter picture. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterRemovePicture(newsletterId);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to remove newsletter picture:', error);
+      return false;
+    }
+  }
+
+  /**
+   * React to a newsletter message
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param messageId - Server message ID to react to
+   * @param emoji - Emoji to react with (empty string removes reaction)
+   * @returns boolean indicating success
+   */
+  async reactToNewsletterMessage(
+    newsletterId: string,
+    messageId: string,
+    emoji: string
+  ): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot react to newsletter message. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterReactMessage(newsletterId, messageId, emoji);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to react to newsletter message:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Fetch messages from a newsletter
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param count - Number of messages to fetch (default: 50)
+   * @param since - Timestamp to fetch messages since (default: now, backward)
+   * @param after - Cursor for pagination (default: 0)
+   * @returns NewsletterMessagesResult
+   */
+  async fetchNewsletterMessages(
+    newsletterId: string,
+    count: number = 50,
+    since?: number,
+    after: number = 0
+  ): Promise<NewsletterMessagesResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot fetch newsletter messages. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      const messages = await this.socket.newsletterFetchMessages(
+        newsletterId,
+        count,
+        since || Date.now(),
+        after
+      );
+
+      const normalizedMessages = (messages || []).map((msg: any) => ({
+        id: msg.key?.id || '',
+        newsletterId,
+        content: msg.message?.conversation || msg.message?.extendedTextMessage?.text,
+        timestamp: msg.messageTimestamp || 0,
+        mediaUrl: msg.message?.imageMessage?.url || msg.message?.videoMessage?.url,
+        mediaType: msg.message?.imageMessage ? 'image' : msg.message?.videoMessage ? 'video' : undefined,
+      }));
+
+      return {
+        success: true,
+        messages: normalizedMessages,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch newsletter messages:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Subscribe to live newsletter updates
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns boolean indicating success
+   */
+  async subscribeNewsletterUpdates(newsletterId: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot subscribe to newsletter updates. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.subscribeNewsletterUpdates(newsletterId);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to subscribe to newsletter updates:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get newsletter subscriber and admin count
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns NewsletterSubscriptionInfo or null if failed
+   */
+  async getNewsletterSubscribers(newsletterId: string): Promise<NewsletterSubscriptionInfo | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get newsletter subscribers. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      const result = await this.socket.newsletterSubscribers(newsletterId);
+
+      return {
+        subscribers: result?.subscribers,
+        adminCount: undefined,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get newsletter subscribers:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get newsletter admin count
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns Admin count or null if failed
+   */
+  async getNewsletterAdminCount(newsletterId: string): Promise<number | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get newsletter admin count. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      const count = await this.socket.newsletterAdminCount(newsletterId);
+      return count || 0;
+    } catch (error) {
+      this.logger.error('Failed to get newsletter admin count:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Change newsletter owner (transfer ownership)
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param newOwnerJid - New owner's JID
+   * @returns boolean indicating success
+   */
+  async changeNewsletterOwner(newsletterId: string, newOwnerJid: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot change newsletter owner. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(newOwnerJid);
+      await this.socket.newsletterChangeOwner(newsletterId, jid);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to change newsletter owner:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Demote a newsletter admin
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param adminJid - Admin's JID to demote
+   * @returns boolean indicating success
+   */
+  async demoteNewsletterAdmin(newsletterId: string, adminJid: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot demote newsletter admin. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(adminJid);
+      await this.socket.newsletterDemote(newsletterId, jid);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to demote newsletter admin:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Delete a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @returns boolean indicating success
+   */
+  async deleteNewsletter(newsletterId: string): Promise<boolean> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot delete newsletter. Connection state: ${this.connectionState}`);
+      }
+
+      if (!newsletterId.endsWith('@newsletter')) {
+        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      }
+
+      await this.socket.newsletterDelete(newsletterId);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to delete newsletter:', error);
+      return false;
+    }
+  }
+
+  // ============================================
+  // Contact Management Methods (v0.9.0)
+  // ============================================
+
+  /**
+   * Add or edit a contact
+   * @param contact - Contact data (phone, name, etc.)
+   * @returns ContactOperationResult
+   */
+  async addOrEditContact(contact: ContactData): Promise<ContactOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot add/edit contact. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(contact.phone);
+
+      // Build contact action for Baileys
+      const contactAction: any = {
+        displayName: contact.name,
+      };
+
+      if (contact.firstName) {
+        contactAction.givenName = contact.firstName;
+      }
+
+      if (contact.lastName) {
+        contactAction.familyName = contact.lastName;
+      }
+
+      await this.socket.addOrEditContact(jid, contactAction);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to add/edit contact:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Remove a contact
+   * @param phone - Contact's phone number (with country code)
+   * @returns ContactOperationResult
+   */
+  async removeContact(phone: string): Promise<ContactOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot remove contact. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(phone);
+      await this.socket.removeContact(jid);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Failed to remove contact:', error);
       return {
         success: false,
         error: (error as Error).message,
