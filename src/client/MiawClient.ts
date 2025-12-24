@@ -61,6 +61,59 @@ import { AuthHandler } from '../handlers/AuthHandler';
 import { MessageHandler } from '../handlers/MessageHandler';
 
 /**
+ * LRU Cache for LID to JID mappings
+ * Prevents unbounded memory growth while maintaining frequently used mappings
+ */
+class LruCache {
+  private cache: Map<string, string>;
+  private maxSize: number;
+
+  constructor(maxSize = 1000) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+  }
+
+  get(key: string): string | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: string, value: string): void {
+    // Remove existing if present (will be re-added at end)
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    // Add to end (most recently used)
+    this.cache.set(key, value);
+
+    // Evict oldest if at capacity
+    if (this.cache.size > this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+  }
+
+  has(key: string): boolean {
+    return this.cache.has(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+}
+
+/**
  * Main client class for interacting with WhatsApp
  */
 export class MiawClient extends EventEmitter {
@@ -71,7 +124,7 @@ export class MiawClient extends EventEmitter {
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private logger: any;
-  private lidToJidMap: Map<string, string> = new Map();
+  private lidToJidMap: LruCache = new LruCache(1000);
 
   constructor(options: MiawClientOptions) {
     super();
@@ -423,8 +476,52 @@ export class MiawClient extends EventEmitter {
    * Get all registered LID mappings
    * Useful for persisting mappings to storage
    */
-  getLidMappings(): Map<string, string> {
-    return new Map(this.lidToJidMap);
+  getLidMappings(): Record<string, string> {
+    const result: Record<string, string> = {};
+    // Iterate through the cache
+    for (const [key, value] of (this.lidToJidMap as any).cache) {
+      result[key] = value;
+    }
+    return result;
+  }
+
+  /**
+   * Get LID cache size
+   */
+  getLidCacheSize(): number {
+    return this.lidToJidMap.size;
+  }
+
+  /**
+   * Clear LID cache
+   */
+  clearLidCache(): void {
+    this.lidToJidMap.clear();
+  }
+
+  /**
+   * Dispose client and clean up resources
+   */
+  async dispose(): Promise<void> {
+    // Clear reconnect timer
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // Clear LID cache
+    this.lidToJidMap.clear();
+
+    // Remove all event listeners
+    this.removeAllListeners();
+
+    // Close socket if connected
+    if (this.socket) {
+      this.socket.end(undefined);
+      this.socket = null;
+    }
+
+    this.updateConnectionState('disconnected');
   }
 
   /**
