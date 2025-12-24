@@ -8,6 +8,7 @@ Miaw Core abstracts away the complexity of Baileys, providing a clean, simple AP
 
 - **[Usage Guide](./USAGE.md)** - Complete guide for all current features
 - **[Roadmap](./ROADMAP.md)** - Feature roadmap and development plan
+- **[Changelog](./CHANGELOG.md)** - Version history and changes
 - **[Examples](./examples/)** - Code examples and sample bots
 
 ## Features
@@ -19,6 +20,10 @@ Miaw Core abstracts away the complexity of Baileys, providing a clean, simple AP
 - **TypeScript Support** - Full type definitions for excellent IDE experience
 - **Event-Driven** - Easy-to-use event system for messages and connection states
 - **Normalized Messages** - Simplified message format, no more complex Baileys structures
+- **Business Features** - Label operations, product catalog, newsletter/channels (WhatsApp Business)
+- **Contact Management** - Add, edit, and remove contacts
+- **Group Management** - Full admin capabilities for groups
+- **Profile Management** - Customize bot profile picture, name, and status
 
 ## Installation
 
@@ -61,9 +66,11 @@ await client.connect();
 
 For more examples and detailed usage, see the [Usage Guide](./USAGE.md).
 
-## Current Capabilities (v0.1.0)
+## Current Capabilities (v0.9.0)
 
+### Core Features
 - ✅ Send and receive text messages
+- ✅ Send/receive media (images, videos, audio, documents)
 - ✅ QR code authentication
 - ✅ Session persistence
 - ✅ Auto-reconnection
@@ -71,6 +78,32 @@ For more examples and detailed usage, see the [Usage Guide](./USAGE.md).
 - ✅ Event-driven architecture
 - ✅ TypeScript support
 - ✅ Error handling
+
+### Advanced Messaging
+- ✅ Reply/quote messages
+- ✅ Edit own messages
+- ✅ Delete messages
+- ✅ Message reactions
+- ✅ Forward messages
+
+### Group Management
+- ✅ Create groups
+- ✅ Add/remove participants
+- ✅ Promote/demote admins
+- ✅ Group invite links
+- ✅ Update group settings
+
+### Profile Management
+- ✅ Update profile picture
+- ✅ Remove profile picture
+- ✅ Update profile name
+- ✅ Update profile status
+
+### Business & Social (v0.9.0)
+- ✅ Label operations (WhatsApp Business)
+- ✅ Product catalog management (WhatsApp Business)
+- ✅ Newsletter/channel operations
+- ✅ Contact management
 
 See [ROADMAP.md](./ROADMAP.md) for planned features.
 
