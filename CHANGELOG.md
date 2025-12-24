@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2025-12-24
+
+### Added
+
+#### Label Operations (WhatsApp Business only)
+- `addLabel()` - Create or edit labels
+- `addChatLabel()` - Add a label to a chat
+- `removeChatLabel()` - Remove a label from a chat
+- `addMessageLabel()` - Add a label to a message
+- `removeMessageLabel()` - Remove a label from a message
+- `LabelColor` enum - 20 predefined colors
+- `PredefinedLabelId` enum - 5 WhatsApp predefined labels
+- `Label`, `LabelOperationResult` types
+
+#### Catalog/Product Operations (WhatsApp Business only)
+- `getCatalog()` - Fetch product catalog with pagination support
+- `getCollections()` - Fetch catalog collections
+- `createProduct()` - Add new products to catalog
+- `updateProduct()` - Modify existing products
+- `deleteProducts()` - Remove products from catalog
+- `Product`, `ProductCollection`, `ProductCatalog`, `ProductOperationResult`, `ProductOptions` types
+
+#### Newsletter/Channel Operations
+- `createNewsletter()` - Create WhatsApp channels/newsletters
+- `getNewsletterMetadata()` - Get newsletter information
+- `followNewsletter()` - Follow/subscribe to newsletters
+- `unfollowNewsletter()` - Unsubscribe from newsletters
+- `muteNewsletter()` - Mute newsletter notifications
+- `unmuteNewsletter()` - Unmute newsletter notifications
+- `updateNewsletterName()` - Update newsletter name
+- `updateNewsletterDescription()` - Update newsletter description
+- `updateNewsletterPicture()` - Update newsletter cover image
+- `removeNewsletterPicture()` - Remove newsletter cover image
+- `reactToNewsletterMessage()` - React to newsletter posts
+- `fetchNewsletterMessages()` - Get newsletter message history
+- `subscribeNewsletterUpdates()` - Subscribe to live newsletter updates
+- `getNewsletterSubscribers()` - Get subscriber count
+- `getNewsletterAdminCount()` - Get admin count
+- `changeNewsletterOwner()` - Transfer newsletter ownership
+- `demoteNewsletterAdmin()` - Demote a newsletter admin
+- `deleteNewsletter()` - Delete a newsletter
+- `NewsletterMetadata`, `NewsletterMessage`, `NewsletterMessagesResult`, `NewsletterOperationResult`, `NewsletterSubscriptionInfo` types
+
+#### Contact Management
+- `addOrEditContact()` - Add or update contacts
+- `removeContact()` - Remove contacts
+- `ContactData`, `ContactOperationResult` types
+
+#### Tests
+- Integration tests for all v0.9.0 features (`12-business-features.test.ts`, `13-newsletter-features.test.ts`)
+
 ## [0.8.0] - 2025-12-21
 
 ### Added
