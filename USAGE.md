@@ -12,6 +12,7 @@ This document covers all current capabilities of Miaw Core. It will be updated a
 - [Advanced Messaging](#advanced-messaging)
 - [Group Management](#group-management)
 - [Profile Management](#profile-management)
+- [Business & Social Features](#business--social-features-v090)
 - [Receiving Messages](#receiving-messages)
 - [Connection Management](#connection-management)
 - [Multiple Instances](#multiple-instances)
@@ -572,6 +573,372 @@ client.on("message", async (msg) => {
   if (text === "!setstatus busy") {
     await client.updateProfileStatus("🔴 Busy - response may be delayed");
     await client.sendText(msg.from, "Status updated to busy!");
+  }
+});
+```
+
+## Business & Social Features (v0.9.0)
+
+This section covers WhatsApp Business features (labels, catalog/products) and social features (newsletters/channels, contacts).
+
+> **Note:** Label and Catalog/Product features require a **WhatsApp Business account**.
+
+### Label Operations (WhatsApp Business Only)
+
+Labels help organize chats and messages. WhatsApp Business provides 20 label colors and 5 predefined labels.
+
+#### Create/Edit a Label
+
+```typescript
+import { LabelColor } from "miaw-core";
+
+const result = await client.addLabel({
+  id: "vip-customers",
+  name: "VIP Customers",
+  color: LabelColor.Color5,
+});
+
+if (result.success) {
+  console.log("Label created:", result.labelId);
+}
+```
+
+#### Add Label to Chat
+
+```typescript
+const result = await client.addChatLabel("6281234567890", "label-id");
+
+if (result.success) {
+  console.log("Label added to chat");
+}
+```
+
+#### Remove Label from Chat
+
+```typescript
+const result = await client.removeChatLabel("6281234567890", "label-id");
+
+if (result.success) {
+  console.log("Label removed from chat");
+}
+```
+
+#### Add/Remove Label from Message
+
+```typescript
+// Add label to message
+await client.addMessageLabel("6281234567890", "message-id", "label-id");
+
+// Remove label from message
+await client.removeMessageLabel("6281234567890", "message-id", "label-id");
+```
+
+### Catalog/Product Operations (WhatsApp Business Only)
+
+Manage your product catalog and inventory.
+
+#### Get Product Catalog
+
+```typescript
+const catalog = await client.getCatalog();
+
+if (catalog.success) {
+  console.log("Products:", catalog.products);
+  console.log("Next page cursor:", catalog.nextCursor);
+}
+
+// Get from another business
+const otherCatalog = await client.getCatalog("6289876543210");
+
+// With pagination
+const paginated = await client.getCatalog(undefined, 20, catalog.nextCursor);
+```
+
+#### Get Product Collections
+
+```typescript
+const collections = await client.getCollections();
+
+collections.forEach(col => {
+  console.log("Collection:", col.name);
+  console.log("Products:", col.products);
+});
+```
+
+#### Create a Product
+
+```typescript
+const result = await client.createProduct({
+  name: "Premium Widget",
+  description: "High-quality widget for all your needs",
+  price: 1999, // In cents (e.g., $19.99)
+  imageUrls: ["https://example.com/product.jpg"],
+  isHidden: false,
+  retailerId: "SKU-001",
+  url: "https://example.com/product",
+});
+
+if (result.success) {
+  console.log("Product created:", result.productId);
+}
+```
+
+#### Update a Product
+
+```typescript
+const result = await client.updateProduct("product-id", {
+  name: "Premium Widget v2",
+  price: 2499, // $24.99
+  description: "Updated with new features",
+});
+
+if (result.success) {
+  console.log("Product updated:", result.productId);
+}
+```
+
+#### Delete Products
+
+```typescript
+const result = await client.deleteProducts(["product-id-1", "product-id-2"]);
+
+if (result.success) {
+  console.log("Deleted count:", result.deletedCount);
+}
+```
+
+### Newsletter/Channel Features
+
+WhatsApp Channels (newsletters) for broadcasting updates.
+
+#### Create a Newsletter
+
+```typescript
+const result = await client.createNewsletter(
+  "My Tech Updates",
+  "Latest technology news and updates"
+);
+
+if (result.success) {
+  console.log("Newsletter created:", result.newsletterId);
+  // Newsletter ID format: "1234567890@newsletter"
+}
+```
+
+#### Get Newsletter Metadata
+
+```typescript
+const meta = await client.getNewsletterMetadata("1234567890@newsletter");
+
+if (meta) {
+  console.log("Name:", meta.name);
+  console.log("Description:", meta.description);
+  console.log("Subscribers:", meta.subscribers);
+  console.log("Picture:", meta.pictureUrl);
+}
+```
+
+#### Follow/Unfollow Newsletter
+
+```typescript
+// Follow
+const followed = await client.followNewsletter("1234567890@newsletter");
+
+// Unfollow
+const unfollowed = await client.unfollowNewsletter("1234567890@newsletter");
+```
+
+#### Mute/Unmute Newsletter
+
+```typescript
+await client.muteNewsletter("1234567890@newsletter");
+await client.unmuteNewsletter("1234567890@newsletter");
+```
+
+#### Update Newsletter
+
+```typescript
+// Update name
+await client.updateNewsletterName("1234567890@newsletter", "New Name");
+
+// Update description
+await client.updateNewsletterDescription("1234567890@newsletter", "New description");
+
+// Update picture
+await client.updateNewsletterPicture("1234567890@newsletter", "./cover.jpg");
+
+// Remove picture
+await client.removeNewsletterPicture("1234567890@newsletter");
+```
+
+#### Fetch Newsletter Messages
+
+```typescript
+const messages = await client.fetchNewsletterMessages(
+  "1234567890@newsletter",
+  50, // count
+  Date.now(), // since timestamp
+  0 // after cursor (for pagination)
+);
+
+if (messages.success) {
+  messages.messages?.forEach(msg => {
+    console.log("Message:", msg.content);
+    console.log("Timestamp:", msg.timestamp);
+  });
+}
+```
+
+#### React to Newsletter Message
+
+```typescript
+// Add reaction
+await client.reactToNewsletterMessage("1234567890@newsletter", "msg-id", "👍");
+
+// Remove reaction
+await client.reactToNewsletterMessage("1234567890@newsletter", "msg-id", "");
+```
+
+#### Newsletter Subscriber Info
+
+```typescript
+// Get subscriber count
+const info = await client.getNewsletterSubscribers("1234567890@newsletter");
+console.log("Subscribers:", info?.subscribers);
+
+// Get admin count
+const adminCount = await client.getNewsletterAdminCount("1234567890@newsletter");
+console.log("Admins:", adminCount);
+
+// Subscribe to live updates
+await client.subscribeNewsletterUpdates("1234567890@newsletter");
+```
+
+#### Newsletter Admin Operations
+
+```typescript
+// Change owner
+await client.changeNewsletterOwner("1234567890@newsletter", "new-owner@s.whatsapp.net");
+
+// Demote admin
+await client.demoteNewsletterAdmin("1234567890@newsletter", "admin@s.whatsapp.net");
+
+// Delete newsletter
+await client.deleteNewsletter("1234567890@newsletter");
+```
+
+### Contact Management
+
+Manage your WhatsApp contacts.
+
+#### Add or Edit Contact
+
+```typescript
+const result = await client.addOrEditContact({
+  phone: "6281234567890",
+  name: "John Doe",
+  firstName: "John",
+  lastName: "Doe",
+});
+
+if (result.success) {
+  console.log("Contact saved!");
+}
+```
+
+#### Remove Contact
+
+```typescript
+const result = await client.removeContact("6281234567890");
+
+if (result.success) {
+  console.log("Contact removed!");
+}
+```
+
+### Business Bot Example
+
+Bot that manages labels and products:
+
+```typescript
+client.on("message", async (msg) => {
+  if (msg.fromMe) return;
+
+  const text = msg.text?.toLowerCase();
+
+  // Label management
+  if (text === "!label vip") {
+    const result = await client.addChatLabel(msg.from, "vip-label-id");
+    if (result.success) {
+      await client.sendText(msg.from, "You've been marked as VIP! ⭐");
+    }
+  }
+
+  // Catalog query
+  if (text === "!products") {
+    const catalog = await client.getCatalog();
+    if (catalog.success && catalog.products) {
+      let response = "Our products:\n\n";
+      catalog.products.forEach(p => {
+        response += `${p.name}: $${(p.priceAmount1000! / 100).toFixed(2)}\n`;
+      });
+      await client.sendText(msg.from, response);
+    }
+  }
+
+  // Create product (admin only)
+  if (text.startsWith("!addproduct")) {
+    const args = text.split(" ");
+    // Format: !addproduct <name> <price>
+    const name = args.slice(1, -1).join(" ");
+    const price = parseInt(args[args.length - 1]) * 100; // Convert to cents
+
+    const result = await client.createProduct({
+      name,
+      price,
+    });
+
+    if (result.success) {
+      await client.sendText(msg.from, `Product created: ${result.productId}`);
+    }
+  }
+});
+```
+
+### Newsletter Bot Example
+
+Bot that manages a newsletter:
+
+```typescript
+let newsletterId: string | null = null;
+
+// Create newsletter on startup
+client.on("ready", async () => {
+  const result = await client.createNewsletter(
+    "My Daily Updates",
+    "Daily news and updates"
+  );
+  if (result.success) {
+    newsletterId = result.newsletterId || null;
+    console.log("Newsletter created:", newsletterId);
+  }
+});
+
+// Post to newsletter from command
+client.on("message", async (msg) => {
+  if (msg.fromMe || !newsletterId) return;
+
+  const text = msg.text?.toLowerCase();
+
+  if (text.startsWith("!broadcast ")) {
+    const broadcastText = msg.text?.slice(11); // Remove "!broadcast "
+    await client.sendText(`${newsletterId}`, broadcastText);
+    await client.sendText(msg.from, "Broadcast sent to newsletter!");
+  }
+
+  if (text === "!stats") {
+    const info = await client.getNewsletterSubscribers(newsletterId);
+    await client.sendText(msg.from, `Subscribers: ${info?.subscribers}`);
   }
 });
 ```

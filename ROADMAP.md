@@ -4,10 +4,10 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 0.8.0
+**Current Version:** 0.9.0
 **Baileys Version:** 6.7.21+
-**Status:** Profile Management Release
-**Last Updated:** 2025-12-21
+**Status:** Business & Social Features Release
+**Last Updated:** 2025-12-24
 
 ---
 
@@ -180,36 +180,39 @@ We prioritize features based on:
 
 ---
 
-### v0.9.0 - Business & Social Features
+### v0.9.0 - Business & Social Features ✅
 
 **Focus:** Business capabilities, channels, and contact management
 
 #### Label Operations (requires WhatsApp Business)
-- [ ] **Add Chat Label** - Add a label to a conversation
-- [ ] **Remove Chat Label** - Remove a label from a conversation
-- [ ] **Add Message Label** - Add a label to a specific message
-- [ ] **Remove Message Label** - Remove a label from a message
+- [x] **Add Chat Label** - Add a label to a conversation
+- [x] **Remove Chat Label** - Remove a label from a conversation
+- [x] **Add Message Label** - Add a label to a specific message
+- [x] **Remove Message Label** - Remove a label from a message
 
 #### Catalog/Product Operations (requires WhatsApp Business)
-- [ ] **Get Catalog** - Fetch product catalog from a business account
-- [ ] **Get Collections** - Fetch catalog collections
-- [ ] **Create Product** - Add a new product to catalog
-- [ ] **Update Product** - Modify an existing product
-- [ ] **Delete Products** - Remove products from catalog
-- [ ] **Get Order Details** - Fetch order information
+- [x] **Get Catalog** - Fetch product catalog from a business account
+- [x] **Get Collections** - Fetch catalog collections
+- [x] **Create Product** - Add a new product to catalog
+- [x] **Update Product** - Modify an existing product
+- [x] **Delete Products** - Remove products from catalog
 
 #### Newsletter/Channel Operations
-- [ ] **Create Newsletter** - Create a WhatsApp channel
-- [ ] **Follow/Unfollow Newsletter** - Subscribe to channels
-- [ ] **Mute/Unmute Newsletter** - Control channel notifications
-- [ ] **Update Newsletter** - Update channel name, description, picture
-- [ ] **Fetch Newsletter Messages** - Get channel message history
-- [ ] **React to Newsletter Message** - React to channel posts
-- [ ] **Delete Newsletter** - Delete a channel you own
+- [x] **Create Newsletter** - Create a WhatsApp channel
+- [x] **Follow/Unfollow Newsletter** - Subscribe to channels
+- [x] **Mute/Unmute Newsletter** - Control channel notifications
+- [x] **Update Newsletter** - Update channel name, description, picture
+- [x] **Fetch Newsletter Messages** - Get channel message history
+- [x] **React to Newsletter Message** - React to channel posts
+- [x] **Delete Newsletter** - Delete a channel you own
+- [x] **Subscribe to Updates** - Subscribe to live newsletter updates
+- [x] **Get Subscriber Count** - Get newsletter subscriber/admin counts
+- [x] **Change Owner** - Transfer newsletter ownership
+- [x] **Demote Admin** - Demote a newsletter admin
 
 #### Contact Management
-- [ ] **Add/Edit Contact** - Add or update a contact
-- [ ] **Remove Contact** - Delete a contact
+- [x] **Add/Edit Contact** - Add or update a contact
+- [x] **Remove Contact** - Delete a contact
 
 > Note: `getBusinessProfile()` was already implemented in v0.4.0
 
@@ -362,7 +365,7 @@ If you need any of these features, please:
 | v0.6.0  | Advanced messaging (react, forward, edit, delete)          | ✅ Released |
 | v0.7.0  | Group management (full admin capabilities)                 | ✅ Released |
 | v0.8.0  | Profile management (customize bot profile)                 | ✅ Released |
-| v0.9.0  | Business & social (labels, catalog, channels, contacts)    | 📋 Planned  |
+| v0.9.0  | Business & social (labels, catalog, channels, contacts)    | ✅ Released |
 | v1.0.0  | **Production ready** (first stable release)                | 🎯 Goal     |
 | v1.1.0  | Performance & reliability (storage, queuing)               | 💡 Future   |
 | v1.2.0  | Interactive messages (polls, buttons, lists)               | 💡 Future   |
@@ -533,7 +536,7 @@ Want to help implement a feature?
 
 ---
 
-**Last Updated:** 2025-12-21
+**Last Updated:** 2025-12-24
 **Status:** Active Development
-**Next Release:** v0.9.0 (Business Features)
-**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 ✅ → v0.7.0 ✅ → v0.8.0 ✅ → ... → v1.0.0 (Production Ready)
+**Next Release:** v1.0.0 (Production Ready)
+**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 ✅ → v0.7.0 ✅ → v0.8.0 ✅ → v0.9.0 ✅ → v1.0.0 (Production Ready)
