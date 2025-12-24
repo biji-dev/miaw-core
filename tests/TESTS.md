@@ -104,11 +104,11 @@ npm test -- 02-message-receive
 | JID Formatting | 7 | All JID type handling |
 
 **Success Criteria for v0.1.0**:
-- [ ] All unit tests pass (100%)
-- [ ] Connection tests pass (QR, persistence, reconnection)
-- [ ] Can send/receive text messages
-- [ ] @lid JIDs preserved correctly
-- [ ] Session persists after restart
+- [x] All unit tests pass (100%) - ✅ 68/68 passing
+- [ ] Connection tests pass (QR, persistence, reconnection) - Requires manual
+- [ ] Can send/receive text messages - Requires manual
+- [ ] @lid JIDs preserved correctly - Unit tests verified
+- [ ] Session persists after restart - Requires manual
 
 ---
 
@@ -393,22 +393,22 @@ npm test
 
 **Release Checklist**:
 
-### Unit Tests
-- [ ] 68/68 unit tests pass (100%)
-- [ ] Message handler tests pass
-- [ ] Auth handler tests pass
-- [ ] Type validation tests pass
+### Unit Tests ✅
+- [x] 68/68 unit tests pass (100%)
+- [x] Message handler tests pass (26/26)
+- [x] Auth handler tests pass (12/12)
+- [x] Type validation tests pass (30/30)
 
-### Integration Tests
-- [ ] Core functionality tests pass (v0.1.0)
-- [ ] Media tests pass (v0.2.0)
-- [ ] Message context tests pass (v0.3.0)
-- [ ] Validation tests pass (v0.4.0)
-- [ ] UX polish tests pass (v0.5.0)
-- [ ] Advanced messaging tests pass (v0.6.0)
-- [ ] Group management tests pass (v0.7.0)
-- [ ] Profile management tests pass (v0.8.0)
-- [ ] Business features tests pass (v0.9.0)
+### Integration Tests ⏳
+- [ ] Core functionality tests pass (v0.1.0) - Requires WhatsApp connection
+- [ ] Media tests pass (v0.2.0) - Requires WhatsApp connection
+- [ ] Message context tests pass (v0.3.0) - Requires WhatsApp connection
+- [ ] Validation tests pass (v0.4.0) - Requires WhatsApp connection
+- [ ] UX polish tests pass (v0.5.0) - Requires WhatsApp connection
+- [ ] Advanced messaging tests pass (v0.6.0) - Requires WhatsApp connection
+- [ ] Group management tests pass (v0.7.0) - Requires WhatsApp connection
+- [ ] Profile management tests pass (v0.8.0) - Requires WhatsApp connection
+- [ ] Business features tests pass (v0.9.0) - Requires WhatsApp connection + Business account
 
 ### Manual Testing
 - [ ] Complete manual test checklist
