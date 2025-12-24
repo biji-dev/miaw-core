@@ -7,6 +7,7 @@ Miaw Core abstracts away the complexity of Baileys, providing a clean, simple AP
 ## Documentation
 
 - **[Usage Guide](./USAGE.md)** - Complete guide for all current features
+- **[Migration Guide](./MIGRATION.md)** - Upgrading between versions
 - **[Roadmap](./ROADMAP.md)** - Feature roadmap and development plan
 - **[Changelog](./CHANGELOG.md)** - Version history and changes
 - **[Examples](./examples/)** - Code examples and sample bots
