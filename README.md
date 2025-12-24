@@ -67,7 +67,7 @@ await client.connect();
 
 For more examples and detailed usage, see the [Usage Guide](./USAGE.md).
 
-## Current Capabilities (v0.9.0)
+## Current Capabilities (v1.0.0)
 
 ### Core Features
 - ✅ Send and receive text messages
@@ -100,7 +100,7 @@ For more examples and detailed usage, see the [Usage Guide](./USAGE.md).
 - ✅ Update profile name
 - ✅ Update profile status
 
-### Business & Social (v0.9.0)
+### Business & Social (v1.0.0)
 - ✅ Label operations (WhatsApp Business)
 - ✅ Product catalog management (WhatsApp Business)
 - ✅ Newsletter/channel operations
@@ -165,4 +165,4 @@ Built on top of [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Bail
 
 ---
 
-**Version:** 0.1.0 | **Status:** Active Development | **Updated:** 2025-11-19
+**Version:** 1.0.0 | **Status:** Stable | **Updated:** 2025-12-24

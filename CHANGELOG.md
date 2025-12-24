@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-12-24
+
+**First Stable Release!** 🎉
+
+This is the first stable release of Miaw Core. After 9 pre-releases, the API is now stable and ready for production use.
+
+### Stability Guarantee
+
+- **No breaking changes** in v1.x.x releases
+- New features will be additive only
+- Deprecations will be marked at least 1 minor version before removal
+- Migration guides provided for any breaking changes in v2.x
+
+### What's New Since v0.9.1
+
+#### LID Cache Management
+- `getLidCacheSize()` - Get current LID to JID cache size
+- `clearLidCache()` - Clear the LID cache
+- `getLidMappings()` - Returns `Record<string, string>` instead of `Map`
+
+#### Resource Cleanup
+- `dispose()` - Properly clean up resources before shutdown
+- Recommended to call on process exit for clean session save
+
+#### Performance Improvements
+- LID mappings now use LRU cache with max size of 1000 entries
+- Automatic eviction of least recently used mappings
+- Improved memory management for long-running bots
+
+### API Surface
+
+81 public methods across 10 categories:
+- Core Client (7 methods)
+- Messaging (6 methods)
+- Media (5 methods)
+- Contact Info (5 methods)
+- Group Management (11 methods)
+- Profile Management (4 methods)
+- Label Operations (5 methods, Business only)
+- Catalog Operations (5 methods, Business only)
+- Newsletter Operations (17 methods)
+- Contact Management (2 methods)
+- LID Mapping (6 methods)
+- UX Features (6 methods)
+
+### Documentation
+
+- API Stability Review (`docs/API_STABILITY_REVIEW.md`)
+- Comprehensive examples (11 basic + 2 real-world examples)
+- Migration guide with version compatibility matrix
+- Complete type definitions with TypeScript strict mode
+
+### Testing
+
+- 68 unit tests (100% passing)
+- 144 integration tests (require WhatsApp authentication)
+- Full test coverage for all API methods
+
+### Known Changes from v0.9.x
+
+- `getLidMappings()` now returns `Record<string, string>` instead of `Map`
+  - Use `Object.entries()` or Object methods instead of Map methods
+
 ## [0.9.1] - 2025-12-24
 
 ### Added

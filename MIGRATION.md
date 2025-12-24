@@ -13,7 +13,7 @@ This guide helps you migrate between versions of Miaw Core.
 
 ## v0.9.x to v1.0.0
 
-**Status:** Upcoming Release
+**Status:** Stable Release (2025-12-24)
 
 v1.0.0 is the first stable release. While we aim for no breaking changes, here are the important changes to note:
 
