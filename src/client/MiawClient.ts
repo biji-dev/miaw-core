@@ -55,6 +55,12 @@ import {
   // v0.9.0 Contact Management
   ContactData,
   ContactOperationResult,
+  // v0.9.0 Basic GET Operations
+  OwnProfile,
+  FetchAllContactsResult,
+  FetchAllGroupsResult,
+  FetchAllLabelsResult,
+  FetchChatMessagesResult,
 } from '../types';
 import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
@@ -125,6 +131,10 @@ export class MiawClient extends EventEmitter {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private logger: any;
   private lidToJidMap: LruCache = new LruCache(1000);
+  // In-memory stores for v0.9.0
+  private contactsStore: Map<string, ContactInfo> = new Map();
+  private labelsStore: Map<string, Label> = new Map();
+  private messagesStore: Map<string, MiawMessage[]> = new Map(); // JID -> messages
 
   constructor(options: MiawClientOptions) {
     super();
@@ -229,13 +239,15 @@ export class MiawClient extends EventEmitter {
       this.emit('session_saved');
     });
 
-    // Contact updates - build LID to JID mapping
+    // Contact updates - build LID to JID mapping and populate contacts store
     this.socket.ev.on('contacts.upsert', (contacts) => {
       this.updateLidToJidMapping(contacts);
+      this.updateContactsStore(contacts);
     });
 
     this.socket.ev.on('contacts.update', (contacts) => {
       this.updateLidToJidMapping(contacts);
+      this.updateContactsStore(contacts);
     });
 
     // Chat updates - extract LID mappings from chat data
@@ -281,6 +293,13 @@ export class MiawClient extends EventEmitter {
 
         const normalized = MessageHandler.normalize({ messages: [msg] });
         if (normalized) {
+          // Store message in messagesStore (v0.9.0)
+          const chatJid = normalized.from;
+          if (!this.messagesStore.has(chatJid)) {
+            this.messagesStore.set(chatJid, []);
+          }
+          this.messagesStore.get(chatJid)!.push(normalized);
+
           this.emit('message', normalized);
         }
       }
@@ -405,6 +424,31 @@ export class MiawClient extends EventEmitter {
           console.log(`[Contact LID Mapping] ${contact.id} -> ${contact.jid}`);
         }
       }
+    }
+  }
+
+  /**
+   * Update in-memory contacts store (v0.9.0)
+   * @param contacts - Array of contact objects from Baileys
+   */
+  private updateContactsStore(contacts: any[]): void {
+    for (const contact of contacts) {
+      // Extract the JID (prefer non-lid IDs)
+      const jid = contact.id?.endsWith('@lid') ? contact.jid || contact.id : contact.id;
+      if (!jid) continue;
+
+      // Extract phone number from JID
+      const phone = jid.endsWith('@s.whatsapp.net') ? jid.replace('@s.whatsapp.net', '') : undefined;
+
+      // Build contact info
+      const contactInfo: ContactInfo = {
+        jid,
+        phone,
+        name: contact.name || contact.notify || undefined,
+      };
+
+      // Update store
+      this.contactsStore.set(jid, contactInfo);
     }
   }
 
@@ -1052,6 +1096,184 @@ export class MiawClient extends EventEmitter {
       // Profile picture might not be available (privacy settings)
       this.logger.debug('Profile picture not available:', error);
       return null;
+    }
+  }
+
+  // ============================================
+  // Basic GET Operations (v0.9.0)
+  // ============================================
+
+  /**
+   * Fetch all contacts from the in-memory store
+   * Note: Contacts are populated via history sync and contact events
+   * @returns FetchAllContactsResult with list of contacts
+   */
+  async fetchAllContacts(): Promise<FetchAllContactsResult> {
+    try {
+      const contacts = Array.from(this.contactsStore.values());
+
+      return {
+        success: true,
+        contacts,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch contacts:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Fetch all groups the user is participating in
+   * @returns FetchAllGroupsResult with list of groups
+   */
+  async fetchAllGroups(): Promise<FetchAllGroupsResult> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot fetch groups. Connection state: ${this.connectionState}`);
+      }
+
+      const groups = await this.socket.groupFetchAllParticipating();
+
+      const groupList: GroupInfo[] = Object.values(groups).map((g: any) => ({
+        jid: g.id,
+        name: g.subject,
+        description: g.desc || undefined,
+        owner: g.owner || undefined,
+        createdAt: g.creation,
+        participantCount: g.participants?.length || 0,
+        participants: g.participants?.map((p: any) => ({
+          jid: p.id,
+          role: p.admin === 'superadmin' ? 'superadmin' : p.admin === 'admin' ? 'admin' : 'member',
+        })) || [],
+        announce: g.announce,
+        restrict: g.restrict,
+      }));
+
+      return {
+        success: true,
+        groups: groupList,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch groups:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Get own profile information
+   * @returns OwnProfile or null if not available
+   */
+  async getOwnProfile(): Promise<OwnProfile | null> {
+    try {
+      if (!this.socket) {
+        throw new Error('Not connected. Call connect() first.');
+      }
+
+      if (this.connectionState !== 'connected') {
+        throw new Error(`Cannot get own profile. Connection state: ${this.connectionState}`);
+      }
+
+      const jid = this.socket.user?.id;
+      if (!jid) {
+        throw new Error('User ID not available');
+      }
+
+      // Extract phone number from JID
+      const phone = jid.endsWith('@s.whatsapp.net') ? jid.replace('@s.whatsapp.net', '') : undefined;
+
+      // Fetch status
+      let status: string | undefined;
+      try {
+        const statusResult = await this.socket.fetchStatus(jid);
+        const firstResult = Array.isArray(statusResult) ? statusResult[0] : statusResult;
+        status = (firstResult as any)?.status?.status || undefined;
+      } catch {
+        // Status might not be available
+      }
+
+      // Fetch profile picture URL
+      let pictureUrl: string | undefined;
+      try {
+        pictureUrl = (await this.socket.profilePictureUrl(jid)) || undefined;
+      } catch {
+        // Profile picture might not be available
+      }
+
+      // Check if business account
+      let isBusiness = false;
+      try {
+        const businessProfile = await this.socket.getBusinessProfile(jid);
+        isBusiness = !!businessProfile;
+      } catch {
+        // Not a business account
+      }
+
+      return {
+        jid,
+        phone,
+        status,
+        pictureUrl,
+        isBusiness,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get own profile:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch all labels from the in-memory store
+   * Note: Labels are populated via history sync and label events
+   * @returns FetchAllLabelsResult with list of labels
+   */
+  async fetchAllLabels(): Promise<FetchAllLabelsResult> {
+    try {
+      const labels = Array.from(this.labelsStore.values());
+
+      return {
+        success: true,
+        labels,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch labels:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Get chat messages from the in-memory store
+   * Note: Messages are populated via messages.upsert events
+   * @param jidOrPhone - Chat JID or phone number
+   * @returns FetchChatMessagesResult with list of messages
+   */
+  async getChatMessages(jidOrPhone: string): Promise<FetchChatMessagesResult> {
+    try {
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      const messages = this.messagesStore.get(jid) || [];
+
+      return {
+        success: true,
+        messages,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get chat messages:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
     }
   }
 

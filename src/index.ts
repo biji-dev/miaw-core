@@ -37,6 +37,29 @@ export {
   GroupInviteInfo,
   // v0.8.0 Profile Management
   ProfileOperationResult,
+  // v0.9.0 Labels
+  Label,
+  LabelOperationResult,
+  // v0.9.0 Catalog/Product
+  Product,
+  ProductCatalog,
+  ProductOperationResult,
+  ProductOptions,
+  ProductCollection,
+  // v0.9.0 Newsletter/Channel
+  NewsletterMetadata,
+  NewsletterMessagesResult,
+  NewsletterOperationResult,
+  NewsletterSubscriptionInfo,
+  // v0.9.0 Contact Management
+  ContactData,
+  ContactOperationResult,
+  // v0.9.0 Basic GET Operations
+  OwnProfile,
+  FetchAllContactsResult,
+  FetchAllGroupsResult,
+  FetchAllLabelsResult,
+  FetchChatMessagesResult,
 } from './types';
 
 // Utility exports for advanced users

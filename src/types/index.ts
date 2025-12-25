@@ -797,3 +797,69 @@ export interface ContactOperationResult {
   /** Error message if failed */
   error?: string;
 }
+
+/**
+ * Own profile information
+ */
+export interface OwnProfile {
+  /** User's JID */
+  jid: string;
+  /** User's phone number */
+  phone?: string;
+  /** User's profile name (display name) */
+  name?: string;
+  /** User's status/about text */
+  status?: string;
+  /** Profile picture URL */
+  pictureUrl?: string;
+  /** Whether this is a business account */
+  isBusiness?: boolean;
+}
+
+/**
+ * Result of fetching all contacts
+ */
+export interface FetchAllContactsResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** List of contacts */
+  contacts?: ContactInfo[];
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Result of fetching all groups
+ */
+export interface FetchAllGroupsResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** List of groups */
+  groups?: GroupInfo[];
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Result of fetching all labels
+ */
+export interface FetchAllLabelsResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** List of labels */
+  labels?: Label[];
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Result of fetching chat messages
+ */
+export interface FetchChatMessagesResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** List of messages from the chat */
+  messages?: MiawMessage[];
+  /** Error message if failed */
+  error?: string;
+}
