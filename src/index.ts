@@ -60,6 +60,8 @@ export {
   FetchAllGroupsResult,
   FetchAllLabelsResult,
   FetchChatMessagesResult,
+  FetchAllChatsResult,
+  ChatInfo,
 } from './types';
 
 // Utility exports for advanced users

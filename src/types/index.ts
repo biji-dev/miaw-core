@@ -863,3 +863,37 @@ export interface FetchChatMessagesResult {
   /** Error message if failed */
   error?: string;
 }
+
+/**
+ * Chat information
+ */
+export interface ChatInfo {
+  /** Chat JID */
+  jid: string;
+  /** Chat name (if available) */
+  name?: string;
+  /** Phone number (for individual chats) */
+  phone?: string;
+  /** Whether this is a group chat */
+  isGroup?: boolean;
+  /** Last message timestamp */
+  lastMessageTimestamp?: number;
+  /** Unread message count */
+  unreadCount?: number;
+  /** Whether chat is archived */
+  isArchived?: boolean;
+  /** Whether chat is pinned */
+  isPinned?: boolean;
+}
+
+/**
+ * Result of fetching all chats
+ */
+export interface FetchAllChatsResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** List of chats */
+  chats?: ChatInfo[];
+  /** Error message if failed */
+  error?: string;
+}

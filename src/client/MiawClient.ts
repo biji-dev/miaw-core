@@ -61,6 +61,8 @@ import {
   FetchAllGroupsResult,
   FetchAllLabelsResult,
   FetchChatMessagesResult,
+  FetchAllChatsResult,
+  ChatInfo,
 } from '../types';
 import * as path from 'path';
 import { AuthHandler } from '../handlers/AuthHandler';
@@ -135,6 +137,7 @@ export class MiawClient extends EventEmitter {
   private contactsStore: Map<string, ContactInfo> = new Map();
   private labelsStore: Map<string, Label> = new Map();
   private messagesStore: Map<string, MiawMessage[]> = new Map(); // JID -> messages
+  private chatsStore: Map<string, ChatInfo> = new Map(); // JID -> chat info
 
   constructor(options: MiawClientOptions) {
     super();
@@ -250,13 +253,15 @@ export class MiawClient extends EventEmitter {
       this.updateContactsStore(contacts);
     });
 
-    // Chat updates - extract LID mappings from chat data
+    // Chat updates - extract LID mappings from chat data and populate chats store
     this.socket.ev.on('chats.upsert', (chats) => {
       this.updateLidFromChats(chats);
+      this.updateChatsStore(chats);
     });
 
     this.socket.ev.on('chats.update', (chats) => {
       this.updateLidFromChats(chats);
+      this.updateChatsStore(chats);
     });
 
     // Messages
@@ -449,6 +454,35 @@ export class MiawClient extends EventEmitter {
 
       // Update store
       this.contactsStore.set(jid, contactInfo);
+    }
+  }
+
+  /**
+   * Update in-memory chats store (v0.9.0)
+   * @param chats - Array of chat objects from Baileys
+   */
+  private updateChatsStore(chats: any[]): void {
+    for (const chat of chats) {
+      const jid = chat.id;
+      if (!jid) continue;
+
+      // Extract phone number from JID
+      const phone = jid.endsWith('@s.whatsapp.net') ? jid.replace('@s.whatsapp.net', '') : undefined;
+
+      // Build chat info
+      const chatInfo: ChatInfo = {
+        jid,
+        phone,
+        name: chat.name || undefined,
+        isGroup: jid.endsWith('@g.us'),
+        lastMessageTimestamp: chat.timestamp || undefined,
+        unreadCount: chat.unreadCount || undefined,
+        isArchived: chat.archived || false,
+        isPinned: chat.pinned || false,
+      };
+
+      // Update store
+      this.chatsStore.set(jid, chatInfo);
     }
   }
 
@@ -1270,6 +1304,28 @@ export class MiawClient extends EventEmitter {
       };
     } catch (error) {
       this.logger.error('Failed to get chat messages:', error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Fetch all chats from the in-memory store
+   * Note: Chats are populated via history sync and chat events
+   * @returns FetchAllChatsResult with list of chats
+   */
+  async fetchAllChats(): Promise<FetchAllChatsResult> {
+    try {
+      const chats = Array.from(this.chatsStore.values());
+
+      return {
+        success: true,
+        chats,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch chats:', error);
       return {
         success: false,
         error: (error as Error).message,
