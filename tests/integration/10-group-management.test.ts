@@ -8,6 +8,7 @@
  * - Update group name/description/picture
  * - Group invite operations
  * - Leave group
+ * - Fetch all groups (v0.9.0)
  *
  * NOTE: These tests require:
  * - TEST_GROUP_JID: A test group where the bot is an admin
@@ -312,6 +313,30 @@ describe('Group Management', () => {
       expect(promoteResult[0].success).toBe(false);
 
       console.log('✅ Gracefully handled operations on invalid group');
+    });
+  });
+
+  describe('Fetch All Groups (v0.9.0)', () => {
+    test('test_fetch_all_groups', async () => {
+      const result = await client.fetchAllGroups();
+
+      expect(result.success).toBe(true);
+      expect(result.groups).toBeDefined();
+      expect(Array.isArray(result.groups)).toBe(true);
+
+      console.log('✅ Fetched all groups');
+      console.log('   Total groups:', result.groups?.length);
+
+      if (result.groups && result.groups.length > 0) {
+        const sample = result.groups[0];
+        console.log('   Sample group:', {
+          jid: sample.jid,
+          name: sample.name,
+          participantCount: sample.participantCount,
+        });
+      } else {
+        console.log('   ⚠️  No groups found (bot might not be in any groups)');
+      }
     });
   });
 });

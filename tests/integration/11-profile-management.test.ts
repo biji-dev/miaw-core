@@ -6,6 +6,7 @@
  * - Remove profile picture
  * - Update profile name
  * - Update profile status
+ * - Get own profile (v0.9.0)
  *
  * NOTE: These tests modify your actual WhatsApp profile.
  * Use with caution and consider the original values.
@@ -168,6 +169,22 @@ describe('Profile Management', () => {
       expect(statusResult.error).toContain('Not connected');
 
       console.log('✅ All profile operations correctly require connection');
+    });
+  });
+
+  describe('Get Own Profile (v0.9.0)', () => {
+    test('test_get_own_profile', async () => {
+      const profile = await client.getOwnProfile();
+
+      expect(profile).not.toBeNull();
+      expect(profile?.jid).toBeDefined();
+
+      console.log('✅ Got own profile');
+      console.log('   JID:', profile?.jid);
+      console.log('   Phone:', profile?.phone || '(not available)');
+      console.log('   Name:', profile?.name || '(not available)');
+      console.log('   Status:', profile?.status || '(not available)');
+      console.log('   Is Business:', profile?.isBusiness || false);
     });
   });
 });

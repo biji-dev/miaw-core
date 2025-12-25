@@ -5,6 +5,8 @@
  * - Check phone number on WhatsApp
  * - Get contact info
  * - Get profile picture
+ * - Fetch all contacts (v0.9.0)
+ * - Fetch all chats (v0.9.0)
  * - Get group info
  * - Get group participants
  */
@@ -162,6 +164,69 @@ describe('Contact Validation', () => {
         console.log('⚠️  High-res profile picture not available');
       }
     });
+  });
+});
+
+describe('Fetch All Contacts (v0.9.0)', () => {
+  let client: MiawClient;
+
+  beforeAll(async () => {
+    client = createTestClient();
+    await client.connect();
+    await waitForEvent(client, 'ready', TEST_CONFIG.connectTimeout);
+    console.log('\n=== BOT READY FOR FETCH ALL CONTACTS TESTS ===\n');
+  }, TEST_CONFIG.connectTimeout);
+
+  afterAll(async () => {
+    if (client) {
+      await client.disconnect();
+    }
+  });
+
+  test('test_fetch_all_contacts', async () => {
+    const result = await client.fetchAllContacts();
+
+    expect(result.success).toBe(true);
+    expect(result.contacts).toBeDefined();
+    expect(Array.isArray(result.contacts)).toBe(true);
+
+    console.log('✅ Fetched all contacts');
+    console.log('   Total contacts:', result.contacts?.length);
+
+    if (result.contacts && result.contacts.length > 0) {
+      const sample = result.contacts[0];
+      console.log('   Sample contact:', {
+        jid: sample.jid,
+        name: sample.name || '(no name)',
+        phone: sample.phone || '(no phone)',
+      });
+    } else {
+      console.log('   ⚠️  No contacts found (might need to sync history)');
+    }
+  });
+
+  test('test_fetch_all_chats', async () => {
+    const result = await client.fetchAllChats();
+
+    expect(result.success).toBe(true);
+    expect(result.chats).toBeDefined();
+    expect(Array.isArray(result.chats)).toBe(true);
+
+    console.log('✅ Fetched all chats');
+    console.log('   Total chats:', result.chats?.length);
+
+    if (result.chats && result.chats.length > 0) {
+      const sample = result.chats[0];
+      console.log('   Sample chat:', {
+        jid: sample.jid,
+        name: sample.name || '(no name)',
+        isGroup: sample.isGroup || false,
+        lastMessageTimestamp: sample.lastMessageTimestamp || '(no messages)',
+        unreadCount: sample.unreadCount || 0,
+      });
+    } else {
+      console.log('   ⚠️  No chats found (might need to sync history)');
+    }
   });
 });
 

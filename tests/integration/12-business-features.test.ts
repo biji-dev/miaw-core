@@ -90,6 +90,29 @@ describe('Business Features (v0.9.0)', () => {
       // const result = await client.removeMessageLabel(TEST_CONFIG.phone, 'message-id', 'label-id');
       // expect(result.success).toBe(true);
     });
+
+    test('test_fetch_all_labels', async () => {
+      const result = await client.fetchAllLabels();
+
+      expect(result.success).toBe(true);
+      expect(result.labels).toBeDefined();
+      expect(Array.isArray(result.labels)).toBe(true);
+
+      console.log('✅ Fetched all labels');
+      console.log('   Total labels:', result.labels?.length);
+
+      if (result.labels && result.labels.length > 0) {
+        const sample = result.labels[0];
+        console.log('   Sample label:', {
+          id: sample.id,
+          name: sample.name,
+          color: sample.color,
+          predefinedId: sample.predefinedId || '(none)',
+        });
+      } else {
+        console.log('   ⚠️  No labels found (might not be a Business account or no labels created)');
+      }
+    });
   });
 
   describe('Catalog/Product Operations (WhatsApp Business only)', () => {

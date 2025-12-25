@@ -5,6 +5,10 @@
  * Before running:
  * 1. Make sure bot is connected (run connection tests first)
  * 2. Send test messages from your test contacts when prompted
+ *
+ * Tests for:
+ * - Receiving various message types
+ * - Fetch chat messages (v0.9.0)
  */
 import { createTestClient, waitForMessage, TEST_CONFIG } from '../setup';
 import { MiawClient } from '../../src';
@@ -186,4 +190,48 @@ describe('Message Receiving', () => {
     expect(receivedOwnMessage).toBe(false);
     console.log('✅ Own messages correctly ignored');
   }, 15000);
+
+  describe('Fetch Chat Messages (v0.9.0)', () => {
+    test('test_fetch_chat_messages', async () => {
+      if (!TEST_CONFIG.contactPhoneA) {
+        console.log('⏭️  Skipping: No test contact configured');
+        return;
+      }
+
+      // Try to fetch messages from a known contact
+      const result = await client.getChatMessages(TEST_CONFIG.contactPhoneA);
+
+      expect(result.success).toBe(true);
+      expect(result.messages).toBeDefined();
+      expect(Array.isArray(result.messages)).toBe(true);
+
+      console.log('✅ Fetched chat messages');
+      console.log('   Total messages:', result.messages?.length);
+
+      if (result.messages && result.messages.length > 0) {
+        const sample = result.messages[0];
+        console.log('   Sample message:', {
+          id: sample.id,
+          from: sample.from,
+          type: sample.type,
+          timestamp: sample.timestamp,
+          text: sample.text || '(no text)',
+        });
+      } else {
+        console.log('   ⚠️  No messages found (might need to send a message first)');
+      }
+    });
+
+    test('test_fetch_chat_messages_status_jid', async () => {
+      // Try fetching messages from the status JID (WhatsApp official account)
+      const result = await client.getChatMessages('status@whatsapp.net');
+
+      expect(result.success).toBe(true);
+      expect(result.messages).toBeDefined();
+      expect(Array.isArray(result.messages)).toBe(true);
+
+      console.log('✅ Fetched chat messages for status@whatsapp.net');
+      console.log('   Total messages:', result.messages?.length);
+    });
+  });
 });
