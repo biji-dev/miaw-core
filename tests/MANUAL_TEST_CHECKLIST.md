@@ -119,6 +119,40 @@
 
 ---
 
+## Basic GET Operations (v0.9.0) (6 methods)
+
+> **Note:** These methods use in-memory stores populated from WhatsApp history sync
+
+- [ ] `fetchAllContacts()` - Get all contacts from in-memory store
+  - [ ] Returns array of contacts
+  - [ ] Each contact has jid, name, phone properties
+  - [ ] Empty array if no contacts synced yet
+- [ ] `fetchAllGroups()` - Get all groups from Baileys API
+  - [ ] Returns array of groups bot is member of
+  - [ ] Each group has jid, name, participantCount
+  - [ ] Empty array if bot not in any groups
+- [ ] `getOwnProfile()` - Get authenticated user's profile
+  - [ ] Returns own jid
+  - [ ] Returns own phone number
+  - [ ] Returns own name (display name)
+  - [ ] Returns own status (About text)
+  - [ ] Returns profile picture URL
+- [ ] `fetchAllLabels()` - Get all labels (WhatsApp Business only)
+  - [ ] Returns array of labels
+  - [ ] Each label has id, name, color
+  - [ ] Returns empty for non-Business accounts
+- [ ] `fetchAllChats()` - Get all chats from in-memory store
+  - [ ] Returns array of chats
+  - [ ] Each chat has jid, name, isGroup, lastMessageTimestamp
+  - [ ] Includes unreadCount, isArchived, isPinned
+- [ ] `getChatMessages(jidOrPhone)` - Get messages from a specific chat
+  - [ ] Get messages from individual chat
+  - [ ] Get messages from group chat
+  - [ ] Returns array of MiawMessage objects
+  - [ ] Empty array if chat has no messages in store
+
+---
+
 ## Group Information (2 methods)
 
 - [ ] `getGroupInfo(groupJid)` - Get group metadata
@@ -429,6 +463,7 @@ Verify all events are emitted correctly:
 | Messaging     | 6       |        |        |         |
 | Message Ops   | 6       |        |        |         |
 | Contact Info  | 5       |        |        |         |
+| **Basic GET Ops** | **6** | | | |
 | Group Info    | 2       |        |        |         |
 | Group Mgmt    | 11      |        |        |         |
 | Profile Mgmt  | 4       |        |        |         |
@@ -439,7 +474,7 @@ Verify all events are emitted correctly:
 | LID Mapping   | 6       |        |        |         |
 | UX Features   | 6       |        |        |         |
 | Events        | 10+     |        |        |         |
-| **TOTAL**     | **81+** |        |        |         |
+| **TOTAL**     | **87+** |        |        |         |
 
 ---
 
