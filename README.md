@@ -7,6 +7,7 @@ Miaw Core abstracts away the complexity of Baileys, providing a clean, simple AP
 ## Documentation
 
 - **[Usage Guide](./docs/USAGE.md)** - Complete guide for all current features
+- **[Testing Guide](./docs/TESTING.md)** - Testing strategy and integration tests
 - **[Migration Guide](./docs/MIGRATION.md)** - Upgrading between versions
 - **[Roadmap](./docs/ROADMAP.md)** - Feature roadmap and development plan
 - **[Changelog](./CHANGELOG.md)** - Version history and changes
@@ -66,6 +67,50 @@ await client.connect();
 ```
 
 For more examples and detailed usage, see the [Usage Guide](./docs/USAGE.md).
+
+## Testing
+
+### Manual Interactive Testing
+
+Run the interactive test script to manually verify all features:
+
+```bash
+npm run test:manual
+```
+
+This will launch an interactive guide that walks you through testing all 80+ features:
+
+- **Core Client** - Connection, lifecycle, state management
+- **Basic GET Operations** - Fetch contacts, groups, profile, labels, chats, messages
+- **Messaging** - Send text, images, documents, videos, audio; download media
+- **Message Operations** - React, forward, edit, delete messages
+- **Contact Information** - Check numbers, get contact info, business profiles
+- **Group Management** - Create groups, manage participants, admin actions
+- **Profile Management** - Update profile picture, name, status
+- **Business Features** - Labels, catalog operations (WhatsApp Business)
+- **Newsletter/Channels** - Create, manage newsletters and channels
+- **UX Features** - Typing indicators, read receipts, presence
+
+The script will:
+1. Guide you step-by-step through each test
+2. Prompt for required inputs (phone numbers, group JIDs, etc.)
+3. Track results (pass/fail/skip)
+4. Generate a summary report with versions and timestamps
+
+See [MANUAL_TEST_CHECKLIST.md](./tests/MANUAL_TEST_CHECKLIST.md) for the complete checklist.
+
+### Unit & Integration Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
 
 ## Current Capabilities (v1.0.0)
 

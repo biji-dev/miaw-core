@@ -10,7 +10,9 @@
     "prepublishOnly": "npm run build",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:manual": "ts-node tests/interactive-test.ts",
+    "test:manual:build": "npm run build && node dist/tests/interactive-test.js"
   },
   "keywords": [
     "whatsapp",
@@ -36,6 +38,7 @@
     "dotenv": "^16.4.5",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "engines": {
