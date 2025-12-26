@@ -5,17 +5,12 @@
  * This script guides you through testing each feature one by one.
  * Run it from the miaw-core directory after building:
  *
- *   ts-node tests/interactive-test.ts
- *
- * Or build first:
- *   npm run build
- *   node dist/tests/interactive-test.js
+ *   npm run test:manual
  */
 
 import * as readline from 'readline';
 import * as fs from 'fs';
 import { MiawClient } from '../src';
-import { format } from 'util';
 
 // Test configuration
 const TEST_CONFIG = {
@@ -29,9 +24,6 @@ const TEST_CONFIG = {
 
 // Test results tracking
 const testResults: { [key: string]: 'pass' | 'fail' | 'skip' } = {};
-
-// Current test index
-let currentTestIndex = 0;
 
 // All tests organized by category
 const tests = [
@@ -53,7 +45,7 @@ const tests = [
   },
 
   // ============================================================
-  // CORE CLIENT (7 methods)
+  // CORE CLIENT (6 methods)
   // ============================================================
   {
     category: 'Core Client',
@@ -329,7 +321,7 @@ const tests = [
   {
     category: 'Messaging',
     name: 'sendDocument() - Send document',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📤 Sending a document requires a test file.');
       console.log('Skipping for now - test with sendImage() pattern');
       return 'skip';
@@ -338,7 +330,7 @@ const tests = [
   {
     category: 'Messaging',
     name: 'sendVideo() - Send video',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📤 Sending video requires a test video file.');
       console.log('Skipping for now - test with sendImage() pattern');
       return 'skip';
@@ -347,7 +339,7 @@ const tests = [
   {
     category: 'Messaging',
     name: 'sendAudio() - Send audio',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📤 Sending audio requires a test audio file.');
       console.log('Skipping for now - test with sendImage() pattern');
       return 'skip';
@@ -391,7 +383,7 @@ const tests = [
       const message = await waitForMessage(client, (msg) => msg.type === 'text', 30000);
       console.log(`\n📝 Reacting to message ${message.id.substring(0, 10)}... with 👍`);
 
-      const result = await client.sendReaction(message.id, message.from, '👍');
+      const result = await client.sendReaction(message, '👍');
       console.log('Success:', result.success);
       return result.success;
     },
@@ -399,7 +391,7 @@ const tests = [
   {
     category: 'Message Ops',
     name: 'removeReaction() - Remove reaction',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📝 Removing reaction from previous message...');
       // Get last message we sent reaction to
       // For simplicity, skip this test
@@ -414,12 +406,12 @@ const tests = [
       const phone2 = await getTestPhone2('Enter phone number to forward message to:');
       console.log('\n📝 To test forwarding:');
       console.log('1. Send a message to the bot from another phone');
-      console.log('2. I will forward it to', phone2);
+      console.log(`2. I will forward it to ${phone2}`);
 
       const message = await waitForMessage(client, (msg) => msg.type === 'text', 30000);
       console.log(`\n📤 Forwarding message to ${phone2}...`);
 
-      const result = await client.forwardMessage(phone2, message);
+      const result = await client.forwardMessage(message, phone2);
       console.log('Success:', result.success);
       return result.success;
     },
@@ -435,7 +427,7 @@ const tests = [
       const message = await waitForMessage(client, (msg) => msg.type === 'text' && !msg.fromMe, 30000);
       console.log(`\n✏️  Editing message...`);
 
-      const result = await client.editMessage(message.id, message.from, 'Edited: ' + (message.text || ''));
+      const result = await client.editMessage(message, 'Edited: ' + (message.text || ''));
       console.log('Success:', result.success);
       console.log('Error:', result.error || '(none)');
       return result.success;
@@ -452,7 +444,7 @@ const tests = [
       const message = await waitForMessage(client, (msg) => msg.type === 'text', 30000);
       console.log(`\n🗑️  Deleting message...`);
 
-      const result = await client.deleteMessage(message, message.from);
+      const result = await client.deleteMessage(message);
       console.log('Success:', result.success);
       return result.success;
     },
@@ -460,7 +452,7 @@ const tests = [
   {
     category: 'Message Ops',
     name: 'deleteMessageForMe() - Delete for me only',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🗑️  Skipping "delete for me" test (similar to delete for everyone)');
       return 'skip';
     },
@@ -645,14 +637,13 @@ const tests = [
       const phone = await getTestPhone('Enter phone number to add:');
 
       console.log(`\n👤 Adding ${phone} to group...`);
-      const result = await client.addParticipants(groupJid, [phone]);
+      const results = await client.addParticipants(groupJid, [phone]);
 
-      console.log('Success:', result.success);
-      if (!result.success) {
-        console.log('Error:', result.error);
-      }
+      console.log('Results:', results.length);
+      const successCount = results.filter((r) => r.success).length;
+      console.log(`Success: ${successCount}/${results.length}`);
 
-      return result.success;
+      return successCount > 0;
     },
   },
   {
@@ -664,14 +655,13 @@ const tests = [
 
       console.log(`\n👤 Removing ${phone} from group...`);
       console.log('⚠️  You must be admin to do this');
-      const result = await client.removeParticipants(groupJid, [phone]);
+      const results = await client.removeParticipants(groupJid, [phone]);
 
-      console.log('Success:', result.success);
-      if (!result.success) {
-        console.log('Error:', result.error);
-      }
+      console.log('Results:', results.length);
+      const successCount = results.filter((r) => r.success).length;
+      console.log(`Success: ${successCount}/${results.length}`);
 
-      return result.success;
+      return successCount > 0;
     },
   },
   {
@@ -701,14 +691,13 @@ const tests = [
 
       console.log(`\n⬆️  Promoting ${phone} to admin...`);
       console.log('⚠️  You must be admin to do this');
-      const result = await client.promoteToAdmin(groupJid, [phone]);
+      const results = await client.promoteToAdmin(groupJid, [phone]);
 
-      console.log('Success:', result.success);
-      if (!result.success) {
-        console.log('Error:', result.error);
-      }
+      console.log('Results:', results.length);
+      const successCount = results.filter((r) => r.success).length;
+      console.log(`Success: ${successCount}/${results.length}`);
 
-      return result.success;
+      return successCount > 0;
     },
   },
   {
@@ -720,14 +709,13 @@ const tests = [
 
       console.log(`\n⬇️  Demoting ${phone} from admin...`);
       console.log('⚠️  You must be admin to do this');
-      const result = await client.demoteFromAdmin(groupJid, [phone]);
+      const results = await client.demoteFromAdmin(groupJid, [phone]);
 
-      console.log('Success:', result.success);
-      if (!result.success) {
-        console.log('Error:', result.error);
-      }
+      console.log('Results:', results.length);
+      const successCount = results.filter((r) => r.success).length;
+      console.log(`Success: ${successCount}/${results.length}`);
 
-      return result.success;
+      return successCount > 0;
     },
   },
   {
@@ -769,7 +757,7 @@ const tests = [
   {
     category: 'Group Mgmt',
     name: 'updateGroupPicture() - Change group picture',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📷 Updating group picture requires a test image file.');
       console.log('Skipping for now - test with sendImage() pattern');
       return 'skip';
@@ -805,16 +793,15 @@ const tests = [
       if (!invite) return 'skip';
 
       console.log(`\n🔗 Accepting invite...`);
-      const result = await client.acceptGroupInvite(invite);
+      const groupJid = await client.acceptGroupInvite(invite);
 
-      console.log('Success:', result.success);
-      if (result.success) {
-        console.log('Joined group:', result.groupJid);
+      if (groupJid) {
+        console.log('Joined group:', groupJid);
+        return true;
       } else {
-        console.log('Error:', result.error);
+        console.log('Failed to join group');
+        return false;
       }
-
-      return result.success;
     },
   },
 
@@ -824,7 +811,7 @@ const tests = [
   {
     category: 'Profile Mgmt',
     name: 'updateProfilePicture() - Update own profile picture',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📷 Updating profile picture requires a test image file.');
       console.log('Skipping for now - requires test image');
       return 'skip';
@@ -911,7 +898,7 @@ const tests = [
 
       const result = await client.addLabel({
         name: `Test Label ${Date.now()}`,
-        color: 0x3498db, // Blue
+        color: 1, // LabelColor.Color2
       });
 
       console.log('Success:', result.success);
@@ -927,7 +914,7 @@ const tests = [
   {
     category: 'Labels (Biz)',
     name: 'addChatLabel() - Add label to chat',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🏷️  Skipping add chat label test...');
       console.log('Requires creating label first and getting chat JID');
       return 'skip';
@@ -936,7 +923,7 @@ const tests = [
   {
     category: 'Labels (Biz)',
     name: 'removeChatLabel() - Remove label from chat',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🏷️  Skipping remove chat label test...');
       return 'skip';
     },
@@ -944,7 +931,7 @@ const tests = [
   {
     category: 'Labels (Biz)',
     name: 'addMessageLabel() - Add label to message',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🏷️  Skipping add message label test...');
       return 'skip';
     },
@@ -968,7 +955,7 @@ const tests = [
       if (result.products && result.products.length > 0) {
         console.log('Sample products:');
         result.products.slice(0, 3).forEach((p, i) => {
-          console.log(`  ${i + 1}. ${p.name} - $${p.price || '?'}`);
+          console.log(`  ${i + 1}. ${p.name || p.productUrl || 'Product'}`);
         });
       }
 
@@ -983,16 +970,18 @@ const tests = [
 
       const result = await client.getCollections();
 
-      console.log('Success:', result.success);
-      console.log('Total collections:', result.collections?.length || 0);
+      console.log('Total collections:', result.length);
+      if (result.length > 0) {
+        console.log('Sample:', result[0].name);
+      }
 
-      return result.success;
+      return result.length >= 0;
     },
   },
   {
     category: 'Catalog (Biz)',
     name: 'createProduct() - Add new product',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🛒 Skipping create product test...');
       console.log('⚠️  Only works for Business accounts with catalog');
       console.log('Requires: product name, price, image URL');
@@ -1002,7 +991,7 @@ const tests = [
   {
     category: 'Catalog (Biz)',
     name: 'updateProduct() - Modify product',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🛒 Skipping update product test...');
       return 'skip';
     },
@@ -1010,14 +999,14 @@ const tests = [
   {
     category: 'Catalog (Biz)',
     name: 'deleteProducts() - Remove products',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🛒 Skipping delete products test...');
       return 'skip';
     },
   },
 
   // ============================================================
-  // NEWSLETTER/CHANNEL OPERATIONS (17 methods)
+  // NEWSLETTER/CHANNEL OPERATIONS (subset of 17 methods)
   // ============================================================
   {
     category: 'Newsletter',
@@ -1050,86 +1039,31 @@ const tests = [
       const newsletterId = await waitForInput();
       if (!newsletterId) return 'skip';
 
-      const result = await client.getNewsletterMetadata(newsletterId);
+      const meta = await client.getNewsletterMetadata(newsletterId);
 
-      console.log('Success:', result.success);
-      if (result.success && result.meta) {
-        console.log('Name:', result.meta.name);
-        console.log('Description:', result.meta.description || '(none)');
-        console.log('Subscribers:', result.meta.subscriberCount || 0);
+      if (meta) {
+        console.log('Name:', meta.name);
+        console.log('Description:', meta.description || '(none)');
+        console.log('Subscribers:', meta.subscribers || 0);
+        return true;
+      } else {
+        console.log('Failed to get newsletter metadata');
+        return false;
       }
-
-      return result.success;
     },
   },
   {
     category: 'Newsletter',
     name: 'followNewsletter() - Follow/subscribe',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📰 Skipping follow newsletter test...');
       return 'skip';
     },
   },
   {
     category: 'Newsletter',
-    name: 'unfollowNewsletter() - Unsubscribe',
-    action: async (client: MiawClient) => {
-      console.log('\n📰 Skipping unfollow newsletter test...');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Newsletter',
-    name: 'muteNewsletter() - Mute notifications',
-    action: async (client: MiawClient) => {
-      console.log('\n📰 Skipping mute newsletter test...');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Newsletter',
-    name: 'updateNewsletterName() - Update name',
-    action: async (client: MiawClient) => {
-      console.log('\n📰 Skipping update newsletter name test...');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Newsletter',
-    name: 'updateNewsletterDescription() - Update description',
-    action: async (client: MiawClient) => {
-      console.log('\n📰 Skipping update newsletter description test...');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Newsletter',
-    name: 'updateNewsletterPicture() - Update cover image',
-    action: async (client: MiawClient) => {
-      console.log('\n📰 Skipping update newsletter picture test...');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Newsletter',
-    name: 'fetchNewsletterMessages() - Get message history',
-    action: async (client: MiawClient) => {
-      console.log('\n📰 Skipping fetch newsletter messages test...');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Newsletter',
-    name: 'subscribeNewsletterUpdates() - Subscribe to live updates',
-    action: async (client: MiawClient) => {
-      console.log('\n📰 Skipping subscribe newsletter updates test...');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Newsletter',
     name: 'deleteNewsletter() - Delete newsletter',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📰 Skipping delete newsletter test...');
       return 'skip';
     },
@@ -1148,7 +1082,7 @@ const tests = [
 
       console.log(`\n💾 Saving contact: ${name} (${phone})...`);
       const result = await client.addOrEditContact({
-        phoneNumber: phone,
+        phone: phone,
         name: name,
       });
 
@@ -1171,12 +1105,12 @@ const tests = [
   },
 
   // ============================================================
-  // LID MAPPING (6 methods)
+  // LID MAPPING (5 methods)
   // ============================================================
   {
     category: 'LID Mapping',
     name: 'resolveLidToJid() - Resolve LID to JID',
-    test: (client: MiawClient) => {
+    test: () => {
       console.log('\n🔍 LID resolution requires an @lid JID to test.');
       console.log('Skipping - LIDs are received from privacy-enabled contacts');
       return 'skip';
@@ -1185,10 +1119,9 @@ const tests = [
   {
     category: 'LID Mapping',
     name: 'getPhoneFromJid() - Extract phone from JID',
-    test: (client: MiawClient) => {
+    test: () => {
       console.log('\n📱 Testing phone extraction from JID...');
       const testJid = '628123456789@s.whatsapp.net';
-      // Access private method through public API if available, or skip
       console.log('Test JID:', testJid);
       console.log('Expected phone: 628123456789');
       console.log('Skipping - method is internal');
@@ -1198,9 +1131,8 @@ const tests = [
   {
     category: 'LID Mapping',
     name: 'getLidMappings() - Get all LID mappings',
-    test: (client: MiawClient) => {
+    test: () => {
       console.log('\n🗺️  Getting all LID mappings...');
-      // This is likely a private method
       console.log('Skipping - internal method');
       return 'skip';
     },
@@ -1208,7 +1140,7 @@ const tests = [
   {
     category: 'LID Mapping',
     name: 'getLidCacheSize() - Get LRU cache size',
-    test: (client: MiawClient) => {
+    test: () => {
       console.log('\n📊 Getting LID cache size...');
       console.log('Skipping - internal method');
       return 'skip';
@@ -1217,7 +1149,7 @@ const tests = [
   {
     category: 'LID Mapping',
     name: 'clearLidCache() - Clear LID cache',
-    test: (client: MiawClient) => {
+    test: () => {
       console.log('\n🗑️  Clearing LID cache...');
       console.log('Skipping - internal method');
       return 'skip';
@@ -1239,8 +1171,8 @@ const tests = [
       console.log(`\n✅ Marking message as read...`);
 
       const result = await client.markAsRead(message);
-      console.log('Success:', result.success);
-      return result.success;
+      console.log('Success:', result);
+      return result;
     },
   },
   {
@@ -1250,9 +1182,9 @@ const tests = [
       const phone = await getTestPhone('Enter phone number to send typing to:');
 
       console.log(`\n⌨️  Sending typing indicator to ${phone}...`);
-      const result = await client.sendTyping(phone);
+      await client.sendTyping(phone);
 
-      console.log('Success:', result.success);
+      console.log('✅ Typing indicator sent');
       console.log('Check the other phone - you should see "typing..."');
 
       // Stop typing after 2 seconds
@@ -1261,7 +1193,7 @@ const tests = [
         console.log('✅ Stopped typing indicator');
       }, 2000);
 
-      return result.success;
+      return true;
     },
   },
   {
@@ -1271,9 +1203,9 @@ const tests = [
       const phone = await getTestPhone('Enter phone number to send recording to:');
 
       console.log(`\n🎤 Sending recording indicator to ${phone}...`);
-      const result = await client.sendRecording(phone);
+      await client.sendRecording(phone);
 
-      console.log('Success:', result.success);
+      console.log('✅ Recording indicator sent');
       console.log('Check the other phone - you should see "recording audio..."');
 
       // Stop recording after 2 seconds
@@ -1282,13 +1214,13 @@ const tests = [
         console.log('✅ Stopped recording indicator');
       }, 2000);
 
-      return result.success;
+      return true;
     },
   },
   {
     category: 'UX Features',
     name: 'stopTyping() - Stop typing/recording indicator',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n⏹️  Stop typing is tested together with sendTyping/sendRecording');
       return 'skip';
     },
@@ -1298,14 +1230,14 @@ const tests = [
     name: 'setPresence() - Set online/offline status',
     action: async (client: MiawClient) => {
       console.log('\n🌐 Setting presence to available (online)...');
-      const result1 = await client.setPresence('available');
-      console.log('Set to available:', result1);
+      await client.setPresence('available');
+      console.log('Set to available');
 
       console.log('\n🌙 Setting presence to unavailable (offline)...');
-      const result2 = await client.setPresence('unavailable');
-      console.log('Set to unavailable:', result2);
+      await client.setPresence('unavailable');
+      console.log('Set to unavailable');
 
-      return result1 && result2;
+      return true;
     },
   },
   {
@@ -1315,22 +1247,22 @@ const tests = [
       const phone = await getTestPhone('Enter phone number to subscribe presence:');
 
       console.log(`\n👁️  Subscribing to presence updates for ${phone}...`);
-      const result = await client.subscribePresence(phone);
+      await client.subscribePresence(phone);
 
-      console.log('Success:', result);
+      console.log('✅ Subscribed to presence updates');
       console.log('Send a message from that phone to trigger presence update');
 
-      return result;
+      return true;
     },
   },
 
   // ============================================================
-  // EVENTS VERIFICATION (10+ events)
+  // EVENTS VERIFICATION (subset of events)
   // ============================================================
   {
     category: 'Events',
     name: 'Verify qr event - QR code emitted on first connection',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n📱 QR event is tested during connect() test');
       console.log('✅ QR event verified');
       return 'skip';
@@ -1339,7 +1271,7 @@ const tests = [
   {
     category: 'Events',
     name: 'Verify ready event - Client ready and connected',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n✅ Ready event is verified during connect() test');
       return 'skip';
     },
@@ -1359,7 +1291,7 @@ const tests = [
         console.log('  From:', msg.from);
         console.log('  Text:', msg.text || '(no text)');
         eventReceived = true;
-        client.off('message', handler);
+        client.removeListener('message', handler);
       };
 
       client.on('message', handler);
@@ -1367,7 +1299,7 @@ const tests = [
       await new Promise((resolve) => setTimeout(resolve, 30000));
 
       if (!eventReceived) {
-        client.off('message', handler);
+        client.removeListener('message', handler);
         console.log('⏱️  No message received within 30 seconds');
         return 'skip';
       }
@@ -1388,9 +1320,9 @@ const tests = [
       const handler = (data: any) => {
         console.log('✅ Message edit event received!');
         console.log('  Message ID:', data.messageId);
-        console.log('  New text:', data.text || '(empty)');
+        console.log('  New text:', data.newText || '(empty)');
         eventReceived = true;
-        client.off('message_edit', handler);
+        client.removeListener('message_edit', handler);
       };
 
       client.on('message_edit', handler);
@@ -1398,7 +1330,7 @@ const tests = [
       await new Promise((resolve) => setTimeout(resolve, 60000));
 
       if (!eventReceived) {
-        client.off('message_edit', handler);
+        client.removeListener('message_edit', handler);
         console.log('⏱️  No edit event received within 60 seconds');
         return 'skip';
       }
@@ -1421,7 +1353,7 @@ const tests = [
         console.log('  Message ID:', data.messageId);
         console.log('  From:', data.from);
         eventReceived = true;
-        client.off('message_delete', handler);
+        client.removeListener('message_delete', handler);
       };
 
       client.on('message_delete', handler);
@@ -1429,7 +1361,7 @@ const tests = [
       await new Promise((resolve) => setTimeout(resolve, 60000));
 
       if (!eventReceived) {
-        client.off('message_delete', handler);
+        client.removeListener('message_delete', handler);
         console.log('⏱️  No delete event received within 60 seconds');
         return 'skip';
       }
@@ -1451,9 +1383,9 @@ const tests = [
         console.log('✅ Message reaction event received!');
         console.log('  Message ID:', data.messageId);
         console.log('  Emoji:', data.emoji);
-        console.log('  From:', data.from);
+        console.log('  From:', data.reactorId);
         eventReceived = true;
-        client.off('message_reaction', handler);
+        client.removeListener('message_reaction', handler);
       };
 
       client.on('message_reaction', handler);
@@ -1461,7 +1393,7 @@ const tests = [
       await new Promise((resolve) => setTimeout(resolve, 60000));
 
       if (!eventReceived) {
-        client.off('message_reaction', handler);
+        client.removeListener('message_reaction', handler);
         console.log('⏱️  No reaction event received within 60 seconds');
         return 'skip';
       }
@@ -1472,7 +1404,7 @@ const tests = [
   {
     category: 'Events',
     name: 'Verify presence event - Presence update',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🌐 To test presence event:');
       console.log('1. Subscribe to a contact\'s presence first');
       console.log('2. Have that contact come online/offline');
@@ -1485,7 +1417,7 @@ const tests = [
   {
     category: 'Events',
     name: 'Verify connection event - Connection state changed',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🔌 Connection events are tested during connect/disconnect');
       console.log('✅ Connection event verified');
       return 'skip';
@@ -1494,36 +1426,9 @@ const tests = [
   {
     category: 'Events',
     name: 'Verify disconnected event - Client disconnected',
-    action: async (client: MiawClient) => {
+    action: async () => {
       console.log('\n🔌 Disconnected event is tested during disconnect()');
       console.log('✅ Disconnected event verified');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Events',
-    name: 'Verify reconnecting event - Reconnection started',
-    action: async (client: MiawClient) => {
-      console.log('\n🔄 Reconnecting event would be triggered on connection loss');
-      console.log('⚠️  Requires actual disconnection to test');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Events',
-    name: 'Verify error event - Error occurred',
-    action: async (client: MiawClient) => {
-      console.log('\n❌ Error event would be triggered on errors');
-      console.log('⚠️  Requires actual error condition to test');
-      return 'skip';
-    },
-  },
-  {
-    category: 'Events',
-    name: 'Verify session_saved event - Session persisted',
-    action: async (client: MiawClient) => {
-      console.log('\n💾 Session saved event occurs during auth');
-      console.log('✅ Session saved event verified during connect()');
       return 'skip';
     },
   },
@@ -1543,7 +1448,7 @@ function createReadlineInterface() {
 function waitForInput(): Promise<string> {
   const rl = createReadlineInterface();
   return new Promise((resolve) => {
-    rl.question('', (answer) => {
+    rl.question('', (answer: string) => {
       rl.close();
       resolve(answer.trim());
     });
@@ -1618,14 +1523,14 @@ function waitForMessage(
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      client.off('message', handler);
+      client.removeListener('message', handler);
       reject(new Error('Timeout waiting for message'));
     }, timeout);
 
     const handler = (msg: any) => {
       if (condition(msg)) {
         clearTimeout(timer);
-        client.off('message', handler);
+        client.removeListener('message', handler);
         resolve(msg);
       }
     };
@@ -1693,7 +1598,6 @@ async function main() {
 
   // Run tests sequentially
   for (let i = 0; i < tests.length; i++) {
-    currentTestIndex = i;
     const test = tests[i];
 
     const result = await runTest(test, client);
@@ -1759,7 +1663,7 @@ function showSummary() {
   // Get package version
   let miawCoreVersion = 'unknown';
   let baileysVersion = 'unknown';
-  let nodeVersion = process.version;
+  const nodeVersion = process.version;
 
   try {
     const packagePath = require.resolve('../package.json');
