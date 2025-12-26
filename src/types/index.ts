@@ -563,8 +563,8 @@ export enum LabelColor {
  * Label information
  */
 export interface Label {
-  /** Unique label ID */
-  id: string;
+  /** Unique label ID (optional for create, required for edit) */
+  id?: string;
   /** Label name */
   name: string;
   /** Label color (0-19) */
