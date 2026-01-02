@@ -5,7 +5,20 @@
  * This script guides you through testing each feature one by one.
  * Run it from the miaw-core directory after building:
  *
- *   npm run test:manual
+ *   npm run test:manual [group]
+ *
+ * Arguments:
+ *   (none)      - Show available test groups and help
+ *   all         - Run all tests interactively
+ *   core        - Run Core Client tests
+ *   get         - Run Basic GET Operations tests
+ *   messaging   - Run Messaging tests (send, react, forward, edit, delete)
+ *   contacts    - Run Contact tests (check, info, add, remove)
+ *   group       - Run Group Management tests
+ *   profile     - Run Profile Management tests
+ *   business    - Run Business tests (labels + catalog)
+ *   newsletter  - Run Newsletter tests
+ *   ux          - Run UX Features tests
  *
  * Environment variables (from .env file):
  *   DEBUG=true    - Enable verbose Baileys logging
@@ -17,6 +30,22 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 import qrcode from "qrcode-terminal";
 import { MiawClient } from "../src";
+
+// CLI argument mapping to category names
+const CATEGORY_MAP: { [key: string]: string[] } = {
+  core: ["Core Client"],
+  get: ["Basic GET Ops"],
+  messaging: ["Messaging"],
+  contacts: ["Contacts"],
+  group: ["Group Mgmt"],
+  profile: ["Profile Mgmt"],
+  business: ["Business"],
+  newsletter: ["Newsletter"],
+  ux: ["UX Features"],
+};
+
+// Get CLI argument
+const cliArg = process.argv[2]?.toLowerCase() || "";
 
 // Load environment variables from .env and .env.test files
 dotenv.config(); // Load .env first
@@ -330,25 +359,6 @@ const tests: TestItem[] = [
   },
   {
     category: "Basic GET Ops",
-    name: "fetchAllLabels() - Get all labels (Business only)",
-    businessOnly: true,
-    test: async (client: MiawClient) => {
-      // Force sync to fetch labels from WhatsApp app state
-      const result = await client.fetchAllLabels(true);
-      console.log("Success:", result.success);
-      console.log("Total labels:", result.labels?.length || 0);
-      if (result.labels && result.labels.length > 0) {
-        console.log("Sample label:", {
-          id: result.labels[0].id,
-          name: result.labels[0].name,
-          color: result.labels[0].color,
-        });
-      }
-      return result.success;
-    },
-  },
-  {
-    category: "Basic GET Ops",
     name: "fetchAllChats() - Get all chats",
     test: async (client: MiawClient) => {
       const result = await client.fetchAllChats();
@@ -506,11 +516,9 @@ const tests: TestItem[] = [
     },
   },
 
-  // ============================================================
-  // MESSAGE OPERATIONS (6 methods)
-  // ============================================================
+  // --- Message Operations ---
   {
-    category: "Message Ops",
+    category: "Messaging",
     name: "sendReaction() - Send reaction",
     action: async (client: MiawClient) => {
       console.log("\n📝 To test reactions:");
@@ -532,7 +540,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Message Ops",
+    category: "Messaging",
     name: "removeReaction() - Remove reaction",
     action: async () => {
       console.log("\n📝 Removing reaction from previous message...");
@@ -543,7 +551,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Message Ops",
+    category: "Messaging",
     name: "forwardMessage() - Forward message",
     action: async (client: MiawClient) => {
       const phone2 = await getTestPhone2(
@@ -566,7 +574,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Message Ops",
+    category: "Messaging",
     name: "editMessage() - Edit message",
     action: async (client: MiawClient) => {
       const phone = await getTestPhone(
@@ -613,7 +621,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Message Ops",
+    category: "Messaging",
     name: "deleteMessage() - Delete for everyone",
     action: async (client: MiawClient) => {
       const phone = await getTestPhone(
@@ -657,22 +665,12 @@ const tests: TestItem[] = [
       return result.success;
     },
   },
-  {
-    category: "Message Ops",
-    name: "deleteMessageForMe() - Delete for me only",
-    action: async () => {
-      console.log(
-        '\n🗑️  Skipping "delete for me" test (similar to delete for everyone)'
-      );
-      return "skip";
-    },
-  },
 
   // ============================================================
-  // CONTACT INFORMATION (5 methods)
+  // CONTACTS (7 methods)
   // ============================================================
   {
-    category: "Contact Info",
+    category: "Contacts",
     name: "checkNumber() - Check if number on WhatsApp",
     action: async (client: MiawClient) => {
       const phone = await getTestPhone("Enter phone number to check:");
@@ -686,7 +684,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Contact Info",
+    category: "Contacts",
     name: "checkNumbers() - Batch check numbers",
     action: async (client: MiawClient) => {
       const phone1 = await getTestPhone("Enter first phone number:");
@@ -706,7 +704,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Contact Info",
+    category: "Contacts",
     name: "getContactInfo() - Get contact info",
     action: async (client: MiawClient) => {
       const phone = await getTestPhone("Enter phone number to get info:");
@@ -728,7 +726,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Contact Info",
+    category: "Contacts",
     name: "getBusinessProfile() - Get business profile",
     action: async (client: MiawClient) => {
       const phone = await getTestPhone(
@@ -753,7 +751,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Contact Info",
+    category: "Contacts",
     name: "getProfilePicture() - Get profile picture",
     action: async (client: MiawClient) => {
       const phone = await getTestPhone(
@@ -1097,10 +1095,12 @@ const tests: TestItem[] = [
   },
 
   // ============================================================
-  // LABEL OPERATIONS (5 methods) - WhatsApp Business only
+  // BUSINESS FEATURES - WhatsApp Business only
   // ============================================================
+
+  // --- Labels ---
   {
-    category: "Labels (Biz)",
+    category: "Business",
     name: "fetchAllLabels() - Get all labels",
     businessOnly: true,
     action: async (client: MiawClient) => {
@@ -1123,7 +1123,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Labels (Biz)",
+    category: "Business",
     name: "addLabel() - Create new label",
     businessOnly: true,
     action: async (client: MiawClient) => {
@@ -1147,7 +1147,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Labels (Biz)",
+    category: "Business",
     name: "addChatLabel() - Add label to chat",
     businessOnly: true,
     action: async (client: MiawClient) => {
@@ -1175,7 +1175,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Labels (Biz)",
+    category: "Business",
     name: "removeChatLabel() - Remove label from chat",
     businessOnly: true,
     action: async () => {
@@ -1184,7 +1184,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Labels (Biz)",
+    category: "Business",
     name: "addMessageLabel() - Add label to message",
     businessOnly: true,
     action: async () => {
@@ -1193,12 +1193,9 @@ const tests: TestItem[] = [
     },
   },
 
-  // ============================================================
-  // CATALOG OPERATIONS (5 methods) - WhatsApp Business only
-  // Order: Create -> Get -> Collections -> Update -> Delete
-  // ============================================================
+  // --- Catalog ---
   {
-    category: "Catalog (Biz)",
+    category: "Business",
     name: "createProduct() - Add new product",
     businessOnly: true,
     action: async (client: MiawClient) => {
@@ -1231,7 +1228,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Catalog (Biz)",
+    category: "Business",
     name: "getCatalog() - Fetch product catalog",
     businessOnly: true,
     action: async (client: MiawClient) => {
@@ -1274,7 +1271,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Catalog (Biz)",
+    category: "Business",
     name: "getCollections() - Get catalog collections",
     businessOnly: true,
     action: async (client: MiawClient) => {
@@ -1296,7 +1293,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Catalog (Biz)",
+    category: "Business",
     name: "updateProduct() - Modify product",
     businessOnly: true,
     action: async (client: MiawClient) => {
@@ -1328,7 +1325,7 @@ const tests: TestItem[] = [
     },
   },
   {
-    category: "Catalog (Biz)",
+    category: "Business",
     name: "deleteProducts() - Remove products (CLEANUP)",
     businessOnly: true,
     action: async (client: MiawClient) => {
@@ -1433,9 +1430,7 @@ const tests: TestItem[] = [
     },
   },
 
-  // ============================================================
-  // CONTACT MANAGEMENT (2 methods)
-  // ============================================================
+  // --- Contact Management ---
   {
     category: "Contacts",
     name: "addOrEditContact() - Add or update contact",
@@ -1473,59 +1468,7 @@ const tests: TestItem[] = [
   },
 
   // ============================================================
-  // LID MAPPING (5 methods)
-  // ============================================================
-  {
-    category: "LID Mapping",
-    name: "resolveLidToJid() - Resolve LID to JID",
-    test: () => {
-      console.log("\n🔍 LID resolution requires an @lid JID to test.");
-      console.log("Skipping - LIDs are received from privacy-enabled contacts");
-      return "skip";
-    },
-  },
-  {
-    category: "LID Mapping",
-    name: "getPhoneFromJid() - Extract phone from JID",
-    test: () => {
-      console.log("\n📱 Testing phone extraction from JID...");
-      const testJid = "628123456789@s.whatsapp.net";
-      console.log("Test JID:", testJid);
-      console.log("Expected phone: 628123456789");
-      console.log("Skipping - method is internal");
-      return "skip";
-    },
-  },
-  {
-    category: "LID Mapping",
-    name: "getLidMappings() - Get all LID mappings",
-    test: () => {
-      console.log("\n🗺️  Getting all LID mappings...");
-      console.log("Skipping - internal method");
-      return "skip";
-    },
-  },
-  {
-    category: "LID Mapping",
-    name: "getLidCacheSize() - Get LRU cache size",
-    test: () => {
-      console.log("\n📊 Getting LID cache size...");
-      console.log("Skipping - internal method");
-      return "skip";
-    },
-  },
-  {
-    category: "LID Mapping",
-    name: "clearLidCache() - Clear LID cache",
-    test: () => {
-      console.log("\n🗑️  Clearing LID cache...");
-      console.log("Skipping - internal method");
-      return "skip";
-    },
-  },
-
-  // ============================================================
-  // UX FEATURES (6 methods)
+  // UX FEATURES (5 methods)
   // ============================================================
   {
     category: "UX Features",
@@ -1595,16 +1538,6 @@ const tests: TestItem[] = [
   },
   {
     category: "UX Features",
-    name: "stopTyping() - Stop typing/recording indicator",
-    action: async () => {
-      console.log(
-        "\n⏹️  Stop typing is tested together with sendTyping/sendRecording"
-      );
-      return "skip";
-    },
-  },
-  {
-    category: "UX Features",
     name: "setPresence() - Set online/offline status",
     action: async (client: MiawClient) => {
       console.log("\n🌐 Setting presence to available (online)...");
@@ -1637,191 +1570,23 @@ const tests: TestItem[] = [
   },
 
   // ============================================================
-  // EVENTS VERIFICATION (subset of events)
-  // ============================================================
-  {
-    category: "Events",
-    name: "Verify qr event - QR code emitted on first connection",
-    action: async () => {
-      console.log("\n📱 QR event is tested during connect() test");
-      console.log("✅ QR event verified");
-      return "skip";
-    },
-  },
-  {
-    category: "Events",
-    name: "Verify ready event - Client ready and connected",
-    action: async () => {
-      console.log("\n✅ Ready event is verified during connect() test");
-      return "skip";
-    },
-  },
-  {
-    category: "Events",
-    name: "Verify message event - New message received",
-    action: async (client: MiawClient) => {
-      console.log("\n📝 To test message event:");
-      console.log("1. Send a message to the bot from another phone");
-      console.log("2. I will listen for the message event");
-
-      let eventReceived = false;
-      const handler = (msg: any) => {
-        console.log("✅ Message event received!");
-        console.log("  Type:", msg.type);
-        console.log("  From:", msg.from);
-        console.log("  Text:", msg.text || "(no text)");
-        eventReceived = true;
-        client.removeListener("message", handler);
-      };
-
-      client.on("message", handler);
-
-      await new Promise((resolve) => setTimeout(resolve, 30000));
-
-      if (!eventReceived) {
-        client.removeListener("message", handler);
-        console.log("⏱️  No message received within 30 seconds");
-        return "skip";
-      }
-
-      return true;
-    },
-  },
-  {
-    category: "Events",
-    name: "Verify message_edit event - Message edited",
-    action: async (client: MiawClient) => {
-      console.log("\n✏️  To test message_edit event:");
-      console.log("1. Send a message from another phone");
-      console.log("2. Edit that message within 15 minutes");
-      console.log("3. I will listen for the edit event");
-
-      let eventReceived = false;
-      const handler = (data: any) => {
-        console.log("✅ Message edit event received!");
-        console.log("  Message ID:", data.messageId);
-        console.log("  New text:", data.newText || "(empty)");
-        eventReceived = true;
-        client.removeListener("message_edit", handler);
-      };
-
-      client.on("message_edit", handler);
-
-      await new Promise((resolve) => setTimeout(resolve, 60000));
-
-      if (!eventReceived) {
-        client.removeListener("message_edit", handler);
-        console.log("⏱️  No edit event received within 60 seconds");
-        return "skip";
-      }
-
-      return true;
-    },
-  },
-  {
-    category: "Events",
-    name: "Verify message_delete event - Message deleted/revoked",
-    action: async (client: MiawClient) => {
-      console.log("\n🗑️  To test message_delete event:");
-      console.log("1. Send a message from another phone");
-      console.log('2. Delete that message ("Delete for everyone")');
-      console.log("3. I will listen for the delete event");
-
-      let eventReceived = false;
-      const handler = (data: any) => {
-        console.log("✅ Message delete event received!");
-        console.log("  Message ID:", data.messageId);
-        console.log("  From:", data.from);
-        eventReceived = true;
-        client.removeListener("message_delete", handler);
-      };
-
-      client.on("message_delete", handler);
-
-      await new Promise((resolve) => setTimeout(resolve, 60000));
-
-      if (!eventReceived) {
-        client.removeListener("message_delete", handler);
-        console.log("⏱️  No delete event received within 60 seconds");
-        return "skip";
-      }
-
-      return true;
-    },
-  },
-  {
-    category: "Events",
-    name: "Verify message_reaction event - Reaction added/removed",
-    action: async (client: MiawClient) => {
-      console.log("\n😀 To test message_reaction event:");
-      console.log("1. Send a message from another phone");
-      console.log("2. React to it with an emoji");
-      console.log("3. I will listen for the reaction event");
-
-      let eventReceived = false;
-      const handler = (data: any) => {
-        console.log("✅ Message reaction event received!");
-        console.log("  Message ID:", data.messageId);
-        console.log("  Emoji:", data.emoji);
-        console.log("  From:", data.reactorId);
-        eventReceived = true;
-        client.removeListener("message_reaction", handler);
-      };
-
-      client.on("message_reaction", handler);
-
-      await new Promise((resolve) => setTimeout(resolve, 60000));
-
-      if (!eventReceived) {
-        client.removeListener("message_reaction", handler);
-        console.log("⏱️  No reaction event received within 60 seconds");
-        return "skip";
-      }
-
-      return true;
-    },
-  },
-  {
-    category: "Events",
-    name: "Verify presence event - Presence update",
-    action: async () => {
-      console.log("\n🌐 To test presence event:");
-      console.log("1. Subscribe to a contact's presence first");
-      console.log("2. Have that contact come online/offline");
-      console.log("3. I will listen for the presence event");
-
-      console.log("\n⚠️  Requires subscribePresence() to be called first");
-      return "skip";
-    },
-  },
-  {
-    category: "Events",
-    name: "Verify connection event - Connection state changed",
-    action: async () => {
-      console.log(
-        "\n🔌 Connection events are tested during connect/disconnect"
-      );
-      console.log("✅ Connection event verified");
-      return "skip";
-    },
-  },
-  {
-    category: "Events",
-    name: "Verify disconnected event - Client disconnected",
-    action: async () => {
-      console.log("\n🔌 Disconnected event is tested during disconnect()");
-      console.log("✅ Disconnected event verified");
-      return "skip";
-    },
-  },
-
-  // ============================================================
   // FINAL CLEANUP
   // ============================================================
   {
     category: "Final",
     name: "disconnect() - Disconnect from WhatsApp",
     action: async (client: MiawClient) => {
+      console.log("\n🔌 Session complete!");
+      console.log("   [d] Disconnect from WhatsApp");
+      console.log("   [c] Keep connected (for further testing)");
+      const answer = await waitForInput("> [d/c]: ");
+      
+      if (answer.toLowerCase() === "c") {
+        console.log("✅ Keeping connection alive. You can continue testing.");
+        console.log("   Run the script again to test more features.");
+        return "skip";
+      }
+      
       console.log("\n🔌 Disconnecting from WhatsApp...");
       await client.disconnect();
       console.log("✅ Disconnected");
@@ -2001,13 +1766,119 @@ async function runTest(
   }
 }
 
-async function main() {
+// Show help/usage information
+function showHelp() {
   console.log(
     "\n╔════════════════════════════════════════════════════════════╗"
   );
   console.log("║     Miaw Core - Interactive Manual Testing Script        ║");
   console.log("╚════════════════════════════════════════════════════════════╝");
-  console.log("\nThis script will guide you through testing each feature.");
+
+  console.log("\n📖 Usage: npm run test:manual [group]\n");
+  console.log("Available test groups:\n");
+  console.log("  all         - Run all tests interactively");
+  console.log("  core        - Core Client (connect, disconnect, state)");
+  console.log(
+    "  get         - Basic GET Operations (profile, contacts, chats)"
+  );
+  console.log("  messaging   - Messaging (send, react, forward, edit, delete)");
+  console.log("  contacts    - Contacts (check, info, add, remove)");
+  console.log(
+    "  group       - Group Management (create, update, participants)"
+  );
+  console.log(
+    "  profile     - Profile Management (update name, status, picture)"
+  );
+  console.log("  business    - Business [BIZ] (labels + catalog)");
+  console.log("  newsletter  - Newsletter (create, metadata, follow)");
+  console.log("  ux          - UX Features (typing, presence, read receipts)");
+
+  // Count tests per category
+  const categoryCounts: { [key: string]: number } = {};
+  for (const test of tests) {
+    if (test.category !== "Prerequisites" && test.category !== "Final") {
+      categoryCounts[test.category] = (categoryCounts[test.category] || 0) + 1;
+    }
+  }
+
+  console.log("\n📊 Test counts by category:\n");
+  for (const [arg, categories] of Object.entries(CATEGORY_MAP)) {
+    const count = categories.reduce(
+      (sum, cat) => sum + (categoryCounts[cat] || 0),
+      0
+    );
+    const bizTag = arg === "business" ? " [BIZ]" : "";
+    console.log(`  ${arg.padEnd(12)} ${count} tests${bizTag}`);
+  }
+
+  const totalTests = tests.filter(
+    (t) => t.category !== "Prerequisites" && t.category !== "Final"
+  ).length;
+  console.log(`\n  Total: ${totalTests} tests`);
+
+  console.log("\n💡 Examples:");
+  console.log("  npm run test:manual all       # Run all tests");
+  console.log(
+    "  npm run test:manual group     # Run group management tests only"
+  );
+  console.log("  npm run test:manual messaging # Run messaging tests only");
+
+  console.log(
+    `\n🔧 Debug Mode: ${DEBUG_MODE ? "ON" : "OFF"} (set DEBUG=true in .env)`
+  );
+
+  console.log("\n");
+}
+
+// Get tests to run based on CLI argument
+function getTestsToRun(): TestItem[] {
+  if (cliArg === "all") {
+    return tests;
+  }
+
+  const targetCategories = CATEGORY_MAP[cliArg];
+  if (!targetCategories) {
+    return []; // Will trigger help display
+  }
+
+  // Filter tests by category, but always include connection setup
+  const connectionTests = tests.filter(
+    (t) => t.category === "Prerequisites" || t.category === "Core Client"
+  );
+  const categoryTests = tests.filter((t) =>
+    targetCategories.includes(t.category)
+  );
+  const disconnectTest = tests.filter((t) => t.category === "Final");
+
+  // Combine: connection + category tests + disconnect
+  // Remove duplicates if Core Client was selected
+  const combined = [...connectionTests];
+  for (const test of categoryTests) {
+    if (!combined.some((t) => t.name === test.name)) {
+      combined.push(test);
+    }
+  }
+  combined.push(...disconnectTest);
+
+  return combined;
+}
+
+async function main() {
+  // If no argument or invalid argument, show help
+  if (!cliArg || (!CATEGORY_MAP[cliArg] && cliArg !== "all")) {
+    showHelp();
+    return;
+  }
+
+  const testsToRun = getTestsToRun();
+  const targetDesc = cliArg === "all" ? "all tests" : `${cliArg} tests`;
+
+  console.log(
+    "\n╔════════════════════════════════════════════════════════════╗"
+  );
+  console.log("║     Miaw Core - Interactive Manual Testing Script        ║");
+  console.log("╚════════════════════════════════════════════════════════════╝");
+  console.log(`\n🎯 Running: ${targetDesc}`);
   console.log("\nActions: [Enter] run | [n] skip | [s] skip all | [q] quit");
   console.log("Icons: ⚡ auto | 👤 interactive | [BIZ] business only");
   console.log(
@@ -2075,9 +1946,9 @@ async function main() {
   // Run tests sequentially
   let lastResult: "pass" | "fail" | "skip" | null = null;
 
-  for (let i = 0; i < tests.length; i++) {
-    const test = tests[i];
-    const progress = `[${i + 1}/${tests.length}]`;
+  for (let i = 0; i < testsToRun.length; i++) {
+    const test = testsToRun[i];
+    const progress = `[${i + 1}/${testsToRun.length}]`;
     const bizTag = test.businessOnly ? " [BIZ]" : "";
     const interactiveTag = test.action ? " 👤" : " ⚡"; // 👤 = needs interaction, ⚡ = auto
 
