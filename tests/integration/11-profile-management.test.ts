@@ -16,7 +16,7 @@ import { MiawClient } from '../../src/index.js';
 
 describe('Profile Management', () => {
   let client: MiawClient;
-  let originalName: string | undefined;
+  let _originalName: string | undefined;
 
   beforeAll(async () => {
     client = createTestClient();

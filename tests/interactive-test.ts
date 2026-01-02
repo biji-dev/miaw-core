@@ -1617,7 +1617,7 @@ async function detectAccountType(client: MiawClient): Promise<void> {
         console.log("   ℹ️  Business-only tests will be skipped automatically");
       }
     }
-  } catch (error) {
+  } catch {
     console.log("⚠️  Could not detect account type, assuming Personal");
     TEST_CONFIG.isBusiness = false;
   }

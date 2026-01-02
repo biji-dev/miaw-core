@@ -9,7 +9,7 @@
  * - Getting group information and participants
  */
 
-import { MiawClient, MiawMessage } from "miaw-core";
+import { MiawClient } from "miaw-core";
 import qrcode from "qrcode-terminal";
 
 const client = new MiawClient({

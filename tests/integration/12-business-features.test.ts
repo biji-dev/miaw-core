@@ -11,7 +11,7 @@
  */
 import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
 import { MiawClient } from '../../src/index.js';
-import { LabelColor, PredefinedLabelId } from '../../src/types';
+import { LabelColor } from '../../src/types';
 
 describe('Business Features (v0.9.0)', () => {
   let client: MiawClient;

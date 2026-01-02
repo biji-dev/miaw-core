@@ -330,14 +330,14 @@ async function main() {
   bot.addContact("6280987654321", "Jane Smith", ["prospect"]);
 
   // Example: Create and send a campaign
-  const campaignId = bot.createCampaign(
+  const _campaignId = bot.createCampaign(
     "Welcome Message",
     "Hello {{name}}! Welcome to our service. We're excited to have you with us! 🎉\n\nReply STOP to opt out.",
     (contact) => contact.tags?.includes("new") || true // All contacts
   );
 
   // Uncomment to send the campaign
-  // await bot.sendCampaign(campaignId);
+  // await bot.sendCampaign(_campaignId);
 
   // Show stats
   bot.showStats();

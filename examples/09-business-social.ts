@@ -14,9 +14,7 @@
 import {
   MiawClient,
   LabelColor,
-  PredefinedLabelId,
   Label,
-  Product,
   ProductOptions,
 } from "miaw-core";
 import qrcode from "qrcode-terminal";
@@ -36,7 +34,7 @@ client.on("ready", () => {
 
 client.on("message", async (message) => {
   const text = message.text?.toLowerCase() || "";
-  const isBusinessAccount = message.from.endsWith("@s.whatsapp.net");
+  const _isBusinessAccount = message.from.endsWith("@s.whatsapp.net");
 
   // ============================================================
   // LABEL OPERATIONS (WhatsApp Business Only)
@@ -269,10 +267,10 @@ client.on("message", async (message) => {
     // Usage: !reactnewsletter newsletterId emoji
     const parts = text.substring(17).split(" ");
     if (parts.length >= 2) {
-      const newsletterId = parts[0];
+      const _newsletterId = parts[0];
       const emoji = parts[1];
       // Note: You need a specific message ID from the newsletter
-      // await client.reactToNewsletterMessage(newsletterId, messageId, emoji);
+      // await client.reactToNewsletterMessage(_newsletterId, messageId, emoji);
       await client.sendText(message.from, `Reacted with ${emoji}!`);
     }
   }

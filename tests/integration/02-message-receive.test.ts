@@ -183,7 +183,7 @@ describe('Message Receiving', () => {
         5000
       );
       receivedOwnMessage = true;
-    } catch (error) {
+    } catch {
       // Expected to timeout
     }
 

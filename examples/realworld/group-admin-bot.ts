@@ -291,7 +291,7 @@ class GroupAdminBot {
       return;
     }
 
-    const jid = phone.includes("@") ? phone : `${phone}@s.whatsapp.net`;
+    const _jid = phone.includes("@") ? phone : `${phone}@s.whatsapp.net`;
     const warnMsg = `⚠️ You have received a warning. Please follow the group rules.`;
 
     await this.client.sendText(message.from, warnMsg, { quoted: message });
@@ -303,7 +303,7 @@ class GroupAdminBot {
       return;
     }
 
-    const jid = phone.includes("@") ? phone : `${phone}@s.whatsapp.net`;
+    const _jid = phone.includes("@") ? phone : `${phone}@s.whatsapp.net`;
     const result = await this.client.removeParticipants(message.from, [phone]);
 
     if (result[0]?.success) {
@@ -403,7 +403,7 @@ class GroupAdminBot {
 
   private async checkContent(message: MiawMessage, groupData: GroupData): Promise<void> {
     const text = message.text?.toLowerCase() || "";
-    const senderPhone = message.senderPhone;
+    const _senderPhone = message.senderPhone;
 
     // Check for bad words
     for (const badWord of CONFIG.moderation.badWords) {

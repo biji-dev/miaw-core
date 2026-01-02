@@ -69,7 +69,7 @@ describe('UX Polish - Read Receipts', () => {
 
       expect(result).toBe(true);
       console.log('✅ Message marked as read successfully');
-    } catch (error) {
+    } catch {
       console.log('⏭️  No message received within timeout (expected in automated tests)');
     }
   }, 35000);
