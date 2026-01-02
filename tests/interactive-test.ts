@@ -151,8 +151,8 @@ const TEST_CONFIG = {
   lastCreatedLabelId: "",
   // Last created product (for catalog tests)
   lastCreatedProductId: "",
-  // Track if user wants to keep connection after tests
-  keepConnection: false,
+  // Track if user explicitly chose to disconnect
+  shouldDisconnect: false,
 };
 
 // Test results tracking
@@ -1580,20 +1580,19 @@ const tests: TestItem[] = [
     action: async (client: MiawClient) => {
       console.log("\n🔌 Session complete!");
       console.log("   [d] Disconnect from WhatsApp");
-      console.log("   [c] Keep connected (for further testing)");
+      console.log("   [c] Keep connected (default)");
       const answer = await waitForInput("> [d/c]: ");
 
-      if (answer.toLowerCase() === "c") {
-        TEST_CONFIG.keepConnection = true;
-        console.log("✅ Keeping connection alive. You can continue testing.");
-        console.log("   Run the script again to test more features.");
-        return "skip";
+      if (answer.toLowerCase() === "d") {
+        TEST_CONFIG.shouldDisconnect = true;
+        console.log("\n🔌 Disconnecting from WhatsApp...");
+        await client.disconnect();
+        console.log("✅ Disconnected");
+        return true;
       }
 
-      console.log("\n🔌 Disconnecting from WhatsApp...");
-      await client.disconnect();
-      console.log("✅ Disconnected");
-      return true;
+      console.log("✅ Keeping connection alive. You can continue testing.");
+      return "skip";
     },
   },
 ];
@@ -1959,10 +1958,9 @@ async function main() {
     lastResult = result;
   }
 
-  // Cleanup (unless user chose to keep connection)
-  if (!TEST_CONFIG.keepConnection) {
+  // Cleanup only if user explicitly chose to disconnect
+  if (TEST_CONFIG.shouldDisconnect) {
     console.log("\n🧹 Cleaning up...");
-    await client.disconnect();
     await client.dispose();
     console.log("✅ Cleanup complete");
   }
