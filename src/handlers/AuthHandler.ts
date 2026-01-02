@@ -1,5 +1,5 @@
-import { useMultiFileAuthState } from '@whiskeysockets/baileys';
-import { join } from 'node:path';
+import { useMultiFileAuthState } from "@whiskeysockets/baileys";
+import { join } from "node:path";
 
 /**
  * Handles authentication state management
