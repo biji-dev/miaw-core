@@ -187,12 +187,14 @@ We prioritize features based on:
 **Focus:** Business capabilities, channels, and contact management
 
 #### Label Operations (requires WhatsApp Business)
+
 - [x] **Add Chat Label** - Add a label to a conversation
 - [x] **Remove Chat Label** - Remove a label from a conversation
 - [x] **Add Message Label** - Add a label to a specific message
 - [x] **Remove Message Label** - Remove a label from a message
 
 #### Catalog/Product Operations (requires WhatsApp Business)
+
 - [x] **Get Catalog** - Fetch product catalog from a business account
 - [x] **Get Collections** - Fetch catalog collections
 - [x] **Create Product** - Add a new product to catalog
@@ -200,6 +202,7 @@ We prioritize features based on:
 - [x] **Delete Products** - Remove products from catalog
 
 #### Newsletter/Channel Operations
+
 - [x] **Create Newsletter** - Create a WhatsApp channel
 - [x] **Follow/Unfollow Newsletter** - Subscribe to channels
 - [x] **Mute/Unmute Newsletter** - Control channel notifications
@@ -213,6 +216,7 @@ We prioritize features based on:
 - [x] **Demote Admin** - Demote a newsletter admin
 
 #### Contact Management
+
 - [x] **Add/Edit Contact** - Add or update a contact
 - [x] **Remove Contact** - Delete a contact
 

@@ -26,10 +26,10 @@ Miaw Core is now ESM-only. CommonJS `require()` is no longer supported.
 
 ```typescript
 // ❌ Before (CommonJS - no longer works)
-const { MiawClient } = require('miaw-core');
+const { MiawClient } = require("miaw-core");
 
 // ✅ After (ESM)
-import { MiawClient } from 'miaw-core';
+import { MiawClient } from "miaw-core";
 ```
 
 #### Node.js Version
@@ -39,25 +39,30 @@ Node.js >= 18.0.0 is now required.
 ### Migration Steps
 
 1. **Update your package.json:**
+
    ```json
    {
      "type": "module"
    }
    ```
+
    Or rename your files from `.js` to `.mjs`.
 
 2. **Update imports to ESM syntax:**
+
    ```typescript
    // Change require() to import
-   import { MiawClient } from 'miaw-core';
+   import { MiawClient } from "miaw-core";
    ```
 
 3. **Update dependencies:**
+
    ```bash
    npm install miaw-core@latest
    ```
 
 4. **Check Node.js version:**
+
    ```bash
    node -v  # Must be >= 18.0.0
    ```
@@ -120,13 +125,15 @@ const mappings = client.getLidMappings(); // Returns Record<string, string>
 ### Migration Steps
 
 1. **Update dependencies:**
+
    ```bash
    npm install miaw-core@latest
    ```
 
 2. **Add cleanup on shutdown (recommended):**
+
    ```typescript
-   process.on('SIGINT', async () => {
+   process.on("SIGINT", async () => {
      await client.dispose();
      process.exit(0);
    });
@@ -248,16 +255,16 @@ await client.updateProfileStatus("Available for chats");
 
 ## Breaking Changes Summary
 
-| Version | Change | Migration Required |
-|---------|--------|-------------------|
-| v1.0.0 | New `dispose()` method | Recommended |
-| v1.0.0 | `getLidMappings()` returns object instead of Map | Yes, if using |
-| v0.9.0 | Label operations added | No (new features) |
-| v0.9.0 | Catalog operations added | No (new features) |
-| v0.9.0 | Newsletter operations added | No (new features) |
-| v0.9.0 | Contact operations added | No (new features) |
-| v0.8.0 | Profile management added | No (new features) |
-| v0.7.0 | Group management added | No (new features) |
+| Version | Change                                           | Migration Required |
+| ------- | ------------------------------------------------ | ------------------ |
+| v1.0.0  | New `dispose()` method                           | Recommended        |
+| v1.0.0  | `getLidMappings()` returns object instead of Map | Yes, if using      |
+| v0.9.0  | Label operations added                           | No (new features)  |
+| v0.9.0  | Catalog operations added                         | No (new features)  |
+| v0.9.0  | Newsletter operations added                      | No (new features)  |
+| v0.9.0  | Contact operations added                         | No (new features)  |
+| v0.8.0  | Profile management added                         | No (new features)  |
+| v0.7.0  | Group management added                           | No (new features)  |
 
 ---
 
@@ -287,13 +294,13 @@ If you encounter issues during migration:
 
 ## Version Compatibility
 
-| Miaw Core | Node.js | Baileys | Status |
-|-----------|---------|---------|--------|
-| 1.0.0 | >=18.0.0 | 6.7.21+ | Stable (Coming Soon) |
-| 0.9.x | >=18.0.0 | 6.7.21+ | Stable |
-| 0.8.x | >=18.0.0 | 6.7.21+ | Stable |
-| 0.7.x | >=18.0.0 | 6.7.21+ | Stable |
-| < 0.7 | >=18.0.0 | 6.7.21+ | Upgraded recommended |
+| Miaw Core | Node.js  | Baileys | Status               |
+| --------- | -------- | ------- | -------------------- |
+| 1.0.0     | >=18.0.0 | 6.7.21+ | Stable (Coming Soon) |
+| 0.9.x     | >=18.0.0 | 6.7.21+ | Stable               |
+| 0.8.x     | >=18.0.0 | 6.7.21+ | Stable               |
+| 0.7.x     | >=18.0.0 | 6.7.21+ | Stable               |
+| < 0.7     | >=18.0.0 | 6.7.21+ | Upgraded recommended |
 
 ---
 

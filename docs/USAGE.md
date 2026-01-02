@@ -349,7 +349,9 @@ const results = await client.removeParticipants("123456789@g.us", [
   "1234567890",
 ]);
 
-results.forEach((r) => console.log(`${r.jid}: ${r.success ? "Removed" : r.status}`));
+results.forEach((r) =>
+  console.log(`${r.jid}: ${r.success ? "Removed" : r.status}`)
+);
 ```
 
 ### Leave Group
@@ -414,7 +416,10 @@ Change the group profile picture:
 await client.updateGroupPicture("123456789@g.us", "./group-icon.jpg");
 
 // From URL
-await client.updateGroupPicture("123456789@g.us", "https://example.com/image.jpg");
+await client.updateGroupPicture(
+  "123456789@g.us",
+  "https://example.com/image.jpg"
+);
 
 // From Buffer
 const imageBuffer = fs.readFileSync("./image.png");
@@ -490,7 +495,9 @@ client.on("message", async (msg) => {
     if (info) {
       await client.sendText(
         groupJid,
-        `Group: ${info.name}\nMembers: ${info.participantCount}\nDescription: ${info.description || "None"}`
+        `Group: ${info.name}\nMembers: ${info.participantCount}\nDescription: ${
+          info.description || "None"
+        }`
       );
     }
   }
@@ -510,7 +517,9 @@ Change your profile picture:
 const result = await client.updateProfilePicture("./my-avatar.jpg");
 
 // From URL
-const result2 = await client.updateProfilePicture("https://example.com/avatar.jpg");
+const result2 = await client.updateProfilePicture(
+  "https://example.com/avatar.jpg"
+);
 
 // From Buffer
 const imageBuffer = fs.readFileSync("./avatar.png");
@@ -664,7 +673,7 @@ const paginated = await client.getCatalog(undefined, 20, catalog.nextCursor);
 ```typescript
 const collections = await client.getCollections();
 
-collections.forEach(col => {
+collections.forEach((col) => {
   console.log("Collection:", col.name);
   console.log("Products:", col.products);
 });
@@ -767,7 +776,10 @@ await client.unmuteNewsletter("1234567890@newsletter");
 await client.updateNewsletterName("1234567890@newsletter", "New Name");
 
 // Update description
-await client.updateNewsletterDescription("1234567890@newsletter", "New description");
+await client.updateNewsletterDescription(
+  "1234567890@newsletter",
+  "New description"
+);
 
 // Update picture
 await client.updateNewsletterPicture("1234567890@newsletter", "./cover.jpg");
@@ -787,7 +799,7 @@ const messages = await client.fetchNewsletterMessages(
 );
 
 if (messages.success) {
-  messages.messages?.forEach(msg => {
+  messages.messages?.forEach((msg) => {
     console.log("Message:", msg.content);
     console.log("Timestamp:", msg.timestamp);
   });
@@ -812,7 +824,9 @@ const info = await client.getNewsletterSubscribers("1234567890@newsletter");
 console.log("Subscribers:", info?.subscribers);
 
 // Get admin count
-const adminCount = await client.getNewsletterAdminCount("1234567890@newsletter");
+const adminCount = await client.getNewsletterAdminCount(
+  "1234567890@newsletter"
+);
 console.log("Admins:", adminCount);
 
 // Subscribe to live updates
@@ -823,10 +837,16 @@ await client.subscribeNewsletterUpdates("1234567890@newsletter");
 
 ```typescript
 // Change owner
-await client.changeNewsletterOwner("1234567890@newsletter", "new-owner@s.whatsapp.net");
+await client.changeNewsletterOwner(
+  "1234567890@newsletter",
+  "new-owner@s.whatsapp.net"
+);
 
 // Demote admin
-await client.demoteNewsletterAdmin("1234567890@newsletter", "admin@s.whatsapp.net");
+await client.demoteNewsletterAdmin(
+  "1234567890@newsletter",
+  "admin@s.whatsapp.net"
+);
 
 // Delete newsletter
 await client.deleteNewsletter("1234567890@newsletter");
@@ -884,7 +904,7 @@ client.on("message", async (msg) => {
     const catalog = await client.getCatalog();
     if (catalog.success && catalog.products) {
       let response = "Our products:\n\n";
-      catalog.products.forEach(p => {
+      catalog.products.forEach((p) => {
         response += `${p.name}: $${(p.priceAmount1000! / 100).toFixed(2)}\n`;
       });
       await client.sendText(msg.from, response);

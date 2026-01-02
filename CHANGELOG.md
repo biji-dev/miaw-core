@@ -32,14 +32,14 @@ For users upgrading from v1.0.x:
 
 ```typescript
 // No code changes needed if already using ESM imports
-import { MiawClient } from 'miaw-core';
+import { MiawClient } from "miaw-core";
 
 // If using CommonJS, migrate to ESM:
 // Before (CommonJS - no longer supported):
 // const { MiawClient } = require('miaw-core');
 
 // After (ESM):
-import { MiawClient } from 'miaw-core';
+import { MiawClient } from "miaw-core";
 ```
 
 Ensure your `package.json` has `"type": "module"` or use `.mjs` file extension.
@@ -62,15 +62,18 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### What's New Since v0.9.1
 
 #### LID Cache Management
+
 - `getLidCacheSize()` - Get current LID to JID cache size
 - `clearLidCache()` - Clear the LID cache
 - `getLidMappings()` - Returns `Record<string, string>` instead of `Map`
 
 #### Resource Cleanup
+
 - `dispose()` - Properly clean up resources before shutdown
 - Recommended to call on process exit for clean session save
 
 #### Performance Improvements
+
 - LID mappings now use LRU cache with max size of 1000 entries
 - Automatic eviction of least recently used mappings
 - Improved memory management for long-running bots
@@ -78,6 +81,7 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### API Surface
 
 81 public methods across 10 categories:
+
 - Core Client (7 methods)
 - Messaging (6 methods)
 - Media (5 methods)
@@ -114,6 +118,7 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 #### Examples
+
 - `01-basic-bot.ts` - Core client, QR authentication, echo bot (v0.1.0)
 - `02-media-bot.ts` - Media sending and downloading (v0.2.0)
 - `03-message-context.ts` - Reply, edit, delete, reactions (v0.3.0)
@@ -134,6 +139,7 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 #### Label Operations (WhatsApp Business only)
+
 - `addLabel()` - Create or edit labels
 - `addChatLabel()` - Add a label to a chat
 - `removeChatLabel()` - Remove a label from a chat
@@ -144,6 +150,7 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 - `Label`, `LabelOperationResult` types
 
 #### Catalog/Product Operations (WhatsApp Business only)
+
 - `getCatalog()` - Fetch product catalog with pagination support
 - `getCollections()` - Fetch catalog collections
 - `createProduct()` - Add new products to catalog
@@ -152,6 +159,7 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 - `Product`, `ProductCollection`, `ProductCatalog`, `ProductOperationResult`, `ProductOptions` types
 
 #### Newsletter/Channel Operations
+
 - `createNewsletter()` - Create WhatsApp channels/newsletters
 - `getNewsletterMetadata()` - Get newsletter information
 - `followNewsletter()` - Follow/subscribe to newsletters
@@ -173,11 +181,13 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 - `NewsletterMetadata`, `NewsletterMessage`, `NewsletterMessagesResult`, `NewsletterOperationResult`, `NewsletterSubscriptionInfo` types
 
 #### Contact Management
+
 - `addOrEditContact()` - Add or update contacts
 - `removeContact()` - Remove contacts
 - `ContactData`, `ContactOperationResult` types
 
 #### Tests
+
 - Integration tests for all v0.9.0 features (`12-business-features.test.ts`, `13-newsletter-features.test.ts`)
 
 ## [0.8.0] - 2025-12-21
@@ -185,14 +195,17 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 - **Profile Picture Management**
+
   - `updateProfilePicture()` - Update your own profile picture (file path, URL, or Buffer)
   - `removeProfilePicture()` - Remove your profile picture
 
 - **Profile Information**
+
   - `updateProfileName()` - Update your display name (push name)
   - `updateProfileStatus()` - Update your "About" text
 
 - **New Types**
+
   - `ProfileOperationResult` - Result type for profile operations (success/error)
 
 - **Integration Tests**
@@ -203,31 +216,37 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 - **Group Creation**
+
   - `createGroup()` - Create new WhatsApp groups with initial participants
   - Returns `CreateGroupResult` with group JID and metadata
 
 - **Participant Management**
+
   - `addParticipants()` - Add members to a group (requires admin)
   - `removeParticipants()` - Remove members from a group (requires admin)
   - `leaveGroup()` - Leave a group
   - Returns `ParticipantOperationResult[]` with status for each participant
 
 - **Admin Management**
+
   - `promoteToAdmin()` - Promote members to group admin
   - `demoteFromAdmin()` - Demote admins to regular members
 
 - **Group Settings**
+
   - `updateGroupName()` - Change group name/subject
   - `updateGroupDescription()` - Set or clear group description
   - `updateGroupPicture()` - Change group profile picture
 
 - **Group Invites**
+
   - `getGroupInviteLink()` - Get group invite link (https://chat.whatsapp.com/...)
   - `revokeGroupInvite()` - Revoke current link and get new one
   - `acceptGroupInvite()` - Join group via invite code or URL
   - `getGroupInviteInfo()` - Preview group info before joining
 
 - **New Types**
+
   - `ParticipantOperationResult` - Result of add/remove/promote/demote operations
   - `CreateGroupResult` - Result of group creation with metadata
   - `GroupOperationResult` - Generic success/error result for group operations
@@ -241,13 +260,16 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 - **Send Reactions**
+
   - `sendReaction()` - Send emoji reactions to messages (e.g., '❤️', '👍')
   - `removeReaction()` - Remove your reaction from a message
 
 - **Forward Messages**
+
   - `forwardMessage()` - Forward any message to another chat
 
 - **Edit Messages**
+
   - `editMessage()` - Edit your own messages (within WhatsApp's 15-minute window)
 
 - **Delete Messages**
@@ -259,21 +281,25 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 - **Read Receipts**
+
   - `markAsRead()` - Mark messages as read (send read receipt)
   - Returns boolean indicating success
 
 - **Typing & Recording Indicators**
+
   - `sendTyping()` - Send "typing..." indicator to a chat
   - `sendRecording()` - Send "recording audio..." indicator
   - `stopTyping()` - Stop typing/recording indicator (send paused state)
   - Works with both individual contacts and groups
 
 - **Presence Management**
+
   - `setPresence()` - Set bot's online/offline status ('available' or 'unavailable')
   - `subscribePresence()` - Subscribe to contact's presence updates
   - `presence` event - Emitted when subscribed contact's presence changes
 
 - **New Types**
+
   - `PresenceStatus` - Union type for 'available' | 'unavailable'
   - `PresenceUpdate` - Presence notification data (jid, status, lastSeen)
 
@@ -285,20 +311,24 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 - **Contact Validation**
+
   - `checkNumber()` - Verify if phone number is on WhatsApp
   - `checkNumbers()` - Batch check multiple phone numbers
   - Returns `CheckNumberResult` with exists flag and JID
 
 - **Contact Information**
+
   - `getContactInfo()` - Fetch contact info including status
   - `getBusinessProfile()` - Get business account profile details
   - `getProfilePicture()` - Get profile picture URL (supports low/high res)
 
 - **Group Information**
+
   - `getGroupInfo()` - Fetch group metadata (name, description, settings)
   - `getGroupParticipants()` - List all group members with roles
 
 - **New Types**
+
   - `CheckNumberResult` - Result of number validation
   - `ContactInfo` - Contact information structure
   - `BusinessProfile` - Business profile data
@@ -314,23 +344,28 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 - **Reply to Messages (Quoted)**
+
   - All send methods now support `quoted` option
   - Pass `MiawMessage` to reply to specific messages
   - Works with `sendText()`, `sendImage()`, `sendDocument()`, `sendVideo()`, `sendAudio()`
 
 - **Edit Notifications**
+
   - `message_edit` event when messages are edited
   - `MessageEdit` type with messageId, chatId, newText, editTimestamp
 
 - **Delete Notifications**
+
   - `message_delete` event when messages are deleted/revoked
   - `MessageDelete` type with messageId, chatId, fromMe, participant
 
 - **Reactions**
+
   - `message_reaction` event when messages receive reactions
   - `MessageReaction` type with messageId, chatId, reactorId, emoji, isRemoval
 
 - **New Types**
+
   - `MessageEdit` - Edit notification data
   - `MessageDelete` - Delete notification data
   - `MessageReaction` - Reaction notification data
@@ -348,15 +383,18 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 - **Media Sending Methods**
+
   - `sendImage()` - Send images with caption and view-once support
   - `sendDocument()` - Send documents with auto-mimetype detection
   - `sendVideo()` - Send videos with caption, GIF playback, and PTV (video notes)
   - `sendAudio()` - Send audio with PTT (voice notes) support
 
 - **Media Download**
+
   - `downloadMedia()` - Download media from received messages as Buffer
 
 - **Media Metadata**
+
   - `MediaInfo` type with full metadata extraction
   - Support for mimetype, fileSize, dimensions, duration
   - PTT detection for voice notes
@@ -364,6 +402,7 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
   - View-once message detection
 
 - **New Types**
+
   - `MediaSource` - Flexible input type (path/URL/Buffer)
   - `SendImageOptions`, `SendDocumentOptions`, `SendVideoOptions`, `SendAudioOptions`
   - `MediaInfo` - Media metadata interface
@@ -386,22 +425,26 @@ This is the first stable release of Miaw Core. After 9 pre-releases, the API is 
 ### Added
 
 - **Core Client**
+
   - `MiawClient` class with event-driven architecture
   - Connection management with auto-reconnection
   - Session persistence using Baileys multi-file auth state
   - Multiple instance support with isolated sessions
 
 - **Messaging**
+
   - `sendText()` - Send text messages to individuals and groups
   - Message normalization with `MiawMessage` format
   - Support for @s.whatsapp.net, @lid, @g.us JID formats
 
 - **LID Support**
+
   - Handle WhatsApp's @lid privacy format
   - LID to phone number mapping
   - `resolveLidToJid()`, `getPhoneFromJid()`, `registerLidMapping()`
 
 - **Events**
+
   - `qr` - QR code for authentication
   - `ready` - Client connected and ready
   - `message` - Incoming message received
