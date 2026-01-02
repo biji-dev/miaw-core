@@ -453,7 +453,10 @@ const tests: TestItem[] = [
         `\n💬 Replying to message: "${message.text?.substring(0, 30)}..."`
       );
 
-      const replyText = `This is a reply to your message! 📝\nOriginal: "${message.text?.substring(0, 50)}..."`;
+      const replyText = `This is a reply to your message! 📝\nOriginal: "${message.text?.substring(
+        0,
+        50
+      )}..."`;
 
       // Use sendText with quoted option to reply
       const result = await client.sendText(message.chatJid, replyText, {
