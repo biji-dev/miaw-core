@@ -438,6 +438,40 @@ const tests: TestItem[] = [
   },
   {
     category: "Messaging",
+    name: "replyToMessage() - Reply/quote a message",
+    action: async (client: MiawClient) => {
+      console.log("\n💬 To test replying to a message:");
+      console.log("1. Send a message to the bot from another phone");
+      console.log("2. I will reply to it with a quoted message");
+
+      const message = await waitForMessage(
+        client,
+        (msg) => msg.type === "text",
+        30000
+      );
+      console.log(
+        `\n💬 Replying to message: "${message.text?.substring(0, 30)}..."`
+      );
+
+      const replyText = `This is a reply to your message! 📝\nOriginal: "${message.text?.substring(0, 50)}..."`;
+
+      // Use sendText with quoted option to reply
+      const result = await client.sendText(message.chatJid, replyText, {
+        quoted: message,
+      });
+
+      console.log("Success:", result.success);
+      console.log("Message ID:", result.messageId || "(none)");
+
+      if (!result.success) {
+        console.log("Error:", result.error);
+      }
+
+      return result.success;
+    },
+  },
+  {
+    category: "Messaging",
     name: "sendImage() - Send image",
     action: async (client: MiawClient) => {
       console.log("\n📤 Sending an image requires a test image file.");
