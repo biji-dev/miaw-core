@@ -3101,6 +3101,142 @@ export class MiawClient extends EventEmitter {
   // ============================================
 
   /**
+   * Send a text message to a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param text - Message text content
+   * @returns SendMessageResult
+   * @note You must be an admin/owner of the newsletter to send messages
+   */
+  async sendNewsletterMessage(
+    newsletterId: string,
+    text: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send newsletter message. Connection state: ${this.connectionState}`
+        );
+      }
+
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
+      }
+
+      // Baileys sendMessage handles newsletter JIDs automatically
+      const result = await this.socket.sendMessage(newsletterId, { text });
+
+      return {
+        success: true,
+        messageId: result?.key?.id ?? undefined,
+      };
+    } catch (error) {
+      this.logger.error("Failed to send newsletter message:", error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send an image to a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param image - Image source (file path, URL, or Buffer)
+   * @param caption - Optional caption
+   * @returns SendMessageResult
+   * @note You must be an admin/owner of the newsletter to send messages
+   */
+  async sendNewsletterImage(
+    newsletterId: string,
+    image: MediaSource,
+    caption?: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send newsletter image. Connection state: ${this.connectionState}`
+        );
+      }
+
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
+      }
+
+      const imageContent = Buffer.isBuffer(image) ? image : { url: image };
+      const result = await this.socket.sendMessage(newsletterId, {
+        image: imageContent,
+        caption,
+      });
+
+      return {
+        success: true,
+        messageId: result?.key?.id ?? undefined,
+      };
+    } catch (error) {
+      this.logger.error("Failed to send newsletter image:", error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send a video to a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param video - Video source (file path, URL, or Buffer)
+   * @param caption - Optional caption
+   * @returns SendMessageResult
+   * @note You must be an admin/owner of the newsletter to send messages
+   */
+  async sendNewsletterVideo(
+    newsletterId: string,
+    video: MediaSource,
+    caption?: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send newsletter video. Connection state: ${this.connectionState}`
+        );
+      }
+
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
+      }
+
+      const videoContent = Buffer.isBuffer(video) ? video : { url: video };
+      const result = await this.socket.sendMessage(newsletterId, {
+        video: videoContent,
+        caption,
+      });
+
+      return {
+        success: true,
+        messageId: result?.key?.id ?? undefined,
+      };
+    } catch (error) {
+      this.logger.error("Failed to send newsletter video:", error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
    * Create a new newsletter/channel
    * @param name - Newsletter name
    * @param description - Newsletter description
@@ -3121,26 +3257,19 @@ export class MiawClient extends EventEmitter {
         );
       }
 
+      // Baileys newsletterCreate returns NewsletterMetadata with id property
       const result = await this.socket.newsletterCreate(
         name,
         description || ""
       );
 
-      // Debug log to see actual response structure
-      this.logger.debug(
-        "Newsletter create raw result:",
-        JSON.stringify(result, null, 2)
-      );
+      // Debug log the result structure
+      this.logger.debug("Newsletter create result:", result);
 
       // Baileys returns NewsletterMetadata from parseNewsletterCreateResponse
       // The id is directly on the result object
-      if (result && typeof result === "object") {
-        // Try common property names for the newsletter JID/ID
-        const newsletterId =
-          (result as { id?: string }).id ||
-          (result as { jid?: string }).jid ||
-          (result as { newsletterId?: string }).newsletterId;
-
+      if (result && typeof result === "object" && "id" in result) {
+        const newsletterId = result.id;
         if (newsletterId) {
           return {
             success: true,
@@ -3153,7 +3282,7 @@ export class MiawClient extends EventEmitter {
       // The newsletter may have been created but response parsing failed
       this.logger.warn(
         "Newsletter creation returned unexpected format:",
-        result
+        JSON.stringify(result, null, 2)
       );
       return {
         success: true,
@@ -3161,6 +3290,13 @@ export class MiawClient extends EventEmitter {
       };
     } catch (error) {
       const errorMessage = (error as Error).message;
+      const errorStack = (error as Error).stack;
+
+      // Log full error for debugging
+      this.logger.debug("Newsletter creation error details:", {
+        message: errorMessage,
+        stack: errorStack,
+      });
 
       // Check if this is a response parsing error (newsletter may have been created)
       // Baileys throws "Cannot read properties of null" when response format is unexpected

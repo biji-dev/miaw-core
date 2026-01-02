@@ -153,6 +153,8 @@ const TEST_CONFIG = {
   lastLabeledChatJid: "",
   // Last created product (for catalog tests)
   lastCreatedProductId: "",
+  // Last created newsletter (for newsletter tests)
+  lastCreatedNewsletterId: "",
   // Track if user explicitly chose to disconnect
   shouldDisconnect: false,
   // Track if using existing session (skip setup tests)
@@ -1363,17 +1365,19 @@ const tests: TestItem[] = [
             const testProduct = result.products.find((p) =>
               p.name?.startsWith("Test Product")
             );
-            if (testProduct) {
+            if (testProduct?.id) {
               TEST_CONFIG.lastCreatedProductId = testProduct.id;
               console.log(`📌 Recovered test product ID: ${testProduct.id}`);
-            } else {
+            } else if (result.products[0]?.id) {
               // If no test product, use the first product for update/delete tests
               TEST_CONFIG.lastCreatedProductId = result.products[0].id;
               console.log(
                 `📌 Using existing product for tests: ${result.products[0].id}`
               );
               console.log(
-                `   (${result.products[0].name || "Unnamed"} - ${result.products[0].price} ${result.products[0].currency || ""})`
+                `   (${result.products[0].name || "Unnamed"} - ${
+                  result.products[0].price
+                } ${result.products[0].currency || ""})`
               );
             }
           }
@@ -1513,16 +1517,28 @@ const tests: TestItem[] = [
       const answer = await waitForInput();
       if (answer.toLowerCase() === "s") return "skip";
 
+      const channelName = `Test Channel ${Date.now()}`;
+      console.log(`\n📝 Creating channel: "${channelName}"...`);
+
       const result = await client.createNewsletter(
-        `Test Channel ${Date.now()}`,
+        channelName,
         "Test channel for miaw-core manual testing"
       );
 
-      console.log("Success:", result.success);
+      console.log("\n📊 Result:");
+      console.log("  Success:", result.success);
       if (result.success) {
-        console.log("Newsletter ID:", result.newsletterId);
+        if (result.newsletterId) {
+          console.log("  Newsletter ID:", result.newsletterId);
+          // Store for subsequent tests
+          TEST_CONFIG.lastCreatedNewsletterId = result.newsletterId;
+        } else {
+          console.log(
+            "  ⚠️ Newsletter ID not returned (may need to check your channels)"
+          );
+        }
       } else {
-        console.log("Error:", result.error);
+        console.log("  Error:", result.error);
       }
 
       return result.success;
@@ -1532,37 +1548,154 @@ const tests: TestItem[] = [
     category: "Newsletter",
     name: "getNewsletterMetadata() - Get newsletter info",
     action: async (client: MiawClient) => {
-      console.log("\n📰 Enter newsletter ID (or press ENTER to skip):");
-      const newsletterId = await waitForInput();
-      if (!newsletterId) return "skip";
+      // Use stored newsletter ID or prompt for one
+      let newsletterId = TEST_CONFIG.lastCreatedNewsletterId;
 
+      if (newsletterId) {
+        console.log(`\n📰 Using created newsletter: ${newsletterId}`);
+      } else {
+        console.log("\n📰 Enter newsletter ID (e.g., 123456789@newsletter):");
+        console.log("Press ENTER to skip");
+        newsletterId = await waitForInput();
+        if (!newsletterId) return "skip";
+      }
+
+      console.log(`\n🔍 Fetching metadata for ${newsletterId}...`);
       const meta = await client.getNewsletterMetadata(newsletterId);
 
       if (meta) {
-        console.log("Name:", meta.name);
-        console.log("Description:", meta.description || "(none)");
-        console.log("Subscribers:", meta.subscribers || 0);
+        console.log("\n📊 Newsletter Info:");
+        console.log("  ID:", meta.id);
+        console.log("  Name:", meta.name);
+        console.log("  Description:", meta.description || "(none)");
+        console.log("  Subscribers:", meta.subscribers || 0);
+        console.log(
+          "  Created:",
+          meta.createdAt
+            ? new Date(meta.createdAt * 1000).toLocaleString()
+            : "unknown"
+        );
         return true;
       } else {
-        console.log("Failed to get newsletter metadata");
+        console.log("❌ Failed to get newsletter metadata");
         return false;
       }
     },
   },
   {
     category: "Newsletter",
+    name: "sendNewsletterMessage() - Send text to channel",
+    action: async (client: MiawClient) => {
+      // Use stored newsletter ID or prompt for one
+      let newsletterId = TEST_CONFIG.lastCreatedNewsletterId;
+
+      if (newsletterId) {
+        console.log(`\n📰 Send to created newsletter: ${newsletterId}`);
+      } else {
+        console.log(
+          "\n📰 Enter newsletter ID to send message (e.g., 123456789@newsletter):"
+        );
+        console.log("Press ENTER to skip");
+        newsletterId = await waitForInput();
+        if (!newsletterId) return "skip";
+      }
+
+      console.log(`\n📝 Sending text message to ${newsletterId}...`);
+      const result = await client.sendNewsletterMessage(
+        newsletterId,
+        `Test newsletter message from miaw-core at ${new Date().toISOString()}`
+      );
+
+      console.log("\n📊 Result:");
+      console.log("  Success:", result.success);
+      if (result.success) {
+        console.log("  Message ID:", result.messageId);
+      } else {
+        console.log("  Error:", result.error);
+      }
+      return result.success;
+    },
+  },
+  {
+    category: "Newsletter",
+    name: "sendNewsletterImage() - Send image to channel",
+    action: async (client: MiawClient) => {
+      // Use stored newsletter ID or prompt for one
+      let newsletterId = TEST_CONFIG.lastCreatedNewsletterId;
+
+      if (newsletterId) {
+        console.log(`\n📰 Send image to created newsletter: ${newsletterId}`);
+      } else {
+        console.log(
+          "\n📰 Enter newsletter ID to send image (e.g., 123456789@newsletter):"
+        );
+        console.log("Press ENTER to skip");
+        newsletterId = await waitForInput();
+        if (!newsletterId) return "skip";
+      }
+
+      console.log(`\n🖼️  Sending image to ${newsletterId}...`);
+      const result = await client.sendNewsletterImage(
+        newsletterId,
+        "https://placehold.co/400x300/png",
+        "Test image from miaw-core newsletter test"
+      );
+
+      console.log("\n📊 Result:");
+      console.log("  Success:", result.success);
+      if (result.success) {
+        console.log("  Message ID:", result.messageId);
+      } else {
+        console.log("  Error:", result.error);
+      }
+      return result.success;
+    },
+  },
+  {
+    category: "Newsletter",
     name: "followNewsletter() - Follow/subscribe",
-    action: async () => {
-      console.log("\n📰 Skipping follow newsletter test...");
-      return "skip";
+    action: async (client: MiawClient) => {
+      console.log(
+        "\n📰 Enter newsletter ID to follow (or press ENTER to skip):"
+      );
+      const newsletterId = await waitForInput();
+      if (!newsletterId) return "skip";
+
+      console.log(`\n👆 Following ${newsletterId}...`);
+      const success = await client.followNewsletter(newsletterId);
+      console.log(success ? "✅ Followed successfully" : "❌ Failed to follow");
+      return success;
     },
   },
   {
     category: "Newsletter",
     name: "deleteNewsletter() - Delete newsletter",
-    action: async () => {
-      console.log("\n📰 Skipping delete newsletter test...");
-      return "skip";
+    action: async (client: MiawClient) => {
+      // Use stored newsletter ID or prompt
+      let newsletterId = TEST_CONFIG.lastCreatedNewsletterId;
+
+      if (newsletterId) {
+        console.log(`\n📰 Delete the test channel: ${newsletterId}?`);
+        console.log("Press ENTER to delete, or 's' to skip");
+        const confirm = await waitForInput();
+        if (confirm.toLowerCase() === "s") return "skip";
+      } else {
+        console.log("\n📰 Enter newsletter ID to delete:");
+        console.log("Press ENTER to skip");
+        newsletterId = await waitForInput();
+        if (!newsletterId) return "skip";
+      }
+
+      console.log(`\n🗑️  Deleting ${newsletterId}...`);
+      const success = await client.deleteNewsletter(newsletterId);
+
+      if (success) {
+        console.log("✅ Deleted successfully");
+        TEST_CONFIG.lastCreatedNewsletterId = "";
+      } else {
+        console.log("❌ Failed to delete");
+      }
+      return success;
     },
   },
 

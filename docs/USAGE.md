@@ -725,6 +725,8 @@ if (result.success) {
 
 WhatsApp Channels (newsletters) for broadcasting updates.
 
+> **Limitations:** WhatsApp does not provide APIs to list subscribed/owned newsletters or get channel member lists. Channels are one-way broadcasts - you can only get subscriber count.
+
 #### Create a Newsletter
 
 ```typescript
@@ -737,6 +739,36 @@ if (result.success) {
   console.log("Newsletter created:", result.newsletterId);
   // Newsletter ID format: "1234567890@newsletter"
 }
+```
+
+#### Send Message to Newsletter
+
+You must be an admin/owner of the newsletter to send messages.
+
+```typescript
+// Send text message
+const textResult = await client.sendNewsletterMessage(
+  "1234567890@newsletter",
+  "Hello subscribers! Here's today's update..."
+);
+
+if (textResult.success) {
+  console.log("Message sent:", textResult.messageId);
+}
+
+// Send image to newsletter
+const imageResult = await client.sendNewsletterImage(
+  "1234567890@newsletter",
+  "./announcement.jpg",
+  "Check out our latest announcement!"
+);
+
+// Send video to newsletter
+const videoResult = await client.sendNewsletterVideo(
+  "1234567890@newsletter",
+  "./update-video.mp4",
+  "Watch our weekly update video"
+);
 ```
 
 #### Get Newsletter Metadata
