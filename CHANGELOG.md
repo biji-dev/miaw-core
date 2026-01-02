@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-02
+
+**Baileys v7 Migration** - ESM-only release with improved session stability
+
+### BREAKING CHANGES
+
+- **ESM-only** - Package now uses `"type": "module"`. CommonJS `require()` is no longer supported.
+- **Node.js >= 18.0.0** required
+
+### Fixed
+
+- **Session reconnection issue** - Fixed bug where app couldn't reconnect after QR scan and restart without re-pairing
+- Includes fixes from Baileys v7: #1735, #1822, #1663, #1697
+
+### Changed
+
+- **Baileys** upgraded from v6.7.21 to v7.0.0-rc.9
+- TypeScript target updated to ES2022
+- All imports now use `.js` extensions for ESM compatibility
+- Node.js built-in imports use `node:` prefix
+
+### Migration
+
+For users upgrading from v1.0.x:
+
+```typescript
+// No code changes needed if already using ESM imports
+import { MiawClient } from 'miaw-core';
+
+// If using CommonJS, migrate to ESM:
+// Before (CommonJS - no longer supported):
+// const { MiawClient } = require('miaw-core');
+
+// After (ESM):
+import { MiawClient } from 'miaw-core';
+```
+
+Ensure your `package.json` has `"type": "module"` or use `.mjs` file extension.
+
+---
+
 ## [1.0.0] - 2025-12-24
 
 **First Stable Release!** 🎉
