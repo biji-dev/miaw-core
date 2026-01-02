@@ -151,6 +151,8 @@ const TEST_CONFIG = {
   lastCreatedLabelId: "",
   // Last created product (for catalog tests)
   lastCreatedProductId: "",
+  // Track if user wants to keep connection after tests
+  keepConnection: false,
 };
 
 // Test results tracking
@@ -1582,6 +1584,7 @@ const tests: TestItem[] = [
       const answer = await waitForInput("> [d/c]: ");
 
       if (answer.toLowerCase() === "c") {
+        TEST_CONFIG.keepConnection = true;
         console.log("✅ Keeping connection alive. You can continue testing.");
         console.log("   Run the script again to test more features.");
         return "skip";
@@ -1956,11 +1959,13 @@ async function main() {
     lastResult = result;
   }
 
-  // Cleanup
-  console.log("\n🧹 Cleaning up...");
-  await client.disconnect();
-  await client.dispose();
-  console.log("✅ Cleanup complete");
+  // Cleanup (unless user chose to keep connection)
+  if (!TEST_CONFIG.keepConnection) {
+    console.log("\n🧹 Cleaning up...");
+    await client.disconnect();
+    await client.dispose();
+    console.log("✅ Cleanup complete");
+  }
 
   // Show summary
   showSummary();
