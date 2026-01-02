@@ -1967,6 +1967,9 @@ async function main() {
 
   // Show summary
   showSummary();
+
+  // Exit process (connection may still be active if user chose to keep it)
+  process.exit(0);
 }
 
 function showSummary() {
