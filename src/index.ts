@@ -4,10 +4,10 @@
  */
 
 // Main client
-export { MiawClient } from './client/MiawClient';
+export { MiawClient } from "./client/MiawClient.js";
 
-// Types
-export {
+// Types - using 'export type' for type-only exports (required for ESM/tsx compatibility)
+export type {
   MiawClientOptions,
   MiawMessage,
   MediaInfo,
@@ -62,7 +62,7 @@ export {
   FetchChatMessagesResult,
   FetchAllChatsResult,
   ChatInfo,
-} from './types';
+} from "./types/index.js";
 
 // Utility exports for advanced users
-export { MessageHandler } from './handlers/MessageHandler';
+export { MessageHandler } from "./handlers/MessageHandler.js";

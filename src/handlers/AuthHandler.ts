@@ -1,5 +1,6 @@
-import { useMultiFileAuthState } from '@whiskeysockets/baileys';
-import { join } from 'path';
+import { useMultiFileAuthState } from "@whiskeysockets/baileys";
+import { join } from "node:path";
+import { rmSync, existsSync } from "node:fs";
 
 /**
  * Handles authentication state management
@@ -27,5 +28,18 @@ export class AuthHandler {
    */
   getAuthPath(): string {
     return join(this.sessionPath, this.instanceId);
+  }
+
+  /**
+   * Clear all session files for this instance.
+   * This is needed when logged out to allow fresh QR code authentication.
+   */
+  clearSession(): boolean {
+    const authPath = this.getAuthPath();
+    if (existsSync(authPath)) {
+      rmSync(authPath, { recursive: true, force: true });
+      return true;
+    }
+    return false;
   }
 }

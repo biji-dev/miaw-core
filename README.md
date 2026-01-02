@@ -27,6 +27,11 @@ Miaw Core abstracts away the complexity of Baileys, providing a clean, simple AP
 - **Group Management** - Full admin capabilities for groups
 - **Profile Management** - Customize bot profile picture, name, and status
 
+## Requirements
+
+- **Node.js** >= 18.0.0
+- **ESM** - This package is ESM-only (uses `"type": "module"`)
+
 ## Installation
 
 ```bash
@@ -92,6 +97,7 @@ This will launch an interactive guide that walks you through testing all 80+ fea
 - **UX Features** - Typing indicators, read receipts, presence
 
 The script will:
+
 1. Guide you step-by-step through each test
 2. Prompt for required inputs (phone numbers, group JIDs, etc.)
 3. Track results (pass/fail/skip)
@@ -112,9 +118,10 @@ npm run test:watch
 npm run test:coverage
 ```
 
-## Current Capabilities (v1.0.0)
+## Current Capabilities (v1.1.0)
 
 ### Core Features
+
 - ✅ Send and receive text messages
 - ✅ Send/receive media (images, videos, audio, documents)
 - ✅ QR code authentication
@@ -126,6 +133,7 @@ npm run test:coverage
 - ✅ Error handling
 
 ### Advanced Messaging
+
 - ✅ Reply/quote messages
 - ✅ Edit own messages
 - ✅ Delete messages
@@ -133,6 +141,7 @@ npm run test:coverage
 - ✅ Forward messages
 
 ### Group Management
+
 - ✅ Create groups
 - ✅ Add/remove participants
 - ✅ Promote/demote admins
@@ -140,12 +149,14 @@ npm run test:coverage
 - ✅ Update group settings
 
 ### Profile Management
+
 - ✅ Update profile picture
 - ✅ Remove profile picture
 - ✅ Update profile name
 - ✅ Update profile status
 
 ### Business & Social (v1.0.0)
+
 - ✅ Label operations (WhatsApp Business)
 - ✅ Product catalog management (WhatsApp Business)
 - ✅ Newsletter/channel operations
@@ -210,4 +221,4 @@ Built on top of [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Bail
 
 ---
 
-**Version:** 1.0.0 | **Status:** Stable | **Updated:** 2025-12-24
+**Version:** 1.1.0 | **Status:** Stable | **Updated:** 2026-01-02

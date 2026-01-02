@@ -6,7 +6,9 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "outDir": "./dist-test",
-    "rootDir": "./"
+    "rootDir": "./",
+    "module": "ESNext",
+    "moduleResolution": "bundler"
   },
   "include": ["tests/**/*", "src/**/*"],
   "exclude": ["node_modules", "dist", "examples"]

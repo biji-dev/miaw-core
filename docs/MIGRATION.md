@@ -4,10 +4,80 @@ This guide helps you migrate between versions of Miaw Core.
 
 ## Table of Contents
 
+- [v1.0.x to v1.1.0](#v10x-to-v110)
 - [v0.9.x to v1.0.0](#v09x-to-v100)
 - [v0.8.x to v0.9.0](#v08x-to-v090)
 - [v0.7.x to v0.8.0](#v07x-to-v080)
 - [Breaking Changes Summary](#breaking-changes-summary)
+
+---
+
+## v1.0.x to v1.1.0
+
+**Status:** Stable Release (2026-01-02)
+
+v1.1.0 upgrades to Baileys v7.0.0-rc.9 and migrates to ESM-only. This fixes the session reconnection issue where the app couldn't reconnect after QR scan and restart.
+
+### Breaking Changes
+
+#### ESM-Only Package
+
+Miaw Core is now ESM-only. CommonJS `require()` is no longer supported.
+
+```typescript
+// ❌ Before (CommonJS - no longer works)
+const { MiawClient } = require("miaw-core");
+
+// ✅ After (ESM)
+import { MiawClient } from "miaw-core";
+```
+
+#### Node.js Version
+
+Node.js >= 18.0.0 is now required.
+
+### Migration Steps
+
+1. **Update your package.json:**
+
+   ```json
+   {
+     "type": "module"
+   }
+   ```
+
+   Or rename your files from `.js` to `.mjs`.
+
+2. **Update imports to ESM syntax:**
+
+   ```typescript
+   // Change require() to import
+   import { MiawClient } from "miaw-core";
+   ```
+
+3. **Update dependencies:**
+
+   ```bash
+   npm install miaw-core@latest
+   ```
+
+4. **Check Node.js version:**
+
+   ```bash
+   node -v  # Must be >= 18.0.0
+   ```
+
+5. **Delete old sessions (recommended):**
+   ```bash
+   rm -rf ./sessions
+   ```
+   Re-pair with QR code to get fresh session with Baileys v7.
+
+### What's Fixed
+
+- Session persistence after QR scan - apps can now restart and reconnect without re-pairing
+- Improved Signal key store transaction safety
+- Better pre-key synchronization
 
 ---
 
@@ -55,13 +125,15 @@ const mappings = client.getLidMappings(); // Returns Record<string, string>
 ### Migration Steps
 
 1. **Update dependencies:**
+
    ```bash
    npm install miaw-core@latest
    ```
 
 2. **Add cleanup on shutdown (recommended):**
+
    ```typescript
-   process.on('SIGINT', async () => {
+   process.on("SIGINT", async () => {
      await client.dispose();
      process.exit(0);
    });
@@ -183,16 +255,16 @@ await client.updateProfileStatus("Available for chats");
 
 ## Breaking Changes Summary
 
-| Version | Change | Migration Required |
-|---------|--------|-------------------|
-| v1.0.0 | New `dispose()` method | Recommended |
-| v1.0.0 | `getLidMappings()` returns object instead of Map | Yes, if using |
-| v0.9.0 | Label operations added | No (new features) |
-| v0.9.0 | Catalog operations added | No (new features) |
-| v0.9.0 | Newsletter operations added | No (new features) |
-| v0.9.0 | Contact operations added | No (new features) |
-| v0.8.0 | Profile management added | No (new features) |
-| v0.7.0 | Group management added | No (new features) |
+| Version | Change                                           | Migration Required |
+| ------- | ------------------------------------------------ | ------------------ |
+| v1.0.0  | New `dispose()` method                           | Recommended        |
+| v1.0.0  | `getLidMappings()` returns object instead of Map | Yes, if using      |
+| v0.9.0  | Label operations added                           | No (new features)  |
+| v0.9.0  | Catalog operations added                         | No (new features)  |
+| v0.9.0  | Newsletter operations added                      | No (new features)  |
+| v0.9.0  | Contact operations added                         | No (new features)  |
+| v0.8.0  | Profile management added                         | No (new features)  |
+| v0.7.0  | Group management added                           | No (new features)  |
 
 ---
 
@@ -222,13 +294,13 @@ If you encounter issues during migration:
 
 ## Version Compatibility
 
-| Miaw Core | Node.js | Baileys | Status |
-|-----------|---------|---------|--------|
-| 1.0.0 | >=18.0.0 | 6.7.21+ | Stable (Coming Soon) |
-| 0.9.x | >=18.0.0 | 6.7.21+ | Stable |
-| 0.8.x | >=18.0.0 | 6.7.21+ | Stable |
-| 0.7.x | >=18.0.0 | 6.7.21+ | Stable |
-| < 0.7 | >=18.0.0 | 6.7.21+ | Upgraded recommended |
+| Miaw Core | Node.js  | Baileys | Status               |
+| --------- | -------- | ------- | -------------------- |
+| 1.0.0     | >=18.0.0 | 6.7.21+ | Stable (Coming Soon) |
+| 0.9.x     | >=18.0.0 | 6.7.21+ | Stable               |
+| 0.8.x     | >=18.0.0 | 6.7.21+ | Stable               |
+| 0.7.x     | >=18.0.0 | 6.7.21+ | Stable               |
+| < 0.7     | >=18.0.0 | 6.7.21+ | Upgraded recommended |
 
 ---
 

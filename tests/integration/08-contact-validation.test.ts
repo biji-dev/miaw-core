@@ -10,8 +10,8 @@
  * - Get group info
  * - Get group participants
  */
-import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup';
-import { MiawClient } from '../../src';
+import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
+import { MiawClient } from '../../src/index.js';
 
 describe('Contact Validation', () => {
   let client: MiawClient;

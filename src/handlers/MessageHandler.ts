@@ -1,4 +1,4 @@
-import { MiawMessage, MediaInfo } from '../types';
+import { MiawMessage, MediaInfo } from "../types/index.js";
 
 /**
  * Handles message normalization and parsing
@@ -12,7 +12,7 @@ export class MessageHandler {
       const message = msg.messages?.[0];
       if (!message) return null;
 
-      const isGroup = message.key.remoteJid?.endsWith('@g.us') || false;
+      const isGroup = message.key.remoteJid?.endsWith("@g.us") || false;
 
       // Extract phone number and name from message key
       // For groups: use participant info, for DM: use sender info
@@ -23,50 +23,51 @@ export class MessageHandler {
 
       // Extract text content and type based on message type
       let text: string | undefined;
-      let type: MiawMessage['type'] = 'unknown';
+      let type: MiawMessage["type"] = "unknown";
       let media: MediaInfo | undefined;
 
       // Check for view-once messages first
-      const viewOnceMessage = message.message?.viewOnceMessage?.message ||
-                              message.message?.viewOnceMessageV2?.message ||
-                              message.message?.viewOnceMessageV2Extension?.message;
+      const viewOnceMessage =
+        message.message?.viewOnceMessage?.message ||
+        message.message?.viewOnceMessageV2?.message ||
+        message.message?.viewOnceMessageV2Extension?.message;
       const actualMessage = viewOnceMessage || message.message;
       const isViewOnce = !!viewOnceMessage;
 
       if (actualMessage?.conversation) {
         text = actualMessage.conversation;
-        type = 'text';
+        type = "text";
       } else if (actualMessage?.extendedTextMessage?.text) {
         text = actualMessage.extendedTextMessage.text;
-        type = 'text';
+        type = "text";
       } else if (actualMessage?.imageMessage) {
         const imgMsg = actualMessage.imageMessage;
         text = imgMsg.caption;
-        type = 'image';
+        type = "image";
         media = this.extractImageMetadata(imgMsg, isViewOnce);
       } else if (actualMessage?.videoMessage) {
         const vidMsg = actualMessage.videoMessage;
         text = vidMsg.caption;
-        type = 'video';
+        type = "video";
         media = this.extractVideoMetadata(vidMsg, isViewOnce);
       } else if (actualMessage?.documentMessage) {
         const docMsg = actualMessage.documentMessage;
         text = docMsg.caption;
-        type = 'document';
+        type = "document";
         media = this.extractDocumentMetadata(docMsg);
       } else if (actualMessage?.audioMessage) {
         const audMsg = actualMessage.audioMessage;
-        type = 'audio';
+        type = "audio";
         media = this.extractAudioMetadata(audMsg);
       } else if (actualMessage?.stickerMessage) {
         const stkMsg = actualMessage.stickerMessage;
-        type = 'sticker';
+        type = "sticker";
         media = this.extractStickerMetadata(stkMsg);
       }
 
       const normalized: MiawMessage = {
-        id: message.key.id || '',
-        from: message.key.remoteJid || '',
+        id: message.key.id || "",
+        from: message.key.remoteJid || "",
         senderPhone,
         senderName,
         text,
@@ -83,7 +84,7 @@ export class MessageHandler {
 
       return normalized;
     } catch (error) {
-      console.error('Failed to normalize message:', error);
+      console.error("Failed to normalize message:", error);
       return null;
     }
   }
@@ -91,7 +92,10 @@ export class MessageHandler {
   /**
    * Extract metadata from image message
    */
-  private static extractImageMetadata(imgMsg: any, isViewOnce: boolean): MediaInfo {
+  private static extractImageMetadata(
+    imgMsg: any,
+    isViewOnce: boolean
+  ): MediaInfo {
     return {
       mimetype: imgMsg.mimetype,
       fileSize: imgMsg.fileLength ? Number(imgMsg.fileLength) : undefined,
@@ -104,7 +108,10 @@ export class MessageHandler {
   /**
    * Extract metadata from video message
    */
-  private static extractVideoMetadata(vidMsg: any, isViewOnce: boolean): MediaInfo {
+  private static extractVideoMetadata(
+    vidMsg: any,
+    isViewOnce: boolean
+  ): MediaInfo {
     return {
       mimetype: vidMsg.mimetype,
       fileSize: vidMsg.fileLength ? Number(vidMsg.fileLength) : undefined,
@@ -167,18 +174,18 @@ export class MessageHandler {
     // If already has a valid WhatsApp suffix, return as-is
     // Supports: @s.whatsapp.net, @lid, @g.us, @c.us, @broadcast, @newsletter
     if (
-      phoneNumber.includes('@s.whatsapp.net') ||
-      phoneNumber.includes('@lid') ||
-      phoneNumber.includes('@g.us') ||
-      phoneNumber.includes('@c.us') ||
-      phoneNumber.includes('@broadcast') ||
-      phoneNumber.includes('@newsletter')
+      phoneNumber.includes("@s.whatsapp.net") ||
+      phoneNumber.includes("@lid") ||
+      phoneNumber.includes("@g.us") ||
+      phoneNumber.includes("@c.us") ||
+      phoneNumber.includes("@broadcast") ||
+      phoneNumber.includes("@newsletter")
     ) {
       return phoneNumber;
     }
 
     // Remove all non-digit characters for phone numbers
-    const cleaned = phoneNumber.replace(/\D/g, '');
+    const cleaned = phoneNumber.replace(/\D/g, "");
 
     // Return formatted JID with standard suffix
     return `${cleaned}@s.whatsapp.net`;
@@ -188,6 +195,6 @@ export class MessageHandler {
    * Check if a JID is a group
    */
   static isGroupJid(jid: string): boolean {
-    return jid.endsWith('@g.us');
+    return jid.endsWith("@g.us");
   }
 }

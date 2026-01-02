@@ -1,8 +1,8 @@
 /**
  * Integration Tests: Connection & Authentication
  */
-import { MiawClient } from '../../src';
-import { createTestClient, waitForEvent, TEST_CONFIG } from '../setup';
+import { MiawClient } from '../../src/index.js';
+import { createTestClient, waitForEvent, TEST_CONFIG } from '../setup.js';
 import qrcode from 'qrcode-terminal';
 
 describe('Connection & Authentication', () => {

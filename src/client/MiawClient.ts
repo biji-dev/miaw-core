@@ -5,10 +5,10 @@ import makeWASocket, {
   makeCacheableSignalKeyStore,
   AnyMessageContent,
   downloadMediaMessage,
-} from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
-import { EventEmitter } from 'events';
-import pino from 'pino';
+} from "@whiskeysockets/baileys";
+import { Boom } from "@hapi/boom";
+import { EventEmitter } from "node:events";
+import pino from "pino";
 import {
   MiawClientOptions,
   ConnectionState,
@@ -63,10 +63,10 @@ import {
   FetchChatMessagesResult,
   FetchAllChatsResult,
   ChatInfo,
-} from '../types';
-import * as path from 'path';
-import { AuthHandler } from '../handlers/AuthHandler';
-import { MessageHandler } from '../handlers/MessageHandler';
+} from "../types/index.js";
+import * as path from "node:path";
+import { AuthHandler } from "../handlers/AuthHandler.js";
+import { MessageHandler } from "../handlers/MessageHandler.js";
 
 /**
  * LRU Cache for LID to JID mappings
@@ -128,7 +128,7 @@ export class MiawClient extends EventEmitter {
   private options: Required<MiawClientOptions>;
   private socket: WASocket | null = null;
   private authHandler: AuthHandler;
-  private connectionState: ConnectionState = 'disconnected';
+  private connectionState: ConnectionState = "disconnected";
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private logger: any;
@@ -145,7 +145,7 @@ export class MiawClient extends EventEmitter {
     // Set default options
     this.options = {
       instanceId: options.instanceId,
-      sessionPath: options.sessionPath || './sessions',
+      sessionPath: options.sessionPath || "./sessions",
       debug: options.debug || false,
       logger: options.logger,
       autoReconnect: options.autoReconnect !== false,
@@ -154,9 +154,11 @@ export class MiawClient extends EventEmitter {
     };
 
     // Initialize logger
-    this.logger = this.options.logger || pino({
-      level: this.options.debug ? 'debug' : 'silent'
-    });
+    this.logger =
+      this.options.logger ||
+      pino({
+        level: this.options.debug ? "debug" : "silent",
+      });
 
     // Initialize handlers
     this.authHandler = new AuthHandler(
@@ -170,7 +172,7 @@ export class MiawClient extends EventEmitter {
    */
   async connect(): Promise<void> {
     try {
-      this.updateConnectionState('connecting');
+      this.updateConnectionState("connecting");
 
       // Load auth state
       const { state, saveCreds } = await this.authHandler.initialize();
@@ -187,17 +189,20 @@ export class MiawClient extends EventEmitter {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, this.logger),
         },
-        browser: ['Miaw', 'Chrome', '1.0.0'],
+        browser: ["Miaw", "Chrome", "1.0.0"],
         generateHighQualityLinkPreview: true,
+        // Enable app state sync for labels and other features
+        syncFullHistory: false,
+        fireInitQueries: true,
       });
 
       // Register event handlers
       this.registerSocketEvents(saveCreds);
 
-      this.logger.info('Connection initiated');
+      this.logger.info("Connection initiated");
     } catch (error) {
-      this.logger.error('Failed to connect:', error);
-      this.emit('error', error as Error);
+      this.logger.error("Failed to connect:", error);
+      this.emit("error", error as Error);
 
       if (this.options.autoReconnect) {
         this.scheduleReconnect();
@@ -212,68 +217,74 @@ export class MiawClient extends EventEmitter {
     if (!this.socket) return;
 
     // Connection updates
-    this.socket.ev.on('connection.update', async (update) => {
+    this.socket.ev.on("connection.update", async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       // Handle QR code
       if (qr) {
-        this.updateConnectionState('qr_required');
-        this.emit('qr', qr);
+        this.updateConnectionState("qr_required");
+        this.emit("qr", qr);
       }
 
       // Handle connection state
-      if (connection === 'close') {
+      if (connection === "close") {
         const shouldReconnect = this.handleDisconnect(lastDisconnect);
 
         if (shouldReconnect && this.options.autoReconnect) {
           this.scheduleReconnect();
         }
-      } else if (connection === 'open') {
+      } else if (connection === "open") {
         this.reconnectAttempts = 0;
-        this.updateConnectionState('connected');
-        this.emit('ready');
-        this.logger.info('Connected to WhatsApp');
+        this.updateConnectionState("connected");
+        this.emit("ready");
+        this.logger.info("Connected to WhatsApp");
+
+        // Sync app state to populate labels (WhatsApp Business)
+        // Labels are stored in the 'regular' app state collection
+        this.syncLabelsFromAppState().catch((error) => {
+          this.logger.warn("Failed to sync labels from app state:", error);
+        });
       }
     });
 
     // Credentials update
-    this.socket.ev.on('creds.update', async () => {
+    this.socket.ev.on("creds.update", async () => {
       await saveCreds();
-      this.emit('session_saved');
+      this.emit("session_saved");
     });
 
     // Contact updates - build LID to JID mapping and populate contacts store
-    this.socket.ev.on('contacts.upsert', (contacts) => {
+    this.socket.ev.on("contacts.upsert", (contacts) => {
       this.updateLidToJidMapping(contacts);
       this.updateContactsStore(contacts);
     });
 
-    this.socket.ev.on('contacts.update', (contacts) => {
+    this.socket.ev.on("contacts.update", (contacts) => {
       this.updateLidToJidMapping(contacts);
       this.updateContactsStore(contacts);
     });
 
     // Chat updates - extract LID mappings from chat data and populate chats store
-    this.socket.ev.on('chats.upsert', (chats) => {
+    this.socket.ev.on("chats.upsert", (chats) => {
       this.updateLidFromChats(chats);
       this.updateChatsStore(chats);
     });
 
-    this.socket.ev.on('chats.update', (chats) => {
+    this.socket.ev.on("chats.update", (chats) => {
       this.updateLidFromChats(chats);
       this.updateChatsStore(chats);
     });
 
     // Messages
-    this.socket.ev.on('messages.upsert', async (m) => {
-      if (m.type !== 'notify') return;
+    this.socket.ev.on("messages.upsert", async (m) => {
+      if (m.type !== "notify") return;
 
       for (const msg of m.messages) {
         // Debug: Log raw Baileys message structure
         if (this.options.debug) {
-          console.log('\n========== RAW BAILEYS MESSAGE ==========');
+          console.log("\n========== RAW BAILEYS MESSAGE ==========");
           console.log(JSON.stringify(msg, null, 2));
-          console.log('=========================================\n');
+          console.log("=========================================\n");
         }
 
         // Check for protocol messages (edits and deletes)
@@ -285,11 +296,17 @@ export class MiawClient extends EventEmitter {
 
         // Build LID to JID mapping from incoming messages
         // Incoming messages have remoteJid (phone) and senderLid (LID)
-        if (!msg.key.fromMe && msg.key.senderLid && msg.key.remoteJid) {
-          const lid = msg.key.senderLid.endsWith('@lid')
-            ? msg.key.senderLid
-            : `${msg.key.senderLid}@lid`;
-          this.lidToJidMap.set(lid, msg.key.remoteJid);
+        // Note: senderLid may exist at runtime but isn't in Baileys v7 types
+        const msgKey = msg.key as {
+          senderLid?: string;
+          fromMe?: boolean;
+          remoteJid?: string | null;
+        };
+        if (!msgKey.fromMe && msgKey.senderLid && msgKey.remoteJid) {
+          const lid = msgKey.senderLid.endsWith("@lid")
+            ? msgKey.senderLid
+            : `${msgKey.senderLid}@lid`;
+          this.lidToJidMap.set(lid, msgKey.remoteJid);
 
           if (this.options.debug) {
             console.log(`[LID Mapping] ${lid} -> ${msg.key.remoteJid}`);
@@ -305,52 +322,77 @@ export class MiawClient extends EventEmitter {
           }
           this.messagesStore.get(chatJid)!.push(normalized);
 
-          this.emit('message', normalized);
+          this.emit("message", normalized);
         }
       }
     });
 
     // Reactions
-    this.socket.ev.on('messages.reaction', (reactions) => {
+    this.socket.ev.on("messages.reaction", (reactions) => {
       for (const { key, reaction } of reactions) {
         const reactionData: MessageReaction = {
-          messageId: key.id || '',
-          chatId: key.remoteJid || '',
-          reactorId: reaction.key?.participant || reaction.key?.remoteJid || '',
-          emoji: reaction.text || '',
+          messageId: key.id || "",
+          chatId: key.remoteJid || "",
+          reactorId: reaction.key?.participant || reaction.key?.remoteJid || "",
+          emoji: reaction.text || "",
           isRemoval: !reaction.text,
           raw: { key, reaction },
         };
 
         if (this.options.debug) {
-          console.log('\n========== REACTION ==========');
+          console.log("\n========== REACTION ==========");
           console.log(JSON.stringify(reactionData, null, 2));
-          console.log('==============================\n');
+          console.log("==============================\n");
         }
 
-        this.emit('message_reaction', reactionData);
+        this.emit("message_reaction", reactionData);
       }
     });
 
     // Presence updates
-    this.socket.ev.on('presence.update', (presence) => {
+    this.socket.ev.on("presence.update", (presence) => {
       const jid = presence.id;
       const presences = presence.presences;
 
       for (const [participantJid, presenceData] of Object.entries(presences)) {
         const update: PresenceUpdate = {
           jid: participantJid || jid,
-          status: presenceData.lastKnownPresence as PresenceUpdate['status'],
+          status: presenceData.lastKnownPresence as PresenceUpdate["status"],
           lastSeen: presenceData.lastSeen,
         };
 
         if (this.options.debug) {
-          console.log('\n========== PRESENCE UPDATE ==========');
+          console.log("\n========== PRESENCE UPDATE ==========");
           console.log(JSON.stringify(update, null, 2));
-          console.log('=====================================\n');
+          console.log("=====================================\n");
         }
 
-        this.emit('presence', update);
+        this.emit("presence", update);
+      }
+    });
+
+    // Label updates (WhatsApp Business)
+    this.socket.ev.on("labels.edit", (label: any) => {
+      if (this.options.debug) {
+        console.log("\n========== LABEL UPDATE ==========");
+        console.log(JSON.stringify(label, null, 2));
+        console.log("==================================\n");
+      }
+
+      // Update label in store
+      if (label.id) {
+        if (label.deleted) {
+          this.labelsStore.delete(label.id);
+        } else {
+          const labelData: Label = {
+            id: label.id,
+            name: label.name || "",
+            color: label.color ?? 0,
+            predefinedId: label.predefinedId,
+            deleted: label.deleted,
+          };
+          this.labelsStore.set(label.id, labelData);
+        }
       }
     });
   }
@@ -365,20 +407,20 @@ export class MiawClient extends EventEmitter {
     // Type 0 = REVOKE (delete)
     if (type === 0 && key) {
       const deletion: MessageDelete = {
-        messageId: key.id || '',
-        chatId: key.remoteJid || msg.key.remoteJid || '',
+        messageId: key.id || "",
+        chatId: key.remoteJid || msg.key.remoteJid || "",
         fromMe: key.fromMe || false,
         participant: key.participant,
         raw: msg,
       };
 
       if (this.options.debug) {
-        console.log('\n========== MESSAGE DELETED ==========');
+        console.log("\n========== MESSAGE DELETED ==========");
         console.log(JSON.stringify(deletion, null, 2));
-        console.log('=====================================\n');
+        console.log("=====================================\n");
       }
 
-      this.emit('message_delete', deletion);
+      this.emit("message_delete", deletion);
     }
 
     // Type 14 = MESSAGE_EDIT
@@ -391,8 +433,8 @@ export class MiawClient extends EventEmitter {
         editedMessage.videoMessage?.caption;
 
       const edit: MessageEdit = {
-        messageId: key?.id || '',
-        chatId: key?.remoteJid || msg.key.remoteJid || '',
+        messageId: key?.id || "",
+        chatId: key?.remoteJid || msg.key.remoteJid || "",
         newText,
         editTimestamp: protocolMessage.timestampMs
           ? Number(protocolMessage.timestampMs)
@@ -401,12 +443,12 @@ export class MiawClient extends EventEmitter {
       };
 
       if (this.options.debug) {
-        console.log('\n========== MESSAGE EDITED ==========');
+        console.log("\n========== MESSAGE EDITED ==========");
         console.log(JSON.stringify(edit, null, 2));
-        console.log('====================================\n');
+        console.log("====================================\n");
       }
 
-      this.emit('message_edit', edit);
+      this.emit("message_edit", edit);
     }
   }
 
@@ -416,14 +458,14 @@ export class MiawClient extends EventEmitter {
   private updateLidToJidMapping(contacts: any[]): void {
     for (const contact of contacts) {
       // Contact has both lid and jid - create mapping
-      if (contact.lid && contact.id && !contact.id.endsWith('@lid')) {
+      if (contact.lid && contact.id && !contact.id.endsWith("@lid")) {
         this.lidToJidMap.set(contact.lid, contact.id);
         if (this.options.debug) {
           console.log(`[Contact LID Mapping] ${contact.lid} -> ${contact.id}`);
         }
       }
       // Also check if id is the LID and jid field exists
-      if (contact.id?.endsWith('@lid') && contact.jid) {
+      if (contact.id?.endsWith("@lid") && contact.jid) {
         this.lidToJidMap.set(contact.id, contact.jid);
         if (this.options.debug) {
           console.log(`[Contact LID Mapping] ${contact.id} -> ${contact.jid}`);
@@ -439,11 +481,15 @@ export class MiawClient extends EventEmitter {
   private updateContactsStore(contacts: any[]): void {
     for (const contact of contacts) {
       // Extract the JID (prefer non-lid IDs)
-      const jid = contact.id?.endsWith('@lid') ? contact.jid || contact.id : contact.id;
+      const jid = contact.id?.endsWith("@lid")
+        ? contact.jid || contact.id
+        : contact.id;
       if (!jid) continue;
 
       // Extract phone number from JID
-      const phone = jid.endsWith('@s.whatsapp.net') ? jid.replace('@s.whatsapp.net', '') : undefined;
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
+        : undefined;
 
       // Build contact info
       const contactInfo: ContactInfo = {
@@ -467,14 +513,16 @@ export class MiawClient extends EventEmitter {
       if (!jid) continue;
 
       // Extract phone number from JID
-      const phone = jid.endsWith('@s.whatsapp.net') ? jid.replace('@s.whatsapp.net', '') : undefined;
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
+        : undefined;
 
       // Build chat info
       const chatInfo: ChatInfo = {
         jid,
         phone,
         name: chat.name || undefined,
-        isGroup: jid.endsWith('@g.us'),
+        isGroup: jid.endsWith("@g.us"),
         lastMessageTimestamp: chat.timestamp || undefined,
         unreadCount: chat.unreadCount || undefined,
         isArchived: chat.archived || false,
@@ -492,8 +540,8 @@ export class MiawClient extends EventEmitter {
   private updateLidFromChats(chats: any[]): void {
     for (const chat of chats) {
       // Chat may have both id (could be phone or LID) and lidJid
-      if (chat.lidJid && chat.id && !chat.id.endsWith('@lid')) {
-        const lid = chat.lidJid.endsWith('@lid')
+      if (chat.lidJid && chat.id && !chat.id.endsWith("@lid")) {
+        const lid = chat.lidJid.endsWith("@lid")
           ? chat.lidJid
           : `${chat.lidJid}@lid`;
         this.lidToJidMap.set(lid, chat.id);
@@ -502,7 +550,7 @@ export class MiawClient extends EventEmitter {
         }
       }
       // Reverse: if id is LID and we have a phone JID
-      if (chat.id?.endsWith('@lid') && chat.jid) {
+      if (chat.id?.endsWith("@lid") && chat.jid) {
         this.lidToJidMap.set(chat.id, chat.jid);
         if (this.options.debug) {
           console.log(`[Chat LID Mapping] ${chat.id} -> ${chat.jid}`);
@@ -517,7 +565,7 @@ export class MiawClient extends EventEmitter {
    * @returns The phone number JID if found, or the original LID
    */
   resolveLidToJid(lid: string): string {
-    if (!lid?.endsWith('@lid')) {
+    if (!lid?.endsWith("@lid")) {
       return lid;
     }
     return this.lidToJidMap.get(lid) || lid;
@@ -530,8 +578,8 @@ export class MiawClient extends EventEmitter {
    */
   getPhoneFromJid(jid: string): string | undefined {
     const resolved = this.resolveLidToJid(jid);
-    if (resolved.endsWith('@s.whatsapp.net')) {
-      return resolved.replace('@s.whatsapp.net', '');
+    if (resolved.endsWith("@s.whatsapp.net")) {
+      return resolved.replace("@s.whatsapp.net", "");
     }
     return undefined;
   }
@@ -543,8 +591,8 @@ export class MiawClient extends EventEmitter {
    * @param phoneJid - The phone JID (e.g., '6281234567890@s.whatsapp.net' or just '6281234567890')
    */
   registerLidMapping(lid: string, phoneJid: string): void {
-    const normalizedLid = lid.includes('@') ? lid : `${lid}@lid`;
-    const normalizedJid = phoneJid.includes('@')
+    const normalizedLid = lid.includes("@") ? lid : `${lid}@lid`;
+    const normalizedJid = phoneJid.includes("@")
       ? phoneJid
       : `${phoneJid}@s.whatsapp.net`;
     this.lidToJidMap.set(normalizedLid, normalizedJid);
@@ -578,6 +626,16 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Clear session data for this instance.
+   * This will delete all stored authentication credentials.
+   * After calling this, the next connect() will require scanning a new QR code.
+   * @returns true if session was cleared, false if no session existed
+   */
+  clearSession(): boolean {
+    return this.authHandler.clearSession();
+  }
+
+  /**
    * Dispose client and clean up resources
    */
   async dispose(): Promise<void> {
@@ -599,7 +657,7 @@ export class MiawClient extends EventEmitter {
       this.socket = null;
     }
 
-    this.updateConnectionState('disconnected');
+    this.updateConnectionState("disconnected");
   }
 
   /**
@@ -608,15 +666,16 @@ export class MiawClient extends EventEmitter {
    */
   private handleDisconnect(lastDisconnect: any): boolean {
     const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-    const reason = DisconnectReason[statusCode] || 'unknown';
+    const reason = DisconnectReason[statusCode] || "unknown";
 
-    this.logger.info('Disconnected:', reason, 'Code:', statusCode);
-    this.updateConnectionState('disconnected');
-    this.emit('disconnected', reason);
+    this.logger.info("Disconnected:", reason, "Code:", statusCode);
+    this.updateConnectionState("disconnected");
+    this.emit("disconnected", reason);
 
-    // Don't reconnect if logged out
+    // Don't reconnect if logged out - clear session for fresh QR code on next connect
     if (statusCode === DisconnectReason.loggedOut) {
-      this.logger.info('Logged out, not reconnecting');
+      this.logger.info("Logged out, clearing session for fresh authentication");
+      this.authHandler.clearSession();
       return false;
     }
 
@@ -628,8 +687,8 @@ export class MiawClient extends EventEmitter {
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
-      this.logger.error('Max reconnection attempts reached');
-      this.emit('error', new Error('Max reconnection attempts reached'));
+      this.logger.error("Max reconnection attempts reached");
+      this.emit("error", new Error("Max reconnection attempts reached"));
       return;
     }
 
@@ -638,8 +697,8 @@ export class MiawClient extends EventEmitter {
     }
 
     this.reconnectAttempts++;
-    this.updateConnectionState('reconnecting');
-    this.emit('reconnecting', this.reconnectAttempts);
+    this.updateConnectionState("reconnecting");
+    this.emit("reconnecting", this.reconnectAttempts);
 
     this.reconnectTimer = setTimeout(() => {
       this.logger.info(`Reconnecting... Attempt ${this.reconnectAttempts}`);
@@ -652,7 +711,7 @@ export class MiawClient extends EventEmitter {
    */
   private updateConnectionState(state: ConnectionState): void {
     this.connectionState = state;
-    this.emit('connection', state);
+    this.emit("connection", state);
   }
 
   /**
@@ -668,17 +727,21 @@ export class MiawClient extends EventEmitter {
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
 
       // Build send options (for quoting/replying)
-      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
 
       const result = await this.socket.sendMessage(jid, { text }, sendOptions);
 
@@ -687,7 +750,7 @@ export class MiawClient extends EventEmitter {
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to send message:', error);
+      this.logger.error("Failed to send message:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -708,11 +771,13 @@ export class MiawClient extends EventEmitter {
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
@@ -725,16 +790,22 @@ export class MiawClient extends EventEmitter {
       };
 
       // Build send options (for quoting/replying)
-      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
 
-      const result = await this.socket.sendMessage(jid, imageContent, sendOptions);
+      const result = await this.socket.sendMessage(
+        jid,
+        imageContent,
+        sendOptions
+      );
 
       return {
         success: true,
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to send image:', error);
+      this.logger.error("Failed to send image:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -755,11 +826,13 @@ export class MiawClient extends EventEmitter {
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
@@ -781,22 +854,28 @@ export class MiawClient extends EventEmitter {
       // Build document message payload
       const documentContent: AnyMessageContent = {
         document: Buffer.isBuffer(document) ? document : { url: document },
-        fileName: fileName || 'document',
-        mimetype: mimetype || 'application/octet-stream',
+        fileName: fileName || "document",
+        mimetype: mimetype || "application/octet-stream",
         caption: options?.caption,
       };
 
       // Build send options (for quoting/replying)
-      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
 
-      const result = await this.socket.sendMessage(jid, documentContent, sendOptions);
+      const result = await this.socket.sendMessage(
+        jid,
+        documentContent,
+        sendOptions
+      );
 
       return {
         success: true,
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to send document:', error);
+      this.logger.error("Failed to send document:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -817,11 +896,13 @@ export class MiawClient extends EventEmitter {
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
@@ -836,16 +917,22 @@ export class MiawClient extends EventEmitter {
       };
 
       // Build send options (for quoting/replying)
-      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
 
-      const result = await this.socket.sendMessage(jid, videoContent, sendOptions);
+      const result = await this.socket.sendMessage(
+        jid,
+        videoContent,
+        sendOptions
+      );
 
       return {
         success: true,
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to send video:', error);
+      this.logger.error("Failed to send video:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -866,11 +953,13 @@ export class MiawClient extends EventEmitter {
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot send message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
@@ -884,21 +973,27 @@ export class MiawClient extends EventEmitter {
       // Build audio message payload
       const audioContent: AnyMessageContent = {
         audio: Buffer.isBuffer(audio) ? audio : { url: audio },
-        mimetype: mimetype || 'audio/mp4',
+        mimetype: mimetype || "audio/mp4",
         ptt: options?.ptt,
       };
 
       // Build send options (for quoting/replying)
-      const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
 
-      const result = await this.socket.sendMessage(jid, audioContent, sendOptions);
+      const result = await this.socket.sendMessage(
+        jid,
+        audioContent,
+        sendOptions
+      );
 
       return {
         success: true,
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to send audio:', error);
+      this.logger.error("Failed to send audio:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -914,18 +1009,22 @@ export class MiawClient extends EventEmitter {
   async downloadMedia(message: MiawMessage): Promise<Buffer | null> {
     try {
       if (!message.raw) {
-        throw new Error('Message does not contain raw Baileys data. Cannot download media.');
+        throw new Error(
+          "Message does not contain raw Baileys data. Cannot download media."
+        );
       }
 
       // Check if this is a media message
-      const mediaTypes = ['image', 'video', 'audio', 'document', 'sticker'];
+      const mediaTypes = ["image", "video", "audio", "document", "sticker"];
       if (!mediaTypes.includes(message.type)) {
-        throw new Error(`Message type '${message.type}' is not a downloadable media type.`);
+        throw new Error(
+          `Message type '${message.type}' is not a downloadable media type.`
+        );
       }
 
       const buffer = await downloadMediaMessage(
         message.raw,
-        'buffer',
+        "buffer",
         {},
         {
           logger: this.logger,
@@ -938,7 +1037,7 @@ export class MiawClient extends EventEmitter {
 
       return buffer as Buffer;
     } catch (error) {
-      this.logger.error('Failed to download media:', error);
+      this.logger.error("Failed to download media:", error);
       return null;
     }
   }
@@ -955,15 +1054,17 @@ export class MiawClient extends EventEmitter {
   async checkNumber(phone: string): Promise<CheckNumberResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot check number. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot check number. Connection state: ${this.connectionState}`
+        );
       }
 
       // Clean phone number - remove non-digits
-      const cleanPhone = phone.replace(/\D/g, '');
+      const cleanPhone = phone.replace(/\D/g, "");
 
       const results = await this.socket.onWhatsApp(cleanPhone);
       const result = results?.[0];
@@ -973,7 +1074,7 @@ export class MiawClient extends EventEmitter {
         jid: result?.jid,
       };
     } catch (error) {
-      this.logger.error('Failed to check number:', error);
+      this.logger.error("Failed to check number:", error);
       return {
         exists: false,
         error: (error as Error).message,
@@ -989,15 +1090,17 @@ export class MiawClient extends EventEmitter {
   async checkNumbers(phones: string[]): Promise<CheckNumberResult[]> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot check numbers. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot check numbers. Connection state: ${this.connectionState}`
+        );
       }
 
       // Clean all phone numbers
-      const cleanPhones = phones.map((p) => p.replace(/\D/g, ''));
+      const cleanPhones = phones.map((p) => p.replace(/\D/g, ""));
 
       const results = await this.socket.onWhatsApp(...cleanPhones);
 
@@ -1006,7 +1109,7 @@ export class MiawClient extends EventEmitter {
         jid: result?.jid,
       }));
     } catch (error) {
-      this.logger.error('Failed to check numbers:', error);
+      this.logger.error("Failed to check numbers:", error);
       return phones.map(() => ({
         exists: false,
         error: (error as Error).message,
@@ -1022,11 +1125,13 @@ export class MiawClient extends EventEmitter {
   async getContactInfo(jidOrPhone: string): Promise<ContactInfo | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get contact info. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get contact info. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
@@ -1036,7 +1141,9 @@ export class MiawClient extends EventEmitter {
       try {
         const statusResult = await this.socket.fetchStatus(jid);
         // fetchStatus returns an array, get first result
-        const firstResult = Array.isArray(statusResult) ? statusResult[0] : statusResult;
+        const firstResult = Array.isArray(statusResult)
+          ? statusResult[0]
+          : statusResult;
         status = (firstResult as any)?.status?.status || undefined;
       } catch {
         // Status might not be available
@@ -1052,8 +1159,8 @@ export class MiawClient extends EventEmitter {
       }
 
       // Extract phone from JID
-      const phone = jid.endsWith('@s.whatsapp.net')
-        ? jid.replace('@s.whatsapp.net', '')
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
         : undefined;
 
       return {
@@ -1063,7 +1170,7 @@ export class MiawClient extends EventEmitter {
         isBusiness,
       };
     } catch (error) {
-      this.logger.error('Failed to get contact info:', error);
+      this.logger.error("Failed to get contact info:", error);
       return null;
     }
   }
@@ -1073,14 +1180,18 @@ export class MiawClient extends EventEmitter {
    * @param jidOrPhone - Contact's JID or phone number
    * @returns BusinessProfile or null if not a business account
    */
-  async getBusinessProfile(jidOrPhone: string): Promise<BusinessProfile | null> {
+  async getBusinessProfile(
+    jidOrPhone: string
+  ): Promise<BusinessProfile | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get business profile. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get business profile. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
@@ -1093,12 +1204,14 @@ export class MiawClient extends EventEmitter {
       return {
         description: profile.description || undefined,
         category: profile.category || undefined,
-        website: Array.isArray(profile.website) ? profile.website[0] : profile.website,
+        website: Array.isArray(profile.website)
+          ? profile.website[0]
+          : profile.website,
         email: profile.email || undefined,
         address: profile.address || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to get business profile:', error);
+      this.logger.error("Failed to get business profile:", error);
       return null;
     }
   }
@@ -1115,20 +1228,25 @@ export class MiawClient extends EventEmitter {
   ): Promise<string | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get profile picture. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get profile picture. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
-      const url = await this.socket.profilePictureUrl(jid, highRes ? 'image' : 'preview');
+      const url = await this.socket.profilePictureUrl(
+        jid,
+        highRes ? "image" : "preview"
+      );
 
       return url || null;
     } catch (error) {
       // Profile picture might not be available (privacy settings)
-      this.logger.debug('Profile picture not available:', error);
+      this.logger.debug("Profile picture not available:", error);
       return null;
     }
   }
@@ -1151,7 +1269,7 @@ export class MiawClient extends EventEmitter {
         contacts,
       };
     } catch (error) {
-      this.logger.error('Failed to fetch contacts:', error);
+      this.logger.error("Failed to fetch contacts:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1166,11 +1284,13 @@ export class MiawClient extends EventEmitter {
   async fetchAllGroups(): Promise<FetchAllGroupsResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot fetch groups. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot fetch groups. Connection state: ${this.connectionState}`
+        );
       }
 
       const groups = await this.socket.groupFetchAllParticipating();
@@ -1182,10 +1302,16 @@ export class MiawClient extends EventEmitter {
         owner: g.owner || undefined,
         createdAt: g.creation,
         participantCount: g.participants?.length || 0,
-        participants: g.participants?.map((p: any) => ({
-          jid: p.id,
-          role: p.admin === 'superadmin' ? 'superadmin' : p.admin === 'admin' ? 'admin' : 'member',
-        })) || [],
+        participants:
+          g.participants?.map((p: any) => ({
+            jid: p.id,
+            role:
+              p.admin === "superadmin"
+                ? "superadmin"
+                : p.admin === "admin"
+                ? "admin"
+                : "member",
+          })) || [],
         announce: g.announce,
         restrict: g.restrict,
       }));
@@ -1195,7 +1321,7 @@ export class MiawClient extends EventEmitter {
         groups: groupList,
       };
     } catch (error) {
-      this.logger.error('Failed to fetch groups:', error);
+      this.logger.error("Failed to fetch groups:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1210,26 +1336,32 @@ export class MiawClient extends EventEmitter {
   async getOwnProfile(): Promise<OwnProfile | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get own profile. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get own profile. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = this.socket.user?.id;
       if (!jid) {
-        throw new Error('User ID not available');
+        throw new Error("User ID not available");
       }
 
       // Extract phone number from JID
-      const phone = jid.endsWith('@s.whatsapp.net') ? jid.replace('@s.whatsapp.net', '') : undefined;
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
+        : undefined;
 
       // Fetch status
       let status: string | undefined;
       try {
         const statusResult = await this.socket.fetchStatus(jid);
-        const firstResult = Array.isArray(statusResult) ? statusResult[0] : statusResult;
+        const firstResult = Array.isArray(statusResult)
+          ? statusResult[0]
+          : statusResult;
         status = (firstResult as any)?.status?.status || undefined;
       } catch {
         // Status might not be available
@@ -1260,18 +1392,50 @@ export class MiawClient extends EventEmitter {
         isBusiness,
       };
     } catch (error) {
-      this.logger.error('Failed to get own profile:', error);
+      this.logger.error("Failed to get own profile:", error);
       return null;
+    }
+  }
+
+  /**
+   * Sync labels from WhatsApp app state
+   * This triggers a resync of the 'regular' collection which contains labels
+   * Labels will be emitted via labels.edit events and stored in labelsStore
+   */
+  private async syncLabelsFromAppState(): Promise<void> {
+    if (!this.socket) {
+      return;
+    }
+
+    try {
+      // resyncAppState is provided by Baileys to sync app state collections
+      // The 'regular' collection contains labels
+      // The second parameter (false) means this is not an initial sync
+      await this.socket.resyncAppState(["regular"], false);
+      this.logger.info(
+        "App state sync completed, labels should be populated via labels.edit events"
+      );
+    } catch (error) {
+      // This is non-fatal - labels may already be synced or unavailable
+      this.logger.debug("App state sync error (non-fatal):", error);
     }
   }
 
   /**
    * Fetch all labels from the in-memory store
    * Note: Labels are populated via history sync and label events
+   * @param forceSync - If true, force a resync from WhatsApp before returning labels
    * @returns FetchAllLabelsResult with list of labels
    */
-  async fetchAllLabels(): Promise<FetchAllLabelsResult> {
+  async fetchAllLabels(forceSync = false): Promise<FetchAllLabelsResult> {
     try {
+      // Force resync if requested or if store is empty (first call)
+      if (forceSync || this.labelsStore.size === 0) {
+        await this.syncLabelsFromAppState();
+        // Give a brief moment for labels.edit events to be processed
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
       const labels = Array.from(this.labelsStore.values());
 
       return {
@@ -1279,7 +1443,7 @@ export class MiawClient extends EventEmitter {
         labels,
       };
     } catch (error) {
-      this.logger.error('Failed to fetch labels:', error);
+      this.logger.error("Failed to fetch labels:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1303,7 +1467,7 @@ export class MiawClient extends EventEmitter {
         messages,
       };
     } catch (error) {
-      this.logger.error('Failed to get chat messages:', error);
+      this.logger.error("Failed to get chat messages:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1325,7 +1489,7 @@ export class MiawClient extends EventEmitter {
         chats,
       };
     } catch (error) {
-      this.logger.error('Failed to fetch chats:', error);
+      this.logger.error("Failed to fetch chats:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1345,24 +1509,33 @@ export class MiawClient extends EventEmitter {
   async getGroupInfo(groupJid: string): Promise<GroupInfo | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get group info. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get group info. Connection state: ${this.connectionState}`
+        );
       }
 
       // Ensure it's a group JID
-      if (!groupJid.endsWith('@g.us')) {
-        throw new Error('Invalid group JID. Must end with @g.us');
+      if (!groupJid.endsWith("@g.us")) {
+        throw new Error("Invalid group JID. Must end with @g.us");
       }
 
       const metadata = await this.socket.groupMetadata(groupJid);
 
-      const participants: GroupParticipant[] = metadata.participants.map((p) => ({
-        jid: p.id,
-        role: p.admin === 'superadmin' ? 'superadmin' : p.admin === 'admin' ? 'admin' : 'member',
-      }));
+      const participants: GroupParticipant[] = metadata.participants.map(
+        (p) => ({
+          jid: p.id,
+          role:
+            p.admin === "superadmin"
+              ? "superadmin"
+              : p.admin === "admin"
+              ? "admin"
+              : "member",
+        })
+      );
 
       return {
         jid: metadata.id,
@@ -1376,7 +1549,7 @@ export class MiawClient extends EventEmitter {
         restrict: metadata.restrict,
       };
     } catch (error) {
-      this.logger.error('Failed to get group info:', error);
+      this.logger.error("Failed to get group info:", error);
       return null;
     }
   }
@@ -1386,7 +1559,9 @@ export class MiawClient extends EventEmitter {
    * @param groupJid - Group JID (e.g., '123456789@g.us')
    * @returns Array of GroupParticipant or null if group not found
    */
-  async getGroupParticipants(groupJid: string): Promise<GroupParticipant[] | null> {
+  async getGroupParticipants(
+    groupJid: string
+  ): Promise<GroupParticipant[] | null> {
     const groupInfo = await this.getGroupInfo(groupJid);
     return groupInfo?.participants || null;
   }
@@ -1407,20 +1582,24 @@ export class MiawClient extends EventEmitter {
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot send reaction. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send reaction. Connection state: ${this.connectionState}`
+        );
       }
 
       if (!message.raw?.key) {
-        throw new Error('Message does not contain raw Baileys key data. Cannot send reaction.');
+        throw new Error(
+          "Message does not contain raw Baileys key data. Cannot send reaction."
+        );
       }
 
       const jid = message.raw.key.remoteJid;
       if (!jid) {
-        throw new Error('Message does not have a valid chat JID.');
+        throw new Error("Message does not have a valid chat JID.");
       }
 
       const result = await this.socket.sendMessage(jid, {
@@ -1435,7 +1614,7 @@ export class MiawClient extends EventEmitter {
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to send reaction:', error);
+      this.logger.error("Failed to send reaction:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1449,7 +1628,7 @@ export class MiawClient extends EventEmitter {
    * @returns SendMessageResult
    */
   async removeReaction(message: MiawMessage): Promise<SendMessageResult> {
-    return this.sendReaction(message, '');
+    return this.sendReaction(message, "");
   }
 
   /**
@@ -1464,15 +1643,19 @@ export class MiawClient extends EventEmitter {
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot forward message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot forward message. Connection state: ${this.connectionState}`
+        );
       }
 
       if (!message.raw) {
-        throw new Error('Message does not contain raw Baileys data. Cannot forward.');
+        throw new Error(
+          "Message does not contain raw Baileys data. Cannot forward."
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
@@ -1486,7 +1669,7 @@ export class MiawClient extends EventEmitter {
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to forward message:', error);
+      this.logger.error("Failed to forward message:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1506,24 +1689,28 @@ export class MiawClient extends EventEmitter {
   ): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot edit message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot edit message. Connection state: ${this.connectionState}`
+        );
       }
 
       if (!message.raw?.key) {
-        throw new Error('Message does not contain raw Baileys key data. Cannot edit.');
+        throw new Error(
+          "Message does not contain raw Baileys key data. Cannot edit."
+        );
       }
 
       if (!message.fromMe) {
-        throw new Error('Can only edit your own messages.');
+        throw new Error("Can only edit your own messages.");
       }
 
       const jid = message.raw.key.remoteJid;
       if (!jid) {
-        throw new Error('Message does not have a valid chat JID.');
+        throw new Error("Message does not have a valid chat JID.");
       }
 
       const result = await this.socket.sendMessage(jid, {
@@ -1536,7 +1723,7 @@ export class MiawClient extends EventEmitter {
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to edit message:', error);
+      this.logger.error("Failed to edit message:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1552,20 +1739,24 @@ export class MiawClient extends EventEmitter {
   async deleteMessage(message: MiawMessage): Promise<SendMessageResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot delete message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot delete message. Connection state: ${this.connectionState}`
+        );
       }
 
       if (!message.raw?.key) {
-        throw new Error('Message does not contain raw Baileys key data. Cannot delete.');
+        throw new Error(
+          "Message does not contain raw Baileys key data. Cannot delete."
+        );
       }
 
       const jid = message.raw.key.remoteJid;
       if (!jid) {
-        throw new Error('Message does not have a valid chat JID.');
+        throw new Error("Message does not have a valid chat JID.");
       }
 
       const result = await this.socket.sendMessage(jid, {
@@ -1577,7 +1768,7 @@ export class MiawClient extends EventEmitter {
         messageId: result?.key?.id || undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to delete message:', error);
+      this.logger.error("Failed to delete message:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1597,20 +1788,24 @@ export class MiawClient extends EventEmitter {
   ): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot delete message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot delete message. Connection state: ${this.connectionState}`
+        );
       }
 
       if (!message.raw?.key) {
-        throw new Error('Message does not contain raw Baileys key data. Cannot delete.');
+        throw new Error(
+          "Message does not contain raw Baileys key data. Cannot delete."
+        );
       }
 
       const jid = message.raw.key.remoteJid;
       if (!jid) {
-        throw new Error('Message does not have a valid chat JID.');
+        throw new Error("Message does not have a valid chat JID.");
       }
 
       await this.socket.chatModify(
@@ -1626,7 +1821,7 @@ export class MiawClient extends EventEmitter {
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to delete message for me:', error);
+      this.logger.error("Failed to delete message for me:", error);
       return false;
     }
   }
@@ -1643,21 +1838,23 @@ export class MiawClient extends EventEmitter {
   async markAsRead(message: MiawMessage): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot mark as read. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot mark as read. Connection state: ${this.connectionState}`
+        );
       }
 
       if (!message.raw?.key) {
-        throw new Error('Message does not contain raw Baileys key data.');
+        throw new Error("Message does not contain raw Baileys key data.");
       }
 
       await this.socket.readMessages([message.raw.key]);
       return true;
     } catch (error) {
-      this.logger.error('Failed to mark as read:', error);
+      this.logger.error("Failed to mark as read:", error);
       return false;
     }
   }
@@ -1669,17 +1866,19 @@ export class MiawClient extends EventEmitter {
   async sendTyping(to: string): Promise<void> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot send typing. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send typing. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
-      await this.socket.sendPresenceUpdate('composing', jid);
+      await this.socket.sendPresenceUpdate("composing", jid);
     } catch (error) {
-      this.logger.error('Failed to send typing indicator:', error);
+      this.logger.error("Failed to send typing indicator:", error);
     }
   }
 
@@ -1690,17 +1889,19 @@ export class MiawClient extends EventEmitter {
   async sendRecording(to: string): Promise<void> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot send recording. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send recording. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
-      await this.socket.sendPresenceUpdate('recording', jid);
+      await this.socket.sendPresenceUpdate("recording", jid);
     } catch (error) {
-      this.logger.error('Failed to send recording indicator:', error);
+      this.logger.error("Failed to send recording indicator:", error);
     }
   }
 
@@ -1711,17 +1912,19 @@ export class MiawClient extends EventEmitter {
   async stopTyping(to: string): Promise<void> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot stop typing. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot stop typing. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
-      await this.socket.sendPresenceUpdate('paused', jid);
+      await this.socket.sendPresenceUpdate("paused", jid);
     } catch (error) {
-      this.logger.error('Failed to stop typing indicator:', error);
+      this.logger.error("Failed to stop typing indicator:", error);
     }
   }
 
@@ -1732,16 +1935,18 @@ export class MiawClient extends EventEmitter {
   async setPresence(status: PresenceStatus): Promise<void> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot set presence. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot set presence. Connection state: ${this.connectionState}`
+        );
       }
 
       await this.socket.sendPresenceUpdate(status);
     } catch (error) {
-      this.logger.error('Failed to set presence:', error);
+      this.logger.error("Failed to set presence:", error);
     }
   }
 
@@ -1753,17 +1958,19 @@ export class MiawClient extends EventEmitter {
   async subscribePresence(jidOrPhone: string): Promise<void> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot subscribe to presence. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot subscribe to presence. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
       await this.socket.presenceSubscribe(jid);
     } catch (error) {
-      this.logger.error('Failed to subscribe to presence:', error);
+      this.logger.error("Failed to subscribe to presence:", error);
     }
   }
 
@@ -1777,18 +1984,20 @@ export class MiawClient extends EventEmitter {
   private async groupParticipantsOperation(
     groupJid: string,
     participants: string[],
-    action: 'add' | 'remove' | 'promote' | 'demote'
+    action: "add" | "remove" | "promote" | "demote"
   ): Promise<ParticipantOperationResult[]> {
     if (!this.socket) {
-      throw new Error('Not connected. Call connect() first.');
+      throw new Error("Not connected. Call connect() first.");
     }
 
-    if (this.connectionState !== 'connected') {
-      throw new Error(`Cannot perform group operation. Connection state: ${this.connectionState}`);
+    if (this.connectionState !== "connected") {
+      throw new Error(
+        `Cannot perform group operation. Connection state: ${this.connectionState}`
+      );
     }
 
-    if (!groupJid.endsWith('@g.us')) {
-      throw new Error('Invalid group JID. Must end with @g.us');
+    if (!groupJid.endsWith("@g.us")) {
+      throw new Error("Invalid group JID. Must end with @g.us");
     }
 
     // Format participant JIDs
@@ -1803,9 +2012,9 @@ export class MiawClient extends EventEmitter {
     );
 
     return results.map((result) => ({
-      jid: result.jid || '',
+      jid: result.jid || "",
       status: result.status,
-      success: result.status === '200',
+      success: result.status === "200",
     }));
   }
 
@@ -1821,11 +2030,13 @@ export class MiawClient extends EventEmitter {
   ): Promise<CreateGroupResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot create group. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot create group. Connection state: ${this.connectionState}`
+        );
       }
 
       // Format participant JIDs
@@ -1833,12 +2044,22 @@ export class MiawClient extends EventEmitter {
         MessageHandler.formatPhoneToJid(p)
       );
 
-      const metadata = await this.socket.groupCreate(name, formattedParticipants);
+      const metadata = await this.socket.groupCreate(
+        name,
+        formattedParticipants
+      );
 
-      const groupParticipants: GroupParticipant[] = metadata.participants.map((p) => ({
-        jid: p.id,
-        role: p.admin === 'superadmin' ? 'superadmin' : p.admin === 'admin' ? 'admin' : 'member',
-      }));
+      const groupParticipants: GroupParticipant[] = metadata.participants.map(
+        (p) => ({
+          jid: p.id,
+          role:
+            p.admin === "superadmin"
+              ? "superadmin"
+              : p.admin === "admin"
+              ? "admin"
+              : "member",
+        })
+      );
 
       return {
         success: true,
@@ -1856,7 +2077,7 @@ export class MiawClient extends EventEmitter {
         },
       };
     } catch (error) {
-      this.logger.error('Failed to create group:', error);
+      this.logger.error("Failed to create group:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1875,12 +2096,16 @@ export class MiawClient extends EventEmitter {
     participants: string[]
   ): Promise<ParticipantOperationResult[]> {
     try {
-      return await this.groupParticipantsOperation(groupJid, participants, 'add');
+      return await this.groupParticipantsOperation(
+        groupJid,
+        participants,
+        "add"
+      );
     } catch (error) {
-      this.logger.error('Failed to add participants:', error);
+      this.logger.error("Failed to add participants:", error);
       return participants.map((p) => ({
         jid: MessageHandler.formatPhoneToJid(p),
-        status: 'error',
+        status: "error",
         success: false,
       }));
     }
@@ -1897,12 +2122,16 @@ export class MiawClient extends EventEmitter {
     participants: string[]
   ): Promise<ParticipantOperationResult[]> {
     try {
-      return await this.groupParticipantsOperation(groupJid, participants, 'remove');
+      return await this.groupParticipantsOperation(
+        groupJid,
+        participants,
+        "remove"
+      );
     } catch (error) {
-      this.logger.error('Failed to remove participants:', error);
+      this.logger.error("Failed to remove participants:", error);
       return participants.map((p) => ({
         jid: MessageHandler.formatPhoneToJid(p),
-        status: 'error',
+        status: "error",
         success: false,
       }));
     }
@@ -1916,22 +2145,24 @@ export class MiawClient extends EventEmitter {
   async leaveGroup(groupJid: string): Promise<GroupOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot leave group. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot leave group. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!groupJid.endsWith('@g.us')) {
-        throw new Error('Invalid group JID. Must end with @g.us');
+      if (!groupJid.endsWith("@g.us")) {
+        throw new Error("Invalid group JID. Must end with @g.us");
       }
 
       await this.socket.groupLeave(groupJid);
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to leave group:', error);
+      this.logger.error("Failed to leave group:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -1950,12 +2181,16 @@ export class MiawClient extends EventEmitter {
     participants: string[]
   ): Promise<ParticipantOperationResult[]> {
     try {
-      return await this.groupParticipantsOperation(groupJid, participants, 'promote');
+      return await this.groupParticipantsOperation(
+        groupJid,
+        participants,
+        "promote"
+      );
     } catch (error) {
-      this.logger.error('Failed to promote participants:', error);
+      this.logger.error("Failed to promote participants:", error);
       return participants.map((p) => ({
         jid: MessageHandler.formatPhoneToJid(p),
-        status: 'error',
+        status: "error",
         success: false,
       }));
     }
@@ -1972,12 +2207,16 @@ export class MiawClient extends EventEmitter {
     participants: string[]
   ): Promise<ParticipantOperationResult[]> {
     try {
-      return await this.groupParticipantsOperation(groupJid, participants, 'demote');
+      return await this.groupParticipantsOperation(
+        groupJid,
+        participants,
+        "demote"
+      );
     } catch (error) {
-      this.logger.error('Failed to demote participants:', error);
+      this.logger.error("Failed to demote participants:", error);
       return participants.map((p) => ({
         jid: MessageHandler.formatPhoneToJid(p),
-        status: 'error',
+        status: "error",
         success: false,
       }));
     }
@@ -1995,22 +2234,24 @@ export class MiawClient extends EventEmitter {
   ): Promise<GroupOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update group name. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update group name. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!groupJid.endsWith('@g.us')) {
-        throw new Error('Invalid group JID. Must end with @g.us');
+      if (!groupJid.endsWith("@g.us")) {
+        throw new Error("Invalid group JID. Must end with @g.us");
       }
 
       await this.socket.groupUpdateSubject(groupJid, name);
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to update group name:', error);
+      this.logger.error("Failed to update group name:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2030,22 +2271,24 @@ export class MiawClient extends EventEmitter {
   ): Promise<GroupOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update group description. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update group description. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!groupJid.endsWith('@g.us')) {
-        throw new Error('Invalid group JID. Must end with @g.us');
+      if (!groupJid.endsWith("@g.us")) {
+        throw new Error("Invalid group JID. Must end with @g.us");
       }
 
       await this.socket.groupUpdateDescription(groupJid, description);
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to update group description:', error);
+      this.logger.error("Failed to update group description:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2065,15 +2308,17 @@ export class MiawClient extends EventEmitter {
   ): Promise<GroupOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update group picture. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update group picture. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!groupJid.endsWith('@g.us')) {
-        throw new Error('Invalid group JID. Must end with @g.us');
+      if (!groupJid.endsWith("@g.us")) {
+        throw new Error("Invalid group JID. Must end with @g.us");
       }
 
       const imageContent = Buffer.isBuffer(image) ? image : { url: image };
@@ -2081,7 +2326,7 @@ export class MiawClient extends EventEmitter {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to update group picture:', error);
+      this.logger.error("Failed to update group picture:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2097,21 +2342,23 @@ export class MiawClient extends EventEmitter {
   async getGroupInviteLink(groupJid: string): Promise<string | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get invite link. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get invite link. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!groupJid.endsWith('@g.us')) {
-        throw new Error('Invalid group JID. Must end with @g.us');
+      if (!groupJid.endsWith("@g.us")) {
+        throw new Error("Invalid group JID. Must end with @g.us");
       }
 
       const code = await this.socket.groupInviteCode(groupJid);
       return code ? `https://chat.whatsapp.com/${code}` : null;
     } catch (error) {
-      this.logger.error('Failed to get group invite link:', error);
+      this.logger.error("Failed to get group invite link:", error);
       return null;
     }
   }
@@ -2124,21 +2371,23 @@ export class MiawClient extends EventEmitter {
   async revokeGroupInvite(groupJid: string): Promise<string | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot revoke invite. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot revoke invite. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!groupJid.endsWith('@g.us')) {
-        throw new Error('Invalid group JID. Must end with @g.us');
+      if (!groupJid.endsWith("@g.us")) {
+        throw new Error("Invalid group JID. Must end with @g.us");
       }
 
       const code = await this.socket.groupRevokeInvite(groupJid);
       return code ? `https://chat.whatsapp.com/${code}` : null;
     } catch (error) {
-      this.logger.error('Failed to revoke group invite:', error);
+      this.logger.error("Failed to revoke group invite:", error);
       return null;
     }
   }
@@ -2151,23 +2400,25 @@ export class MiawClient extends EventEmitter {
   async acceptGroupInvite(inviteCode: string): Promise<string | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot accept invite. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot accept invite. Connection state: ${this.connectionState}`
+        );
       }
 
       // Extract code from URL if full URL was provided
       let code = inviteCode;
-      if (inviteCode.includes('chat.whatsapp.com/')) {
-        code = inviteCode.split('chat.whatsapp.com/')[1];
+      if (inviteCode.includes("chat.whatsapp.com/")) {
+        code = inviteCode.split("chat.whatsapp.com/")[1];
       }
 
       const groupJid = await this.socket.groupAcceptInvite(code);
       return groupJid || null;
     } catch (error) {
-      this.logger.error('Failed to accept group invite:', error);
+      this.logger.error("Failed to accept group invite:", error);
       return null;
     }
   }
@@ -2177,20 +2428,24 @@ export class MiawClient extends EventEmitter {
    * @param inviteCode - Invite code (just the code, or full URL)
    * @returns GroupInviteInfo if successful, null if failed
    */
-  async getGroupInviteInfo(inviteCode: string): Promise<GroupInviteInfo | null> {
+  async getGroupInviteInfo(
+    inviteCode: string
+  ): Promise<GroupInviteInfo | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get invite info. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get invite info. Connection state: ${this.connectionState}`
+        );
       }
 
       // Extract code from URL if full URL was provided
       let code = inviteCode;
-      if (inviteCode.includes('chat.whatsapp.com/')) {
-        code = inviteCode.split('chat.whatsapp.com/')[1];
+      if (inviteCode.includes("chat.whatsapp.com/")) {
+        code = inviteCode.split("chat.whatsapp.com/")[1];
       }
 
       const metadata = await this.socket.groupGetInviteInfo(code);
@@ -2203,7 +2458,7 @@ export class MiawClient extends EventEmitter {
         createdAt: metadata.creation,
       };
     } catch (error) {
-      this.logger.error('Failed to get group invite info:', error);
+      this.logger.error("Failed to get group invite info:", error);
       return null;
     }
   }
@@ -2217,19 +2472,23 @@ export class MiawClient extends EventEmitter {
    * @param image - Image source (file path, URL, or Buffer)
    * @returns ProfileOperationResult indicating success or failure
    */
-  async updateProfilePicture(image: MediaSource): Promise<ProfileOperationResult> {
+  async updateProfilePicture(
+    image: MediaSource
+  ): Promise<ProfileOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update profile picture. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update profile picture. Connection state: ${this.connectionState}`
+        );
       }
 
       const userJid = this.socket.user?.id;
       if (!userJid) {
-        throw new Error('User JID not available');
+        throw new Error("User JID not available");
       }
 
       const imageContent = Buffer.isBuffer(image) ? image : { url: image };
@@ -2237,7 +2496,7 @@ export class MiawClient extends EventEmitter {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to update profile picture:', error);
+      this.logger.error("Failed to update profile picture:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2252,23 +2511,25 @@ export class MiawClient extends EventEmitter {
   async removeProfilePicture(): Promise<ProfileOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot remove profile picture. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot remove profile picture. Connection state: ${this.connectionState}`
+        );
       }
 
       const userJid = this.socket.user?.id;
       if (!userJid) {
-        throw new Error('User JID not available');
+        throw new Error("User JID not available");
       }
 
       await this.socket.removeProfilePicture(userJid);
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to remove profile picture:', error);
+      this.logger.error("Failed to remove profile picture:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2284,22 +2545,24 @@ export class MiawClient extends EventEmitter {
   async updateProfileName(name: string): Promise<ProfileOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update profile name. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update profile name. Connection state: ${this.connectionState}`
+        );
       }
 
       if (!name || name.trim().length === 0) {
-        throw new Error('Profile name cannot be empty');
+        throw new Error("Profile name cannot be empty");
       }
 
       await this.socket.updateProfileName(name);
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to update profile name:', error);
+      this.logger.error("Failed to update profile name:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2315,18 +2578,20 @@ export class MiawClient extends EventEmitter {
   async updateProfileStatus(status: string): Promise<ProfileOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update profile status. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update profile status. Connection state: ${this.connectionState}`
+        );
       }
 
       await this.socket.updateProfileStatus(status);
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to update profile status:', error);
+      this.logger.error("Failed to update profile status:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2347,16 +2612,25 @@ export class MiawClient extends EventEmitter {
   async addLabel(label: Label): Promise<LabelOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot add label. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot add label. Connection state: ${this.connectionState}`
+        );
       }
+
+      // Generate a unique label ID if not provided
+      // WhatsApp Business labels use numeric string IDs starting from 6 (1-5 are predefined)
+      // We use timestamp + random suffix to ensure uniqueness
+      const labelId =
+        label.id ||
+        `${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`;
 
       // Build label action body
       const labelAction: any = {
-        id: label.id,
+        id: labelId,
         name: label.name,
         color: label.color,
         deleted: label.deleted ?? false,
@@ -2367,14 +2641,24 @@ export class MiawClient extends EventEmitter {
       }
 
       // Use empty string JID for label creation (affects account, not a specific chat)
-      await this.socket.addLabel('', labelAction);
+      await this.socket.addLabel("", labelAction);
+
+      // Store label in labelsStore immediately (don't wait for event)
+      const labelData: Label = {
+        id: labelId,
+        name: label.name,
+        color: label.color,
+        predefinedId: label.predefinedId,
+        deleted: false,
+      };
+      this.labelsStore.set(labelId, labelData);
 
       return {
         success: true,
-        labelId: label.id,
+        labelId: labelId,
       };
     } catch (error) {
-      this.logger.error('Failed to add label:', error);
+      this.logger.error("Failed to add label:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2389,14 +2673,19 @@ export class MiawClient extends EventEmitter {
    * @returns LabelOperationResult
    * @note Requires WhatsApp Business account
    */
-  async addChatLabel(chatJidOrPhone: string, labelId: string): Promise<LabelOperationResult> {
+  async addChatLabel(
+    chatJidOrPhone: string,
+    labelId: string
+  ): Promise<LabelOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot add chat label. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot add chat label. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(chatJidOrPhone);
@@ -2404,7 +2693,7 @@ export class MiawClient extends EventEmitter {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to add chat label:', error);
+      this.logger.error("Failed to add chat label:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2419,14 +2708,19 @@ export class MiawClient extends EventEmitter {
    * @returns LabelOperationResult
    * @note Requires WhatsApp Business account
    */
-  async removeChatLabel(chatJidOrPhone: string, labelId: string): Promise<LabelOperationResult> {
+  async removeChatLabel(
+    chatJidOrPhone: string,
+    labelId: string
+  ): Promise<LabelOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot remove chat label. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot remove chat label. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(chatJidOrPhone);
@@ -2434,7 +2728,7 @@ export class MiawClient extends EventEmitter {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to remove chat label:', error);
+      this.logger.error("Failed to remove chat label:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2457,11 +2751,13 @@ export class MiawClient extends EventEmitter {
   ): Promise<LabelOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot add message label. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot add message label. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(chatJidOrPhone);
@@ -2469,7 +2765,7 @@ export class MiawClient extends EventEmitter {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to add message label:', error);
+      this.logger.error("Failed to add message label:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2492,11 +2788,13 @@ export class MiawClient extends EventEmitter {
   ): Promise<LabelOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot remove message label. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot remove message label. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(chatJidOrPhone);
@@ -2504,7 +2802,7 @@ export class MiawClient extends EventEmitter {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to remove message label:', error);
+      this.logger.error("Failed to remove message label:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2522,7 +2820,7 @@ export class MiawClient extends EventEmitter {
    * @param limit - Maximum number of products to fetch (default: 10)
    * @param cursor - Pagination cursor for fetching next page
    * @returns ProductCatalog
-   * @note Requires WhatsApp Business account
+   * @note Requires WhatsApp Business account with catalog configured
    */
   async getCatalog(
     businessJidOrPhone?: string,
@@ -2531,26 +2829,32 @@ export class MiawClient extends EventEmitter {
   ): Promise<ProductCatalog> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get catalog. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get catalog. Connection state: ${this.connectionState}`
+        );
       }
 
-      const jid = businessJidOrPhone ? MessageHandler.formatPhoneToJid(businessJidOrPhone) : undefined;
+      const jid = businessJidOrPhone
+        ? MessageHandler.formatPhoneToJid(businessJidOrPhone)
+        : undefined;
       const result = await this.socket.getCatalog({ jid, limit, cursor });
 
+      // Map Baileys product format to our Product type
+      // Baileys returns: id, name, description, price, currency, retailerId, url, isHidden, imageUrls
       const products: Product[] = (result.products || []).map((p: any) => ({
         id: p.id,
         name: p.name,
         description: p.description,
-        priceAmount1000: p.priceAmount1000,
+        price: p.price,
+        currency: p.currency,
         retailerId: p.retailerId,
         url: p.url,
         isHidden: p.isHidden,
-        images: p.images?.map((img: any) => ({ url: img.url, caption: img.caption })) || [],
-        count: p.count,
+        imageUrls: p.imageUrls || {},
       }));
 
       return {
@@ -2559,10 +2863,15 @@ export class MiawClient extends EventEmitter {
         nextCursor: result.nextPageCursor,
       };
     } catch (error) {
-      this.logger.error('Failed to get catalog:', error);
+      this.logger.error("Failed to get catalog:", error);
+      // Provide more helpful error message
+      const errorMsg = (error as Error).message;
+      const helpfulError = errorMsg.includes("biz:catalog")
+        ? "Catalog not available. Ensure this is a WhatsApp Business account with catalog enabled."
+        : errorMsg;
       return {
         success: false,
-        error: (error as Error).message,
+        error: helpfulError,
       };
     }
   }
@@ -2572,7 +2881,8 @@ export class MiawClient extends EventEmitter {
    * @param businessJidOrPhone - Business JID or phone number (default: your own collections)
    * @param limit - Maximum number of collections to fetch (default: 51)
    * @returns Array of ProductCollection
-   * @note Requires WhatsApp Business account
+   * @note Requires WhatsApp Business account with collections created via the catalog API.
+   *       Collections created in the WhatsApp Business app may not appear here.
    */
   async getCollections(
     businessJidOrPhone?: string,
@@ -2580,14 +2890,19 @@ export class MiawClient extends EventEmitter {
   ): Promise<ProductCollection[]> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get collections. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get collections. Connection state: ${this.connectionState}`
+        );
       }
 
-      const jid = businessJidOrPhone ? MessageHandler.formatPhoneToJid(businessJidOrPhone) : undefined;
+      const jid = businessJidOrPhone
+        ? MessageHandler.formatPhoneToJid(businessJidOrPhone)
+        : undefined;
+
       const result = await this.socket.getCollections(jid, limit);
 
       return (result.collections || []).map((col: any) => ({
@@ -2598,43 +2913,61 @@ export class MiawClient extends EventEmitter {
           name: p.name,
           priceAmount1000: p.priceAmount1000,
           retailerId: p.retailerId,
-          images: p.images?.map((img: any) => ({ url: img.url, caption: img.caption })) || [],
+          images:
+            p.images?.map((img: any) => ({
+              url: img.url,
+              caption: img.caption,
+            })) || [],
         })),
       }));
     } catch (error) {
-      this.logger.error('Failed to get collections:', error);
+      this.logger.error("Failed to get collections:", error);
       return [];
     }
   }
 
   /**
    * Create a new product in the catalog
-   * @param options - Product options (name, price, images, etc.)
+   * @param options - Product options (name, price, currency, images, etc.)
    * @returns ProductOperationResult with product ID
-   * @note Requires WhatsApp Business account
+   * @note Requires WhatsApp Business account with catalog enabled
    */
-  async createProduct(options: ProductOptions): Promise<ProductOperationResult> {
+  async createProduct(
+    options: ProductOptions
+  ): Promise<ProductOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot create product. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot create product. Connection state: ${this.connectionState}`
+        );
       }
 
-      // Convert price from smallest unit to Baileys format (multiply by 1000)
-      const priceAmount1000 = options.price * 10;
+      // Build images array from either buffers or URLs
+      // Buffers are recommended for reliability (URLs require WhatsApp servers to fetch)
+      const images: Array<{ url: URL } | Buffer> = [];
 
+      // Prefer buffers if provided (more reliable)
+      if (options.imageBuffers && options.imageBuffers.length > 0) {
+        images.push(...options.imageBuffers);
+      } else if (options.imageUrls && options.imageUrls.length > 0) {
+        // Fall back to URLs (must be publicly accessible)
+        images.push(...options.imageUrls.map((url) => ({ url: new URL(url) })));
+      }
+
+      // Build product data matching Baileys' ProductCreate format
       const productData: any = {
         name: options.name,
-        priceAmount1000,
+        description: options.description,
+        price: options.price,
+        currency: options.currency,
         isHidden: options.isHidden ?? false,
+        originCountryCode: options.originCountryCode,
+        images,
       };
-
-      if (options.description) {
-        productData.description = options.description;
-      }
 
       if (options.retailerId) {
         productData.retailerId = options.retailerId;
@@ -2644,10 +2977,6 @@ export class MiawClient extends EventEmitter {
         productData.url = options.url;
       }
 
-      if (options.imageUrls && options.imageUrls.length > 0) {
-        productData.images = options.imageUrls.map((url) => ({ url }));
-      }
-
       const result = await this.socket.productCreate(productData);
 
       return {
@@ -2655,7 +2984,7 @@ export class MiawClient extends EventEmitter {
         productId: result?.id,
       };
     } catch (error) {
-      this.logger.error('Failed to create product:', error);
+      this.logger.error("Failed to create product:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2666,38 +2995,46 @@ export class MiawClient extends EventEmitter {
   /**
    * Update an existing product in the catalog
    * @param productId - Product ID to update
-   * @param options - Product options (name, price, images, etc.)
+   * @param options - Product options (name, price, currency, images, etc.)
    * @returns ProductOperationResult
-   * @note Requires WhatsApp Business account
+   * @note Requires WhatsApp Business account with catalog enabled
    */
-  async updateProduct(productId: string, options: ProductOptions): Promise<ProductOperationResult> {
+  async updateProduct(
+    productId: string,
+    options: ProductOptions
+  ): Promise<ProductOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update product. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update product. Connection state: ${this.connectionState}`
+        );
       }
 
-      // Convert price from smallest unit to Baileys format (multiply by 1000)
-      const priceAmount1000 = options.price * 10;
+      // Build images array from either buffers or URLs
+      // Buffers are recommended for reliability (URLs require WhatsApp servers to fetch)
+      const images: Array<{ url: URL } | Buffer> = [];
 
+      // Prefer buffers if provided (more reliable)
+      if (options.imageBuffers && options.imageBuffers.length > 0) {
+        images.push(...options.imageBuffers);
+      } else if (options.imageUrls && options.imageUrls.length > 0) {
+        // Fall back to URLs (must be publicly accessible)
+        images.push(...options.imageUrls.map((url) => ({ url: new URL(url) })));
+      }
+
+      // Build product data matching Baileys' ProductUpdate format
       const productData: any = {
-        priceAmount1000,
+        name: options.name,
+        description: options.description,
+        price: options.price,
+        currency: options.currency,
+        isHidden: options.isHidden,
+        images,
       };
-
-      if (options.name) {
-        productData.name = options.name;
-      }
-
-      if (options.description !== undefined) {
-        productData.description = options.description;
-      }
-
-      if (options.isHidden !== undefined) {
-        productData.isHidden = options.isHidden;
-      }
 
       if (options.retailerId) {
         productData.retailerId = options.retailerId;
@@ -2707,10 +3044,6 @@ export class MiawClient extends EventEmitter {
         productData.url = options.url;
       }
 
-      if (options.imageUrls && options.imageUrls.length > 0) {
-        productData.images = options.imageUrls.map((url) => ({ url }));
-      }
-
       const result = await this.socket.productUpdate(productId, productData);
 
       return {
@@ -2718,7 +3051,7 @@ export class MiawClient extends EventEmitter {
         productId: result?.id,
       };
     } catch (error) {
-      this.logger.error('Failed to update product:', error);
+      this.logger.error("Failed to update product:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2735,15 +3068,17 @@ export class MiawClient extends EventEmitter {
   async deleteProducts(productIds: string[]): Promise<ProductOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot delete products. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot delete products. Connection state: ${this.connectionState}`
+        );
       }
 
       if (productIds.length === 0) {
-        throw new Error('At least one product ID is required');
+        throw new Error("At least one product ID is required");
       }
 
       const result = await this.socket.productDelete(productIds);
@@ -2753,7 +3088,7 @@ export class MiawClient extends EventEmitter {
         deletedCount: result.deleted,
       };
     } catch (error) {
-      this.logger.error('Failed to delete products:', error);
+      this.logger.error("Failed to delete products:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -2766,32 +3101,223 @@ export class MiawClient extends EventEmitter {
   // ============================================
 
   /**
+   * Send a text message to a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param text - Message text content
+   * @returns SendMessageResult
+   * @note You must be an admin/owner of the newsletter to send messages
+   */
+  async sendNewsletterMessage(
+    newsletterId: string,
+    text: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send newsletter message. Connection state: ${this.connectionState}`
+        );
+      }
+
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
+      }
+
+      // Baileys sendMessage handles newsletter JIDs automatically
+      const result = await this.socket.sendMessage(newsletterId, { text });
+
+      return {
+        success: true,
+        messageId: result?.key?.id ?? undefined,
+      };
+    } catch (error) {
+      this.logger.error("Failed to send newsletter message:", error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send an image to a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param image - Image source (file path, URL, or Buffer)
+   * @param caption - Optional caption
+   * @returns SendMessageResult
+   * @note You must be an admin/owner of the newsletter to send messages
+   */
+  async sendNewsletterImage(
+    newsletterId: string,
+    image: MediaSource,
+    caption?: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send newsletter image. Connection state: ${this.connectionState}`
+        );
+      }
+
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
+      }
+
+      const imageContent = Buffer.isBuffer(image) ? image : { url: image };
+      const result = await this.socket.sendMessage(newsletterId, {
+        image: imageContent,
+        caption,
+      });
+
+      return {
+        success: true,
+        messageId: result?.key?.id ?? undefined,
+      };
+    } catch (error) {
+      this.logger.error("Failed to send newsletter image:", error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send a video to a newsletter/channel
+   * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
+   * @param video - Video source (file path, URL, or Buffer)
+   * @param caption - Optional caption
+   * @returns SendMessageResult
+   * @note You must be an admin/owner of the newsletter to send messages
+   */
+  async sendNewsletterVideo(
+    newsletterId: string,
+    video: MediaSource,
+    caption?: string
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send newsletter video. Connection state: ${this.connectionState}`
+        );
+      }
+
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
+      }
+
+      const videoContent = Buffer.isBuffer(video) ? video : { url: video };
+      const result = await this.socket.sendMessage(newsletterId, {
+        video: videoContent,
+        caption,
+      });
+
+      return {
+        success: true,
+        messageId: result?.key?.id ?? undefined,
+      };
+    } catch (error) {
+      this.logger.error("Failed to send newsletter video:", error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
    * Create a new newsletter/channel
    * @param name - Newsletter name
    * @param description - Newsletter description
    * @returns NewsletterOperationResult with newsletter ID
    */
-  async createNewsletter(name: string, description?: string): Promise<NewsletterOperationResult> {
+  async createNewsletter(
+    name: string,
+    description?: string
+  ): Promise<NewsletterOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot create newsletter. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot create newsletter. Connection state: ${this.connectionState}`
+        );
       }
 
-      const result = await this.socket.newsletterCreate(name, description || '');
+      // Baileys newsletterCreate returns NewsletterMetadata with id property
+      const result = await this.socket.newsletterCreate(
+        name,
+        description || ""
+      );
 
+      // Debug log the result structure
+      this.logger.debug("Newsletter create result:", result);
+
+      // Baileys returns NewsletterMetadata from parseNewsletterCreateResponse
+      // The id is directly on the result object
+      if (result && typeof result === "object" && "id" in result) {
+        const newsletterId = result.id;
+        if (newsletterId) {
+          return {
+            success: true,
+            newsletterId,
+          };
+        }
+      }
+
+      // Handle unexpected response format
+      // The newsletter may have been created but response parsing failed
+      this.logger.warn(
+        "Newsletter creation returned unexpected format:",
+        JSON.stringify(result, null, 2)
+      );
       return {
         success: true,
-        newsletterId: result?.id,
+        newsletterId: undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to create newsletter:', error);
+      const errorMessage = (error as Error).message;
+      const errorStack = (error as Error).stack;
+
+      // Log full error for debugging
+      this.logger.debug("Newsletter creation error details:", {
+        message: errorMessage,
+        stack: errorStack,
+      });
+
+      // Check if this is a response parsing error (newsletter may have been created)
+      // Baileys throws "Cannot read properties of null" when response format is unexpected
+      if (
+        errorMessage.includes("Cannot read properties of null") ||
+        errorMessage.includes("Cannot read properties of undefined")
+      ) {
+        this.logger.warn(
+          "Newsletter may have been created but response parsing failed:",
+          errorMessage
+        );
+        return {
+          success: true,
+          newsletterId: undefined,
+        };
+      }
+
+      this.logger.error("Failed to create newsletter:", error);
       return {
         success: false,
-        error: (error as Error).message,
+        error: errorMessage,
       };
     }
   }
@@ -2801,32 +3327,37 @@ export class MiawClient extends EventEmitter {
    * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
    * @returns NewsletterMetadata or null if not found
    */
-  async getNewsletterMetadata(newsletterId: string): Promise<NewsletterMetadata | null> {
+  async getNewsletterMetadata(
+    newsletterId: string
+  ): Promise<NewsletterMetadata | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get newsletter metadata. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get newsletter metadata. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
-      const meta = await this.socket.newsletterMetadata('jid', newsletterId);
+      const meta = await this.socket.newsletterMetadata("jid", newsletterId);
 
       if (!meta) {
         return null;
       }
 
       // Extract picture URL from the picture object if available
-      const pictureUrl = typeof meta.picture === 'string' ? meta.picture : meta.picture?.url;
+      const pictureUrl =
+        typeof meta.picture === "string" ? meta.picture : meta.picture?.url;
 
       return {
         id: meta.id || newsletterId,
-        name: meta.name || '',
+        name: meta.name || "",
         description: meta.description,
         pictureUrl,
         subscribers: meta.subscribers,
@@ -2837,7 +3368,7 @@ export class MiawClient extends EventEmitter {
         updatedAt: undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to get newsletter metadata:', error);
+      this.logger.error("Failed to get newsletter metadata:", error);
       return null;
     }
   }
@@ -2850,21 +3381,23 @@ export class MiawClient extends EventEmitter {
   async followNewsletter(newsletterId: string): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot follow newsletter. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot follow newsletter. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterFollow(newsletterId);
       return true;
     } catch (error) {
-      this.logger.error('Failed to follow newsletter:', error);
+      this.logger.error("Failed to follow newsletter:", error);
       return false;
     }
   }
@@ -2877,21 +3410,23 @@ export class MiawClient extends EventEmitter {
   async unfollowNewsletter(newsletterId: string): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot unfollow newsletter. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot unfollow newsletter. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterUnfollow(newsletterId);
       return true;
     } catch (error) {
-      this.logger.error('Failed to unfollow newsletter:', error);
+      this.logger.error("Failed to unfollow newsletter:", error);
       return false;
     }
   }
@@ -2904,21 +3439,23 @@ export class MiawClient extends EventEmitter {
   async muteNewsletter(newsletterId: string): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot mute newsletter. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot mute newsletter. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterMute(newsletterId);
       return true;
     } catch (error) {
-      this.logger.error('Failed to mute newsletter:', error);
+      this.logger.error("Failed to mute newsletter:", error);
       return false;
     }
   }
@@ -2931,21 +3468,23 @@ export class MiawClient extends EventEmitter {
   async unmuteNewsletter(newsletterId: string): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot unmute newsletter. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot unmute newsletter. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterUnmute(newsletterId);
       return true;
     } catch (error) {
-      this.logger.error('Failed to unmute newsletter:', error);
+      this.logger.error("Failed to unmute newsletter:", error);
       return false;
     }
   }
@@ -2956,24 +3495,29 @@ export class MiawClient extends EventEmitter {
    * @param name - New newsletter name
    * @returns boolean indicating success
    */
-  async updateNewsletterName(newsletterId: string, name: string): Promise<boolean> {
+  async updateNewsletterName(
+    newsletterId: string,
+    name: string
+  ): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update newsletter name. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update newsletter name. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterUpdateName(newsletterId, name);
       return true;
     } catch (error) {
-      this.logger.error('Failed to update newsletter name:', error);
+      this.logger.error("Failed to update newsletter name:", error);
       return false;
     }
   }
@@ -2984,24 +3528,29 @@ export class MiawClient extends EventEmitter {
    * @param description - New newsletter description
    * @returns boolean indicating success
    */
-  async updateNewsletterDescription(newsletterId: string, description: string): Promise<boolean> {
+  async updateNewsletterDescription(
+    newsletterId: string,
+    description: string
+  ): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update newsletter description. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update newsletter description. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterUpdateDescription(newsletterId, description);
       return true;
     } catch (error) {
-      this.logger.error('Failed to update newsletter description:', error);
+      this.logger.error("Failed to update newsletter description:", error);
       return false;
     }
   }
@@ -3012,25 +3561,30 @@ export class MiawClient extends EventEmitter {
    * @param image - Image source (file path, URL, or Buffer)
    * @returns boolean indicating success
    */
-  async updateNewsletterPicture(newsletterId: string, image: MediaSource): Promise<boolean> {
+  async updateNewsletterPicture(
+    newsletterId: string,
+    image: MediaSource
+  ): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot update newsletter picture. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update newsletter picture. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       const imageContent = Buffer.isBuffer(image) ? image : { url: image };
       await this.socket.newsletterUpdatePicture(newsletterId, imageContent);
       return true;
     } catch (error) {
-      this.logger.error('Failed to update newsletter picture:', error);
+      this.logger.error("Failed to update newsletter picture:", error);
       return false;
     }
   }
@@ -3043,21 +3597,23 @@ export class MiawClient extends EventEmitter {
   async removeNewsletterPicture(newsletterId: string): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot remove newsletter picture. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot remove newsletter picture. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterRemovePicture(newsletterId);
       return true;
     } catch (error) {
-      this.logger.error('Failed to remove newsletter picture:', error);
+      this.logger.error("Failed to remove newsletter picture:", error);
       return false;
     }
   }
@@ -3076,21 +3632,23 @@ export class MiawClient extends EventEmitter {
   ): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot react to newsletter message. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot react to newsletter message. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterReactMessage(newsletterId, messageId, emoji);
       return true;
     } catch (error) {
-      this.logger.error('Failed to react to newsletter message:', error);
+      this.logger.error("Failed to react to newsletter message:", error);
       return false;
     }
   }
@@ -3111,15 +3669,17 @@ export class MiawClient extends EventEmitter {
   ): Promise<NewsletterMessagesResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot fetch newsletter messages. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot fetch newsletter messages. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       const messages = await this.socket.newsletterFetchMessages(
@@ -3130,12 +3690,18 @@ export class MiawClient extends EventEmitter {
       );
 
       const normalizedMessages = (messages || []).map((msg: any) => ({
-        id: msg.key?.id || '',
+        id: msg.key?.id || "",
         newsletterId,
-        content: msg.message?.conversation || msg.message?.extendedTextMessage?.text,
+        content:
+          msg.message?.conversation || msg.message?.extendedTextMessage?.text,
         timestamp: msg.messageTimestamp || 0,
-        mediaUrl: msg.message?.imageMessage?.url || msg.message?.videoMessage?.url,
-        mediaType: msg.message?.imageMessage ? 'image' : msg.message?.videoMessage ? 'video' : undefined,
+        mediaUrl:
+          msg.message?.imageMessage?.url || msg.message?.videoMessage?.url,
+        mediaType: msg.message?.imageMessage
+          ? "image"
+          : msg.message?.videoMessage
+          ? "video"
+          : undefined,
       }));
 
       return {
@@ -3143,7 +3709,7 @@ export class MiawClient extends EventEmitter {
         messages: normalizedMessages,
       };
     } catch (error) {
-      this.logger.error('Failed to fetch newsletter messages:', error);
+      this.logger.error("Failed to fetch newsletter messages:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -3159,21 +3725,23 @@ export class MiawClient extends EventEmitter {
   async subscribeNewsletterUpdates(newsletterId: string): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot subscribe to newsletter updates. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot subscribe to newsletter updates. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.subscribeNewsletterUpdates(newsletterId);
       return true;
     } catch (error) {
-      this.logger.error('Failed to subscribe to newsletter updates:', error);
+      this.logger.error("Failed to subscribe to newsletter updates:", error);
       return false;
     }
   }
@@ -3183,18 +3751,22 @@ export class MiawClient extends EventEmitter {
    * @param newsletterId - Newsletter JID (e.g., '1234567890@newsletter')
    * @returns NewsletterSubscriptionInfo or null if failed
    */
-  async getNewsletterSubscribers(newsletterId: string): Promise<NewsletterSubscriptionInfo | null> {
+  async getNewsletterSubscribers(
+    newsletterId: string
+  ): Promise<NewsletterSubscriptionInfo | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get newsletter subscribers. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get newsletter subscribers. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       const result = await this.socket.newsletterSubscribers(newsletterId);
@@ -3204,7 +3776,7 @@ export class MiawClient extends EventEmitter {
         adminCount: undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to get newsletter subscribers:', error);
+      this.logger.error("Failed to get newsletter subscribers:", error);
       return null;
     }
   }
@@ -3217,21 +3789,23 @@ export class MiawClient extends EventEmitter {
   async getNewsletterAdminCount(newsletterId: string): Promise<number | null> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot get newsletter admin count. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get newsletter admin count. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       const count = await this.socket.newsletterAdminCount(newsletterId);
       return count || 0;
     } catch (error) {
-      this.logger.error('Failed to get newsletter admin count:', error);
+      this.logger.error("Failed to get newsletter admin count:", error);
       return null;
     }
   }
@@ -3242,25 +3816,30 @@ export class MiawClient extends EventEmitter {
    * @param newOwnerJid - New owner's JID
    * @returns boolean indicating success
    */
-  async changeNewsletterOwner(newsletterId: string, newOwnerJid: string): Promise<boolean> {
+  async changeNewsletterOwner(
+    newsletterId: string,
+    newOwnerJid: string
+  ): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot change newsletter owner. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot change newsletter owner. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       const jid = MessageHandler.formatPhoneToJid(newOwnerJid);
       await this.socket.newsletterChangeOwner(newsletterId, jid);
       return true;
     } catch (error) {
-      this.logger.error('Failed to change newsletter owner:', error);
+      this.logger.error("Failed to change newsletter owner:", error);
       return false;
     }
   }
@@ -3271,25 +3850,30 @@ export class MiawClient extends EventEmitter {
    * @param adminJid - Admin's JID to demote
    * @returns boolean indicating success
    */
-  async demoteNewsletterAdmin(newsletterId: string, adminJid: string): Promise<boolean> {
+  async demoteNewsletterAdmin(
+    newsletterId: string,
+    adminJid: string
+  ): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot demote newsletter admin. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot demote newsletter admin. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       const jid = MessageHandler.formatPhoneToJid(adminJid);
       await this.socket.newsletterDemote(newsletterId, jid);
       return true;
     } catch (error) {
-      this.logger.error('Failed to demote newsletter admin:', error);
+      this.logger.error("Failed to demote newsletter admin:", error);
       return false;
     }
   }
@@ -3302,21 +3886,23 @@ export class MiawClient extends EventEmitter {
   async deleteNewsletter(newsletterId: string): Promise<boolean> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot delete newsletter. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot delete newsletter. Connection state: ${this.connectionState}`
+        );
       }
 
-      if (!newsletterId.endsWith('@newsletter')) {
-        throw new Error('Invalid newsletter ID. Must end with @newsletter');
+      if (!newsletterId.endsWith("@newsletter")) {
+        throw new Error("Invalid newsletter ID. Must end with @newsletter");
       }
 
       await this.socket.newsletterDelete(newsletterId);
       return true;
     } catch (error) {
-      this.logger.error('Failed to delete newsletter:', error);
+      this.logger.error("Failed to delete newsletter:", error);
       return false;
     }
   }
@@ -3330,14 +3916,18 @@ export class MiawClient extends EventEmitter {
    * @param contact - Contact data (phone, name, etc.)
    * @returns ContactOperationResult
    */
-  async addOrEditContact(contact: ContactData): Promise<ContactOperationResult> {
+  async addOrEditContact(
+    contact: ContactData
+  ): Promise<ContactOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot add/edit contact. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot add/edit contact. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(contact.phone);
@@ -3359,7 +3949,7 @@ export class MiawClient extends EventEmitter {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to add/edit contact:', error);
+      this.logger.error("Failed to add/edit contact:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -3375,11 +3965,13 @@ export class MiawClient extends EventEmitter {
   async removeContact(phone: string): Promise<ContactOperationResult> {
     try {
       if (!this.socket) {
-        throw new Error('Not connected. Call connect() first.');
+        throw new Error("Not connected. Call connect() first.");
       }
 
-      if (this.connectionState !== 'connected') {
-        throw new Error(`Cannot remove contact. Connection state: ${this.connectionState}`);
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot remove contact. Connection state: ${this.connectionState}`
+        );
       }
 
       const jid = MessageHandler.formatPhoneToJid(phone);
@@ -3387,7 +3979,7 @@ export class MiawClient extends EventEmitter {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Failed to remove contact:', error);
+      this.logger.error("Failed to remove contact:", error);
       return {
         success: false,
         error: (error as Error).message,
@@ -3401,16 +3993,16 @@ export class MiawClient extends EventEmitter {
   private getAudioMimetypeFromFileName(fileName: string): string {
     const ext = path.extname(fileName).toLowerCase();
     const mimeTypes: Record<string, string> = {
-      '.mp3': 'audio/mpeg',
-      '.mp4': 'audio/mp4',
-      '.m4a': 'audio/mp4',
-      '.ogg': 'audio/ogg; codecs=opus',
-      '.opus': 'audio/ogg; codecs=opus',
-      '.wav': 'audio/wav',
-      '.aac': 'audio/aac',
-      '.flac': 'audio/flac',
+      ".mp3": "audio/mpeg",
+      ".mp4": "audio/mp4",
+      ".m4a": "audio/mp4",
+      ".ogg": "audio/ogg; codecs=opus",
+      ".opus": "audio/ogg; codecs=opus",
+      ".wav": "audio/wav",
+      ".aac": "audio/aac",
+      ".flac": "audio/flac",
     };
-    return mimeTypes[ext] || 'audio/mp4';
+    return mimeTypes[ext] || "audio/mp4";
   }
 
   /**
@@ -3419,24 +4011,27 @@ export class MiawClient extends EventEmitter {
   private getMimetypeFromFileName(fileName: string): string {
     const ext = path.extname(fileName).toLowerCase();
     const mimeTypes: Record<string, string> = {
-      '.pdf': 'application/pdf',
-      '.doc': 'application/msword',
-      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      '.xls': 'application/vnd.ms-excel',
-      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      '.ppt': 'application/vnd.ms-powerpoint',
-      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      '.txt': 'text/plain',
-      '.csv': 'text/csv',
-      '.json': 'application/json',
-      '.xml': 'application/xml',
-      '.zip': 'application/zip',
-      '.rar': 'application/x-rar-compressed',
-      '.7z': 'application/x-7z-compressed',
-      '.tar': 'application/x-tar',
-      '.gz': 'application/gzip',
+      ".pdf": "application/pdf",
+      ".doc": "application/msword",
+      ".docx":
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ".xls": "application/vnd.ms-excel",
+      ".xlsx":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ".ppt": "application/vnd.ms-powerpoint",
+      ".pptx":
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      ".txt": "text/plain",
+      ".csv": "text/csv",
+      ".json": "application/json",
+      ".xml": "application/xml",
+      ".zip": "application/zip",
+      ".rar": "application/x-rar-compressed",
+      ".7z": "application/x-7z-compressed",
+      ".tar": "application/x-tar",
+      ".gz": "application/gzip",
     };
-    return mimeTypes[ext] || 'application/octet-stream';
+    return mimeTypes[ext] || "application/octet-stream";
   }
 
   /**
@@ -3453,8 +4048,8 @@ export class MiawClient extends EventEmitter {
       this.socket = null;
     }
 
-    this.updateConnectionState('disconnected');
-    this.logger.info('Disconnected');
+    this.updateConnectionState("disconnected");
+    this.logger.info("Disconnected");
   }
 
   /**
@@ -3475,7 +4070,7 @@ export class MiawClient extends EventEmitter {
    * Check if connected
    */
   isConnected(): boolean {
-    return this.connectionState === 'connected';
+    return this.connectionState === "connected";
   }
 
   // TypeScript event emitter type safety

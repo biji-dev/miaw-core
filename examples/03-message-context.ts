@@ -90,7 +90,9 @@ client.on("message_delete", async (deletion) => {
 
 // Handle reactions
 client.on("message_reaction", async (reaction) => {
-  console.log(`😀 Reaction: ${reaction.emoji} to message ${reaction.messageId}`);
+  console.log(
+    `😀 Reaction: ${reaction.emoji} to message ${reaction.messageId}`
+  );
 
   if (reaction.isRemoval) {
     console.log("   (Reaction removed)");
@@ -114,8 +116,8 @@ client.on("message", async (message) => {
   // Edit message (demo - would need to track your own messages)
   if (text.startsWith("!edit ")) {
     // Note: Can only edit your own messages within 15 minutes
-    const newText = text.substring(6);
-    // await client.editMessage(messageId, newText);
+    const _newText = text.substring(6);
+    // await client.editMessage(messageId, _newText);
   }
 
   // Delete message (demo)
