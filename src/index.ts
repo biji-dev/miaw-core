@@ -6,8 +6,8 @@
 // Main client
 export { MiawClient } from "./client/MiawClient.js";
 
-// Types
-export {
+// Types - using 'export type' for type-only exports (required for ESM/tsx compatibility)
+export type {
   MiawClientOptions,
   MiawMessage,
   MediaInfo,
