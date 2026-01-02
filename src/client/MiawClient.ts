@@ -191,6 +191,9 @@ export class MiawClient extends EventEmitter {
         },
         browser: ["Miaw", "Chrome", "1.0.0"],
         generateHighQualityLinkPreview: true,
+        // Enable app state sync for labels and other features
+        syncFullHistory: false,
+        fireInitQueries: true,
       });
 
       // Register event handlers
@@ -235,6 +238,12 @@ export class MiawClient extends EventEmitter {
         this.updateConnectionState("connected");
         this.emit("ready");
         this.logger.info("Connected to WhatsApp");
+
+        // Sync app state to populate labels (WhatsApp Business)
+        // Labels are stored in the 'regular' app state collection
+        this.syncLabelsFromAppState().catch((error) => {
+          this.logger.warn("Failed to sync labels from app state:", error);
+        });
       }
     });
 
@@ -359,6 +368,31 @@ export class MiawClient extends EventEmitter {
         }
 
         this.emit("presence", update);
+      }
+    });
+
+    // Label updates (WhatsApp Business)
+    this.socket.ev.on("labels.edit", (label: any) => {
+      if (this.options.debug) {
+        console.log("\n========== LABEL UPDATE ==========");
+        console.log(JSON.stringify(label, null, 2));
+        console.log("==================================\n");
+      }
+
+      // Update label in store
+      if (label.id) {
+        if (label.deleted) {
+          this.labelsStore.delete(label.id);
+        } else {
+          const labelData: Label = {
+            id: label.id,
+            name: label.name || "",
+            color: label.color ?? 0,
+            predefinedId: label.predefinedId,
+            deleted: label.deleted,
+          };
+          this.labelsStore.set(label.id, labelData);
+        }
       }
     });
   }
@@ -592,6 +626,16 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Clear session data for this instance.
+   * This will delete all stored authentication credentials.
+   * After calling this, the next connect() will require scanning a new QR code.
+   * @returns true if session was cleared, false if no session existed
+   */
+  clearSession(): boolean {
+    return this.authHandler.clearSession();
+  }
+
+  /**
    * Dispose client and clean up resources
    */
   async dispose(): Promise<void> {
@@ -628,9 +672,10 @@ export class MiawClient extends EventEmitter {
     this.updateConnectionState("disconnected");
     this.emit("disconnected", reason);
 
-    // Don't reconnect if logged out
+    // Don't reconnect if logged out - clear session for fresh QR code on next connect
     if (statusCode === DisconnectReason.loggedOut) {
-      this.logger.info("Logged out, not reconnecting");
+      this.logger.info("Logged out, clearing session for fresh authentication");
+      this.authHandler.clearSession();
       return false;
     }
 
@@ -1353,12 +1398,44 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Sync labels from WhatsApp app state
+   * This triggers a resync of the 'regular' collection which contains labels
+   * Labels will be emitted via labels.edit events and stored in labelsStore
+   */
+  private async syncLabelsFromAppState(): Promise<void> {
+    if (!this.socket) {
+      return;
+    }
+
+    try {
+      // resyncAppState is provided by Baileys to sync app state collections
+      // The 'regular' collection contains labels
+      // The second parameter (false) means this is not an initial sync
+      await this.socket.resyncAppState(["regular"], false);
+      this.logger.info(
+        "App state sync completed, labels should be populated via labels.edit events"
+      );
+    } catch (error) {
+      // This is non-fatal - labels may already be synced or unavailable
+      this.logger.debug("App state sync error (non-fatal):", error);
+    }
+  }
+
+  /**
    * Fetch all labels from the in-memory store
    * Note: Labels are populated via history sync and label events
+   * @param forceSync - If true, force a resync from WhatsApp before returning labels
    * @returns FetchAllLabelsResult with list of labels
    */
-  async fetchAllLabels(): Promise<FetchAllLabelsResult> {
+  async fetchAllLabels(forceSync = false): Promise<FetchAllLabelsResult> {
     try {
+      // Force resync if requested or if store is empty (first call)
+      if (forceSync || this.labelsStore.size === 0) {
+        await this.syncLabelsFromAppState();
+        // Give a brief moment for labels.edit events to be processed
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
       const labels = Array.from(this.labelsStore.values());
 
       return {
@@ -2544,9 +2621,16 @@ export class MiawClient extends EventEmitter {
         );
       }
 
+      // Generate a unique label ID if not provided
+      // WhatsApp Business labels use numeric string IDs starting from 6 (1-5 are predefined)
+      // We use timestamp + random suffix to ensure uniqueness
+      const labelId =
+        label.id ||
+        `${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`;
+
       // Build label action body
       const labelAction: any = {
-        id: label.id,
+        id: labelId,
         name: label.name,
         color: label.color,
         deleted: label.deleted ?? false,
@@ -2559,9 +2643,19 @@ export class MiawClient extends EventEmitter {
       // Use empty string JID for label creation (affects account, not a specific chat)
       await this.socket.addLabel("", labelAction);
 
+      // Store label in labelsStore immediately (don't wait for event)
+      const labelData: Label = {
+        id: labelId,
+        name: label.name,
+        color: label.color,
+        predefinedId: label.predefinedId,
+        deleted: false,
+      };
+      this.labelsStore.set(labelId, labelData);
+
       return {
         success: true,
-        labelId: label.id,
+        labelId: labelId,
       };
     } catch (error) {
       this.logger.error("Failed to add label:", error);
@@ -2726,7 +2820,7 @@ export class MiawClient extends EventEmitter {
    * @param limit - Maximum number of products to fetch (default: 10)
    * @param cursor - Pagination cursor for fetching next page
    * @returns ProductCatalog
-   * @note Requires WhatsApp Business account
+   * @note Requires WhatsApp Business account with catalog configured
    */
   async getCatalog(
     businessJidOrPhone?: string,
@@ -2749,20 +2843,18 @@ export class MiawClient extends EventEmitter {
         : undefined;
       const result = await this.socket.getCatalog({ jid, limit, cursor });
 
+      // Map Baileys product format to our Product type
+      // Baileys returns: id, name, description, price, currency, retailerId, url, isHidden, imageUrls
       const products: Product[] = (result.products || []).map((p: any) => ({
         id: p.id,
         name: p.name,
         description: p.description,
-        priceAmount1000: p.priceAmount1000,
+        price: p.price,
+        currency: p.currency,
         retailerId: p.retailerId,
         url: p.url,
         isHidden: p.isHidden,
-        images:
-          p.images?.map((img: any) => ({
-            url: img.url,
-            caption: img.caption,
-          })) || [],
-        count: p.count,
+        imageUrls: p.imageUrls || {},
       }));
 
       return {
@@ -2772,9 +2864,14 @@ export class MiawClient extends EventEmitter {
       };
     } catch (error) {
       this.logger.error("Failed to get catalog:", error);
+      // Provide more helpful error message
+      const errorMsg = (error as Error).message;
+      const helpfulError = errorMsg.includes("biz:catalog")
+        ? "Catalog not available. Ensure this is a WhatsApp Business account with catalog enabled."
+        : errorMsg;
       return {
         success: false,
-        error: (error as Error).message,
+        error: helpfulError,
       };
     }
   }
@@ -2829,9 +2926,9 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Create a new product in the catalog
-   * @param options - Product options (name, price, images, etc.)
+   * @param options - Product options (name, price, currency, images, etc.)
    * @returns ProductOperationResult with product ID
-   * @note Requires WhatsApp Business account
+   * @note Requires WhatsApp Business account with catalog enabled
    */
   async createProduct(
     options: ProductOptions
@@ -2847,18 +2944,16 @@ export class MiawClient extends EventEmitter {
         );
       }
 
-      // Convert price from smallest unit to Baileys format (multiply by 1000)
-      const priceAmount1000 = options.price * 10;
-
+      // Build product data matching Baileys' ProductCreate format
       const productData: any = {
         name: options.name,
-        priceAmount1000,
+        description: options.description,
+        price: options.price,
+        currency: options.currency,
         isHidden: options.isHidden ?? false,
+        originCountryCode: options.originCountryCode,
+        images: (options.imageUrls || []).map((url) => ({ url: new URL(url) })),
       };
-
-      if (options.description) {
-        productData.description = options.description;
-      }
 
       if (options.retailerId) {
         productData.retailerId = options.retailerId;
@@ -2866,10 +2961,6 @@ export class MiawClient extends EventEmitter {
 
       if (options.url) {
         productData.url = options.url;
-      }
-
-      if (options.imageUrls && options.imageUrls.length > 0) {
-        productData.images = options.imageUrls.map((url) => ({ url }));
       }
 
       const result = await this.socket.productCreate(productData);
@@ -2890,9 +2981,9 @@ export class MiawClient extends EventEmitter {
   /**
    * Update an existing product in the catalog
    * @param productId - Product ID to update
-   * @param options - Product options (name, price, images, etc.)
+   * @param options - Product options (name, price, currency, images, etc.)
    * @returns ProductOperationResult
-   * @note Requires WhatsApp Business account
+   * @note Requires WhatsApp Business account with catalog enabled
    */
   async updateProduct(
     productId: string,
@@ -2909,24 +3000,15 @@ export class MiawClient extends EventEmitter {
         );
       }
 
-      // Convert price from smallest unit to Baileys format (multiply by 1000)
-      const priceAmount1000 = options.price * 10;
-
+      // Build product data matching Baileys' ProductUpdate format
       const productData: any = {
-        priceAmount1000,
+        name: options.name,
+        description: options.description,
+        price: options.price,
+        currency: options.currency,
+        isHidden: options.isHidden,
+        images: (options.imageUrls || []).map((url) => ({ url: new URL(url) })),
       };
-
-      if (options.name) {
-        productData.name = options.name;
-      }
-
-      if (options.description !== undefined) {
-        productData.description = options.description;
-      }
-
-      if (options.isHidden !== undefined) {
-        productData.isHidden = options.isHidden;
-      }
 
       if (options.retailerId) {
         productData.retailerId = options.retailerId;
@@ -2934,10 +3016,6 @@ export class MiawClient extends EventEmitter {
 
       if (options.url) {
         productData.url = options.url;
-      }
-
-      if (options.imageUrls && options.imageUrls.length > 0) {
-        productData.images = options.imageUrls.map((url) => ({ url }));
       }
 
       const result = await this.socket.productUpdate(productId, productData);
@@ -3022,15 +3100,62 @@ export class MiawClient extends EventEmitter {
         description || ""
       );
 
+      // Debug log to see actual response structure
+      this.logger.debug(
+        "Newsletter create raw result:",
+        JSON.stringify(result, null, 2)
+      );
+
+      // Baileys returns NewsletterMetadata from parseNewsletterCreateResponse
+      // The id is directly on the result object
+      if (result && typeof result === "object") {
+        // Try common property names for the newsletter JID/ID
+        const newsletterId =
+          (result as { id?: string }).id ||
+          (result as { jid?: string }).jid ||
+          (result as { newsletterId?: string }).newsletterId;
+
+        if (newsletterId) {
+          return {
+            success: true,
+            newsletterId,
+          };
+        }
+      }
+
+      // Handle unexpected response format
+      // The newsletter may have been created but response parsing failed
+      this.logger.warn(
+        "Newsletter creation returned unexpected format:",
+        result
+      );
       return {
         success: true,
-        newsletterId: result?.id,
+        newsletterId: undefined,
       };
     } catch (error) {
+      const errorMessage = (error as Error).message;
+
+      // Check if this is a response parsing error (newsletter may have been created)
+      // Baileys throws "Cannot read properties of null" when response format is unexpected
+      if (
+        errorMessage.includes("Cannot read properties of null") ||
+        errorMessage.includes("Cannot read properties of undefined")
+      ) {
+        this.logger.warn(
+          "Newsletter may have been created but response parsing failed:",
+          errorMessage
+        );
+        return {
+          success: true,
+          newsletterId: undefined,
+        };
+      }
+
       this.logger.error("Failed to create newsletter:", error);
       return {
         success: false,
-        error: (error as Error).message,
+        error: errorMessage,
       };
     }
   }
