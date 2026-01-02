@@ -1972,101 +1972,20 @@ async function main() {
 }
 
 function showSummary() {
-  console.log(
-    "\n\n╔════════════════════════════════════════════════════════════╗"
-  );
-  console.log(
-    "║                    Test Summary                             ║"
-  );
-  console.log("╚════════════════════════════════════════════════════════════╝");
-
   const results = { pass: 0, fail: 0, skip: 0 };
-  const byCategory: { [key: string]: typeof results } = {};
 
-  for (const [name, result] of Object.entries(testResults)) {
+  for (const result of Object.values(testResults)) {
     results[result]++;
-    // Find category
-    const test = tests.find((t) => t.name === name);
-    if (test) {
-      if (!byCategory[test.category]) {
-        byCategory[test.category] = { pass: 0, fail: 0, skip: 0 };
-      }
-      byCategory[test.category][result]++;
-    }
   }
 
-  console.log("\nBy Category:");
-  for (const [category, catResults] of Object.entries(byCategory)) {
-    console.log(`\n${category}:`);
-    console.log(`  ✅ Pass: ${catResults.pass}`);
-    console.log(`  ❌ Fail: ${catResults.fail}`);
-    console.log(`  ⏭️  Skip: ${catResults.skip}`);
-  }
-
-  console.log("\n\nTotal:");
-  console.log(`  ✅ Passed: ${results.pass}`);
-  console.log(`  ❌ Failed: ${results.fail}`);
+  console.log("\n════════════════════════════════════════════════════════════");
+  console.log("                      Test Summary");
+  console.log("════════════════════════════════════════════════════════════");
+  console.log(`  ✅ Passed:  ${results.pass}`);
+  console.log(`  ❌ Failed:  ${results.fail}`);
   console.log(`  ⏭️  Skipped: ${results.skip}`);
-  console.log(`  📊 Total: ${Object.keys(testResults).length}`);
-
-  // Get package version
-  let miawCoreVersion = "unknown";
-  let baileysVersion = "unknown";
-  const nodeVersion = process.version;
-
-  try {
-    const packagePath = require.resolve("../package.json");
-    const pkg = require(packagePath);
-    miawCoreVersion = pkg.version;
-    baileysVersion = pkg.dependencies?.["@whiskeysockets/baileys"] || "unknown";
-  } catch {
-    // Ignore errors
-  }
-
-  console.log(
-    "\n\n╔════════════════════════════════════════════════════════════╗"
-  );
-  console.log(
-    "║                    Test Report                              ║"
-  );
-  console.log("╚════════════════════════════════════════════════════════════╝");
-
-  console.log("\nTest Date:", new Date().toISOString());
-  console.log("Miaw Core Version:", miawCoreVersion);
-  console.log("Baileys Version:", baileysVersion);
-  console.log("Node.js Version:", nodeVersion);
-  console.log("Instance ID:", TEST_CONFIG.instanceId);
-
-  // Generate report text for MANUAL_TEST_CHECKLIST.md
-  console.log("\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("Copy this to MANUAL_TEST_CHECKLIST.md Notes section:");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log(`
-Test Date: ${new Date().toISOString()}
-Tester: ____________________
-WhatsApp Version: ____________________
-Node.js Version: ${nodeVersion}
-Miaw Core Version: ${miawCoreVersion}
-Baileys Version: ${baileysVersion}
-
-Test Results Summary:
-  ✅ Passed: ${results.pass}
-  ❌ Failed: ${results.fail}
-  ⏭️  Skipped: ${results.skip}
-  📊 Total: ${Object.keys(testResults).length}
-
-Issues Found:
-1. _______________________________________________________________
-2. _______________________________________________________________
-3. _______________________________________________________________
-
-General Notes:
-_______________________________________________________________
-_______________________________________________________________
-_______________________________________________________________
-`);
-
-  console.log("\n\n✅ Testing complete!");
+  console.log(`  📊 Total:   ${Object.keys(testResults).length}`);
+  console.log("════════════════════════════════════════════════════════════\n");
 }
 
 // Run the test
