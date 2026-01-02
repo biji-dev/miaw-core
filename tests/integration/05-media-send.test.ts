@@ -3,8 +3,8 @@
  *
  * Tests for sending media messages: images, documents, videos, audio
  */
-import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup';
-import { MiawClient } from '../../src';
+import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
+import { MiawClient } from '../../src/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

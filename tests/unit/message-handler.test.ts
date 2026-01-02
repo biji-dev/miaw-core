@@ -2,8 +2,8 @@
  * Unit Tests for MessageHandler
  */
 
-import { MessageHandler } from '../../src/handlers/MessageHandler';
-import { MiawMessage } from '../../src/types';
+import { MessageHandler } from '../../src/handlers/MessageHandler.js';
+import { MiawMessage } from '../../src/types/index.js';
 
 describe('MessageHandler', () => {
   describe('formatPhoneToJid', () => {

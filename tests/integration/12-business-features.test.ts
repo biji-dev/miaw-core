@@ -9,8 +9,8 @@
  * NOTE: These tests require a WhatsApp Business account.
  * Label and Catalog features only work with Business accounts.
  */
-import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup';
-import { MiawClient } from '../../src';
+import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
+import { MiawClient } from '../../src/index.js';
 import { LabelColor, PredefinedLabelId } from '../../src/types';
 
 describe('Business Features (v0.9.0)', () => {

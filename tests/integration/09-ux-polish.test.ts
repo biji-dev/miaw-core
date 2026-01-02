@@ -8,8 +8,8 @@
  * - Presence updates (setPresence)
  * - Presence subscription (subscribePresence)
  */
-import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup';
-import { MiawClient, MiawMessage, PresenceUpdate } from '../../src';
+import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
+import { MiawClient, MiawMessage, PresenceUpdate } from '../../src/index.js';
 
 describe('UX Polish - Read Receipts', () => {
   let client: MiawClient;

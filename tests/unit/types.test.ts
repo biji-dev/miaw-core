@@ -15,7 +15,7 @@ import {
   type MessageEdit,
   type MessageDelete,
   type MessageReaction,
-} from '../../src/types';
+} from '../../src/types/index.js';
 
 describe('Enums', () => {
   describe('PredefinedLabelId', () => {

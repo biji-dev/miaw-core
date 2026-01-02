@@ -2,17 +2,20 @@
  * Unit Tests for AuthHandler
  */
 
-import { AuthHandler } from '../../src/handlers/AuthHandler';
-import { useMultiFileAuthState } from '@whiskeysockets/baileys';
-import { mkdirSync, rmSync, existsSync } from 'fs';
-import { join } from 'path';
+import { jest, describe, beforeEach, afterEach, afterAll, it, expect } from '@jest/globals';
+import { rmSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 
-// Mock Baileys
-jest.mock('@whiskeysockets/baileys', () => ({
-  useMultiFileAuthState: jest.fn(),
+// Create the mock function with proper type
+const mockUseMultiFileAuthState = jest.fn<() => Promise<any>>();
+
+// Mock Baileys before importing AuthHandler
+jest.unstable_mockModule('@whiskeysockets/baileys', () => ({
+  useMultiFileAuthState: mockUseMultiFileAuthState,
 }));
 
-const mockUseMultiFileAuthState = useMultiFileAuthState as jest.MockedFunction<typeof useMultiFileAuthState>;
+// Dynamic import after mocking
+const { AuthHandler } = await import('../../src/handlers/AuthHandler.js');
 
 describe('AuthHandler', () => {
   const testSessionPath = './test-sessions-unit';
@@ -27,21 +30,21 @@ describe('AuthHandler', () => {
       state: {
         creds: {
           registrationId: 123,
-          registration: {} as any,
-          account: {} as any,
-          me: {} as any,
+          registration: {},
+          account: {},
+          me: {},
           signalId: '',
           advSecretKey: Uint8Array.from([]),
           processedHistoryMessages: [],
           nextPreKeyId: 1,
           firstUnuploadedPreKeyId: 1,
           syncLock: {},
-          accountSettings: {} as any,
+          accountSettings: {},
         },
-        keys: {} as any,
+        keys: {},
       },
       saveCreds: jest.fn(),
-    } as any);
+    });
   });
 
   afterEach(() => {
@@ -118,13 +121,13 @@ describe('AuthHandler', () => {
     });
 
     it('should return the auth state from Baileys', async () => {
-      const mockState = { creds: {} as any, keys: {} as any };
+      const mockState = { creds: {}, keys: {} };
       const mockSaveCreds = jest.fn();
 
       mockUseMultiFileAuthState.mockResolvedValue({
         state: mockState,
         saveCreds: mockSaveCreds,
-      } as any);
+      });
 
       const handler = new AuthHandler(testSessionPath, testInstanceId);
       const result = await handler.initialize();

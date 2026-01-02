@@ -10,8 +10,8 @@
  * - Receiving various message types
  * - Fetch chat messages (v0.9.0)
  */
-import { createTestClient, waitForMessage, TEST_CONFIG } from '../setup';
-import { MiawClient } from '../../src';
+import { createTestClient, waitForMessage, TEST_CONFIG } from '../setup.js';
+import { MiawClient } from '../../src/index.js';
 
 describe('Message Receiving', () => {
   let client: MiawClient;

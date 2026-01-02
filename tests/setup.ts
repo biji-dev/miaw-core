@@ -2,7 +2,7 @@
  * Test Setup and Utilities
  */
 import { config } from 'dotenv';
-import { MiawClient } from '../src';
+import { MiawClient } from '../src/index.js';
 
 // Load test environment variables
 config({ path: '.env.test' });

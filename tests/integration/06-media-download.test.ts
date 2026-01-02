@@ -4,8 +4,8 @@
  * Tests for downloading media from received messages.
  * These tests require manual interaction - send media to the bot during test.
  */
-import { createTestClient, waitForEvent, waitForMessage, TEST_CONFIG } from '../setup';
-import { MiawClient, MiawMessage } from '../../src';
+import { createTestClient, waitForEvent, waitForMessage, TEST_CONFIG } from '../setup.js';
+import { MiawClient, MiawMessage } from '../../src/index.js';
 
 describe('Media Download', () => {
   let client: MiawClient;

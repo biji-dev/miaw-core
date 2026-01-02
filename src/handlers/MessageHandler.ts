@@ -1,4 +1,4 @@
-import { MiawMessage, MediaInfo } from '../types';
+import { MiawMessage, MediaInfo } from '../types/index.js';
 
 /**
  * Handles message normalization and parsing

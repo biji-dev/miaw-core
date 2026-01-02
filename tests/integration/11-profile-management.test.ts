@@ -11,8 +11,8 @@
  * NOTE: These tests modify your actual WhatsApp profile.
  * Use with caution and consider the original values.
  */
-import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup';
-import { MiawClient } from '../../src';
+import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
+import { MiawClient } from '../../src/index.js';
 
 describe('Profile Management', () => {
   let client: MiawClient;

@@ -7,7 +7,7 @@ import makeWASocket, {
   downloadMediaMessage,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import pino from 'pino';
 import {
   MiawClientOptions,
@@ -63,10 +63,10 @@ import {
   FetchChatMessagesResult,
   FetchAllChatsResult,
   ChatInfo,
-} from '../types';
-import * as path from 'path';
-import { AuthHandler } from '../handlers/AuthHandler';
-import { MessageHandler } from '../handlers/MessageHandler';
+} from '../types/index.js';
+import * as path from 'node:path';
+import { AuthHandler } from '../handlers/AuthHandler.js';
+import { MessageHandler } from '../handlers/MessageHandler.js';
 
 /**
  * LRU Cache for LID to JID mappings
@@ -285,11 +285,13 @@ export class MiawClient extends EventEmitter {
 
         // Build LID to JID mapping from incoming messages
         // Incoming messages have remoteJid (phone) and senderLid (LID)
-        if (!msg.key.fromMe && msg.key.senderLid && msg.key.remoteJid) {
-          const lid = msg.key.senderLid.endsWith('@lid')
-            ? msg.key.senderLid
-            : `${msg.key.senderLid}@lid`;
-          this.lidToJidMap.set(lid, msg.key.remoteJid);
+        // Note: senderLid may exist at runtime but isn't in Baileys v7 types
+        const msgKey = msg.key as { senderLid?: string; fromMe?: boolean; remoteJid?: string | null };
+        if (!msgKey.fromMe && msgKey.senderLid && msgKey.remoteJid) {
+          const lid = msgKey.senderLid.endsWith('@lid')
+            ? msgKey.senderLid
+            : `${msgKey.senderLid}@lid`;
+          this.lidToJidMap.set(lid, msgKey.remoteJid);
 
           if (this.options.debug) {
             console.log(`[LID Mapping] ${lid} -> ${msg.key.remoteJid}`);

@@ -16,8 +16,8 @@
  *
  * NOTE: Some tests require you to be the newsletter creator.
  */
-import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup';
-import { MiawClient } from '../../src';
+import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
+import { MiawClient } from '../../src/index.js';
 
 describe('Newsletter/Channel Features (v0.9.0)', () => {
   let client: MiawClient;

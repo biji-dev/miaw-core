@@ -4,7 +4,7 @@
  */
 
 // Main client
-export { MiawClient } from './client/MiawClient';
+export { MiawClient } from './client/MiawClient.js';
 
 // Types
 export {
@@ -62,7 +62,7 @@ export {
   FetchChatMessagesResult,
   FetchAllChatsResult,
   ChatInfo,
-} from './types';
+} from './types/index.js';
 
 // Utility exports for advanced users
-export { MessageHandler } from './handlers/MessageHandler';
+export { MessageHandler } from './handlers/MessageHandler.js';
