@@ -1580,13 +1580,13 @@ const tests: TestItem[] = [
       console.log("   [d] Disconnect from WhatsApp");
       console.log("   [c] Keep connected (for further testing)");
       const answer = await waitForInput("> [d/c]: ");
-      
+
       if (answer.toLowerCase() === "c") {
         console.log("✅ Keeping connection alive. You can continue testing.");
         console.log("   Run the script again to test more features.");
         return "skip";
       }
-      
+
       console.log("\n🔌 Disconnecting from WhatsApp...");
       await client.disconnect();
       console.log("✅ Disconnected");
@@ -1792,29 +1792,6 @@ function showHelp() {
   console.log("  business    - Business [BIZ] (labels + catalog)");
   console.log("  newsletter  - Newsletter (create, metadata, follow)");
   console.log("  ux          - UX Features (typing, presence, read receipts)");
-
-  // Count tests per category
-  const categoryCounts: { [key: string]: number } = {};
-  for (const test of tests) {
-    if (test.category !== "Prerequisites" && test.category !== "Final") {
-      categoryCounts[test.category] = (categoryCounts[test.category] || 0) + 1;
-    }
-  }
-
-  console.log("\n📊 Test counts by category:\n");
-  for (const [arg, categories] of Object.entries(CATEGORY_MAP)) {
-    const count = categories.reduce(
-      (sum, cat) => sum + (categoryCounts[cat] || 0),
-      0
-    );
-    const bizTag = arg === "business" ? " [BIZ]" : "";
-    console.log(`  ${arg.padEnd(12)} ${count} tests${bizTag}`);
-  }
-
-  const totalTests = tests.filter(
-    (t) => t.category !== "Prerequisites" && t.category !== "Final"
-  ).length;
-  console.log(`\n  Total: ${totalTests} tests`);
 
   console.log("\n💡 Examples:");
   console.log("  npm run test:manual all       # Run all tests");
