@@ -149,6 +149,8 @@ const TEST_CONFIG = {
   accountPhone: "",
   // Last created label (for addChatLabel test)
   lastCreatedLabelId: "",
+  // Last labeled chat JID (for removeChatLabel test)
+  lastLabeledChatJid: "",
   // Last created product (for catalog tests)
   lastCreatedProductId: "",
   // Track if user explicitly chose to disconnect
@@ -1230,7 +1232,12 @@ const tests: TestItem[] = [
       );
 
       console.log("Success:", result.success);
-      if (!result.success) {
+      if (result.success) {
+        // Store the chat JID for removeChatLabel test
+        TEST_CONFIG.lastLabeledChatJid = phone.includes("@")
+          ? phone
+          : `${phone}@s.whatsapp.net`;
+      } else {
         console.log("Error:", result.error);
       }
 
@@ -1241,9 +1248,31 @@ const tests: TestItem[] = [
     category: "Business",
     name: "removeChatLabel() - Remove label from chat",
     businessOnly: true,
-    action: async () => {
-      console.log("\n🏷️  Skipping remove chat label test...");
-      return "skip";
+    action: async (client: MiawClient) => {
+      if (!TEST_CONFIG.lastCreatedLabelId || !TEST_CONFIG.lastLabeledChatJid) {
+        console.log("\n⚠️  No label or chat to remove label from.");
+        console.log("   Run addChatLabel() test first.");
+        return "skip";
+      }
+
+      console.log(
+        `\n🏷️  Removing label ${TEST_CONFIG.lastCreatedLabelId} from chat ${TEST_CONFIG.lastLabeledChatJid}...`
+      );
+
+      const result = await client.removeChatLabel(
+        TEST_CONFIG.lastLabeledChatJid,
+        TEST_CONFIG.lastCreatedLabelId
+      );
+
+      console.log("Success:", result.success);
+      if (result.success) {
+        // Clear tracked values after successful removal
+        TEST_CONFIG.lastLabeledChatJid = "";
+      } else {
+        console.log("Error:", result.error);
+      }
+
+      return result.success;
     },
   },
   {
