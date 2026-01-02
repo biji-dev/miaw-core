@@ -15,8 +15,8 @@
  * - TEST_CONTACT_PHONE_A: A phone number to test add/remove operations
  * - The bot must be an admin in the test group to perform admin operations
  */
-import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup';
-import { MiawClient } from '../../src';
+import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
+import { MiawClient } from '../../src/index.js';
 
 describe('Group Management', () => {
   let client: MiawClient;

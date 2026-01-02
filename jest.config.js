@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
@@ -12,15 +12,19 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testTimeout: 60000, // 60 seconds for integration tests
   verbose: true,
-  // Transform TypeScript files with ts-jest, ESM modules with babel
+  // ESM support
+  extensionsToTreatAsEsm: ['.ts'],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
   transform: {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
         tsconfig: 'tsconfig.test.json',
+        useESM: true,
       },
     ],
-    '^.+\\.m?jsx?$': 'babel-jest',
   },
   // Don't transform node_modules except @whiskeysockets
   transformIgnorePatterns: [

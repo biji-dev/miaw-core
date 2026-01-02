@@ -11,14 +11,7 @@
  * Newsletter features work with regular WhatsApp accounts.
  */
 
-import {
-  MiawClient,
-  LabelColor,
-  PredefinedLabelId,
-  Label,
-  Product,
-  ProductOptions,
-} from "miaw-core";
+import { MiawClient, LabelColor, Label, ProductOptions } from "miaw-core";
 import qrcode from "qrcode-terminal";
 
 const client = new MiawClient({
@@ -36,7 +29,7 @@ client.on("ready", () => {
 
 client.on("message", async (message) => {
   const text = message.text?.toLowerCase() || "";
-  const isBusinessAccount = message.from.endsWith("@s.whatsapp.net");
+  const _isBusinessAccount = message.from.endsWith("@s.whatsapp.net");
 
   // ============================================================
   // LABEL OPERATIONS (WhatsApp Business Only)
@@ -53,7 +46,10 @@ client.on("message", async (message) => {
     const result = await client.addLabel(label);
 
     if (result.success) {
-      await client.sendText(message.from, `✅ Label created! ID: ${result.labelId}`);
+      await client.sendText(
+        message.from,
+        `✅ Label created! ID: ${result.labelId}`
+      );
     } else {
       await client.sendText(message.from, `❌ Failed: ${result.error}`);
     }
@@ -102,7 +98,11 @@ client.on("message", async (message) => {
   // Add label to received message
   if (text.startsWith("!addmsglabel ") && message.id) {
     const labelId = text.substring(13).trim();
-    const result = await client.addMessageLabel(message.id, message.from, labelId);
+    const result = await client.addMessageLabel(
+      message.id,
+      message.from,
+      labelId
+    );
 
     if (result.success) {
       await client.sendText(message.from, `✅ Label added to message!`);
@@ -131,7 +131,10 @@ client.on("message", async (message) => {
       }
       await client.sendText(message.from, response);
     } else {
-      await client.sendText(message.from, "❌ No catalog found or not a business account");
+      await client.sendText(
+        message.from,
+        "❌ No catalog found or not a business account"
+      );
     }
   }
 
@@ -168,7 +171,10 @@ client.on("message", async (message) => {
     const result = await client.createProduct(productData);
 
     if (result.success) {
-      await client.sendText(message.from, `✅ Product added! ID: ${result.productId}`);
+      await client.sendText(
+        message.from,
+        `✅ Product added! ID: ${result.productId}`
+      );
     } else {
       await client.sendText(message.from, `❌ Failed: ${result.error}`);
     }
@@ -184,7 +190,10 @@ client.on("message", async (message) => {
     const result = await client.createNewsletter(name);
 
     if (result.success && result.newsletterId) {
-      await client.sendText(message.from, `✅ Newsletter created!\nID: ${result.newsletterId}\n\nShare this ID for others to follow!`);
+      await client.sendText(
+        message.from,
+        `✅ Newsletter created!\nID: ${result.newsletterId}\n\nShare this ID for others to follow!`
+      );
     } else {
       await client.sendText(message.from, `❌ Failed: ${result.error}`);
     }
@@ -269,10 +278,10 @@ client.on("message", async (message) => {
     // Usage: !reactnewsletter newsletterId emoji
     const parts = text.substring(17).split(" ");
     if (parts.length >= 2) {
-      const newsletterId = parts[0];
+      const _newsletterId = parts[0];
       const emoji = parts[1];
       // Note: You need a specific message ID from the newsletter
-      // await client.reactToNewsletterMessage(newsletterId, messageId, emoji);
+      // await client.reactToNewsletterMessage(_newsletterId, messageId, emoji);
       await client.sendText(message.from, `Reacted with ${emoji}!`);
     }
   }

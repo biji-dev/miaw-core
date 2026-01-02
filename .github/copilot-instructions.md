@@ -4,6 +4,8 @@
 
 Miaw Core is a TypeScript wrapper for [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys) that simplifies WhatsApp bot development. It abstracts Baileys complexity (session management, QR codes, reconnection, message parsing) into a clean event-driven API.
 
+**Important:** This is an ESM-only package (Node.js >= 18.0.0). All imports must use `.js` extensions for relative paths.
+
 ## Architecture
 
 ```
@@ -17,6 +19,7 @@ src/
 ```
 
 **Key Design Decisions:**
+
 - `MiawClient` extends `EventEmitter` - all state changes emit events (`qr`, `ready`, `message`, `message_edit`, `message_delete`, `message_reaction`, `presence`)
 - `MiawMessage` is the normalized message format - always return this instead of raw Baileys structures
 - JID formats: `@s.whatsapp.net` (phone), `@lid` (privacy-enhanced), `@g.us` (groups) - use `MessageHandler.formatPhoneToJid()` for conversion
@@ -25,19 +28,24 @@ src/
 ## Code Patterns
 
 ### Adding New Send Methods
+
 Follow the pattern in `MiawClient.sendText()`:
+
 1. Check `this.socket` and `this.connectionState === 'connected'`
 2. Format recipient with `MessageHandler.formatPhoneToJid(to)`
 3. Build content payload matching Baileys' `AnyMessageContent`
 4. Return `SendMessageResult` with `{ success, messageId?, error? }`
 
 ### Adding New Types
+
 1. Define interface in `src/types/index.ts`
 2. Export from `src/index.ts`
 3. Import in `MiawClient.ts` if needed
 
 ### Message Normalization
+
 When handling new message types, add extraction logic in `MessageHandler.normalize()`:
+
 ```typescript
 } else if (actualMessage?.newMessageType) {
   type = 'newtype';
@@ -80,6 +88,26 @@ npm run test:manual  # Interactive testing with live WhatsApp connection
 
 ## Dependencies
 
-- `@whiskeysockets/baileys` - Core WhatsApp Web API (check version compatibility in ROADMAP.md)
+- `@whiskeysockets/baileys` v7.0.0-rc.9 - Core WhatsApp Web API (ESM-only)
 - `pino` - Logging (silent by default, verbose with `debug: true`)
 - `@hapi/boom` - Error handling for Baileys disconnection reasons
+
+## ESM Import Rules
+
+All relative imports must include `.js` extensions:
+
+```typescript
+// ✅ Correct
+import { MessageHandler } from "./handlers/MessageHandler.js";
+import { MiawMessage } from "../types/index.js";
+
+// ❌ Wrong (will fail at runtime)
+import { MessageHandler } from "./handlers/MessageHandler";
+```
+
+Node.js built-ins should use `node:` prefix:
+
+```typescript
+import { join } from "node:path";
+import { existsSync } from "node:fs";
+```

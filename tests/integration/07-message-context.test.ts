@@ -7,8 +7,8 @@
  * - Receive delete notifications
  * - Receive reactions
  */
-import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup';
-import { MiawClient, MiawMessage, MessageEdit, MessageDelete, MessageReaction } from '../../src';
+import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js';
+import { MiawClient, MiawMessage, MessageEdit, MessageDelete, MessageReaction } from '../../src/index.js';
 
 describe('Message Context - Quoted/Reply', () => {
   let client: MiawClient;

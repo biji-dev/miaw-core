@@ -9,7 +9,7 @@
  * - Subscribing to presence updates
  */
 
-import { MiawClient, PresenceStatus } from "miaw-core";
+import { MiawClient } from "miaw-core";
 import qrcode from "qrcode-terminal";
 
 const client = new MiawClient({
@@ -113,7 +113,9 @@ client.on("presence", async (presence) => {
     console.log(`${status}: ${presence.jid}`);
 
     if (presence.lastSeen) {
-      console.log(`   Last seen: ${new Date(presence.lastSeen * 1000).toLocaleString()}`);
+      console.log(
+        `   Last seen: ${new Date(presence.lastSeen * 1000).toLocaleString()}`
+      );
     }
   }
 });
@@ -133,7 +135,7 @@ client.on("message", async (message) => {
 });
 
 // Simulate processing with typing indicator
-async function processWithTyping(jid: string, fn: () => Promise<any>) {
+async function _processWithTyping(jid: string, fn: () => Promise<any>) {
   await client.sendTyping(jid);
   try {
     await fn();
