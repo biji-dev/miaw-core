@@ -2881,7 +2881,8 @@ export class MiawClient extends EventEmitter {
    * @param businessJidOrPhone - Business JID or phone number (default: your own collections)
    * @param limit - Maximum number of collections to fetch (default: 51)
    * @returns Array of ProductCollection
-   * @note Requires WhatsApp Business account
+   * @note Requires WhatsApp Business account with collections created via the catalog API.
+   *       Collections created in the WhatsApp Business app may not appear here.
    */
   async getCollections(
     businessJidOrPhone?: string,
@@ -2901,6 +2902,7 @@ export class MiawClient extends EventEmitter {
       const jid = businessJidOrPhone
         ? MessageHandler.formatPhoneToJid(businessJidOrPhone)
         : undefined;
+
       const result = await this.socket.getCollections(jid, limit);
 
       return (result.collections || []).map((col: any) => ({

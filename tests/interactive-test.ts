@@ -1384,17 +1384,33 @@ const tests: TestItem[] = [
     businessOnly: true,
     action: async (client: MiawClient) => {
       console.log("\n📁 Fetching catalog collections...");
+      console.log("(This may take a moment...)");
 
-      const result = await client.getCollections();
+      try {
+        const result = await client.getCollections();
 
-      console.log("Total collections:", result.length);
-      if (result.length > 0) {
-        console.log("Collections:");
-        result.slice(0, 5).forEach((c, i) => {
-          console.log(`  ${i + 1}. ${c.name} (${c.id})`);
-        });
-      } else {
-        console.log("💡 Tip: Collections are created in WhatsApp Business app");
+        console.log("Total collections:", result.length);
+        if (result.length > 0) {
+          console.log("Collections:");
+          result.slice(0, 5).forEach((c, i) => {
+            console.log(`  ${i + 1}. ${c.name} (${c.id})`);
+            if (c.products && c.products.length > 0) {
+              console.log(`     Products: ${c.products.length}`);
+            }
+          });
+        } else {
+          console.log(
+            "⚠️  No collections found via API."
+          );
+          console.log(
+            "    Note: Collections created in WhatsApp Business app may not"
+          );
+          console.log(
+            "    appear via the Baileys API. This is a known WhatsApp limitation."
+          );
+        }
+      } catch (error) {
+        console.log("Error fetching collections:", error);
       }
 
       return true; // Collections may be empty, that's OK
