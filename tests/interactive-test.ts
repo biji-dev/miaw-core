@@ -153,6 +153,8 @@ const TEST_CONFIG = {
   lastCreatedProductId: "",
   // Track if user explicitly chose to disconnect
   shouldDisconnect: false,
+  // Track if using existing session (skip setup tests)
+  useExistingSession: false,
 };
 
 // Test results tracking
@@ -1812,12 +1814,27 @@ function showHelp() {
 // Get tests to run based on CLI argument
 function getTestsToRun(): TestItem[] {
   if (cliArg === "all") {
+    // For 'all', include setup tests only if not using existing session
+    if (TEST_CONFIG.useExistingSession) {
+      return tests.filter(
+        (t) => t.category !== "Prerequisites" && t.category !== "Core Client"
+      );
+    }
     return tests;
   }
 
   const targetCategories = CATEGORY_MAP[cliArg];
   if (!targetCategories) {
     return []; // Will trigger help display
+  }
+
+  // If using existing session, skip Prerequisites and Core Client setup
+  if (TEST_CONFIG.useExistingSession) {
+    const categoryTests = tests.filter((t) =>
+      targetCategories.includes(t.category)
+    );
+    const disconnectTest = tests.filter((t) => t.category === "Final");
+    return [...categoryTests, ...disconnectTest];
   }
 
   // Filter tests by category, but always include connection setup
@@ -1849,7 +1866,6 @@ async function main() {
     return;
   }
 
-  const testsToRun = getTestsToRun();
   const targetDesc = cliArg === "all" ? "all tests" : `${cliArg} tests`;
 
   console.log(
@@ -1906,6 +1922,7 @@ async function main() {
       console.log("✅ Session cleared. You will need to scan a new QR code.");
     } else {
       console.log("✅ Using existing session.");
+      TEST_CONFIG.useExistingSession = true;
     }
   } else {
     console.log(
@@ -1913,14 +1930,42 @@ async function main() {
     );
   }
 
-  await waitForEnter("\n> Press ENTER to start...");
+  // Get tests to run (after session decision is made)
+  const testsToRun = getTestsToRun();
 
-  // Create client once
+  // Create client
   const client = new MiawClient({
     instanceId: TEST_CONFIG.instanceId,
     sessionPath: TEST_CONFIG.sessionPath,
     debug: DEBUG_MODE,
   });
+
+  // Auto-connect if using existing session
+  if (TEST_CONFIG.useExistingSession) {
+    console.log("\n🔌 Auto-connecting with existing session...");
+    client.connect();
+
+    // Wait for ready
+    const connected = await new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => resolve(false), 30000);
+      client.once("ready", () => {
+        clearTimeout(timeout);
+        resolve(true);
+      });
+    });
+
+    if (!connected) {
+      console.log("❌ Failed to connect with existing session.");
+      console.log("   Try running with a fresh session.");
+      process.exit(1);
+    }
+
+    console.log("✅ Connected!");
+    await detectAccountType(client);
+    console.log("\n🚀 Starting tests...\n");
+  } else {
+    await waitForEnter("\n> Press ENTER to start...");
+  }
 
   // Run tests sequentially
   let lastResult: "pass" | "fail" | "skip" | null = null;
