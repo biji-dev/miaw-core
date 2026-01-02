@@ -2,6 +2,11 @@
 
 This document covers all current capabilities of Miaw Core. It will be updated as new features are added.
 
+## Requirements
+
+- **Node.js** >= 18.0.0
+- **ESM** - This package is ESM-only (uses `"type": "module"`)
+
 ## Table of Contents
 
 - [Installation](#installation)
