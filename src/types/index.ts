@@ -98,7 +98,14 @@ export interface MiawMessage {
   fromMe: boolean;
 
   /** Message type */
-  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'unknown';
+  type:
+    | "text"
+    | "image"
+    | "video"
+    | "audio"
+    | "document"
+    | "sticker"
+    | "unknown";
 
   /** Media metadata (only present for media messages: image, video, audio, document, sticker) */
   media?: MediaInfo;
@@ -111,11 +118,11 @@ export interface MiawMessage {
  * Connection states
  */
 export type ConnectionState =
-  | 'disconnected'
-  | 'connecting'
-  | 'connected'
-  | 'reconnecting'
-  | 'qr_required';
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "qr_required";
 
 /**
  * Message edit notification
@@ -377,7 +384,7 @@ export interface GroupParticipant {
   jid: string;
 
   /** Participant's role in the group */
-  role: 'admin' | 'superadmin' | 'member';
+  role: "admin" | "superadmin" | "member";
 }
 
 /**
@@ -415,7 +422,7 @@ export interface GroupInfo {
 /**
  * Presence status types
  */
-export type PresenceStatus = 'available' | 'unavailable';
+export type PresenceStatus = "available" | "unavailable";
 
 /**
  * Presence update from a contact
@@ -425,7 +432,7 @@ export interface PresenceUpdate {
   jid: string;
 
   /** Last known presence status */
-  status: 'available' | 'unavailable' | 'composing' | 'recording' | 'paused';
+  status: "available" | "unavailable" | "composing" | "recording" | "paused";
 
   /** Last seen timestamp (if available) */
   lastSeen?: number;
@@ -602,29 +609,31 @@ export interface ProductImage {
 }
 
 /**
- * Product information
+ * Product information (matches Baileys v7 format)
  */
 export interface Product {
   /** Unique product ID (from WhatsApp) */
   id?: string;
-  /** Product name/URL (for images) or product data */
-  productUrl?: string;
   /** Product name */
   name?: string;
   /** Product description */
   description?: string;
-  /** Product price in cents (multiply by 100) */
-  priceAmount1000?: number;
-  /** Product images */
-  images?: ProductImage[];
+  /** Product price */
+  price?: number;
+  /** Currency code (e.g., "USD") */
+  currency?: string;
+  /** Product retailer ID (your internal SKU) */
+  retailerId?: string | null;
+  /** Product URL */
+  url?: string | null;
   /** Whether product is hidden */
   isHidden?: boolean;
-  /** Product retailer ID (your internal SKU) */
-  retailerId?: string;
-  /** Product URL */
-  url?: string;
-  /** Product count (for collections) */
-  count?: number;
+  /** Product image URLs from Baileys */
+  imageUrls?: { [key: string]: string };
+  /** Product availability */
+  availability?: string;
+  /** Review status */
+  reviewStatus?: { [key: string]: string };
 }
 
 /**
@@ -668,15 +677,17 @@ export interface ProductOperationResult {
 }
 
 /**
- * Options for creating/updating a product
+ * Options for creating/updating a product (matches Baileys v7 format)
  */
 export interface ProductOptions {
   /** Product name */
   name: string;
   /** Product description */
-  description?: string;
-  /** Product price in smallest currency unit (e.g., cents for USD) */
+  description: string;
+  /** Product price (numeric value) */
   price: number;
+  /** Currency code (e.g., "USD", "BRL", "IDR") */
+  currency: string;
   /** Product image URLs */
   imageUrls?: string[];
   /** Whether product is hidden from catalog */
@@ -685,6 +696,8 @@ export interface ProductOptions {
   retailerId?: string;
   /** Product landing page URL */
   url?: string;
+  /** ISO country code for product origin (for compliance) */
+  originCountryCode?: string;
 }
 
 // ============================================
