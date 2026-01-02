@@ -155,6 +155,8 @@ const TEST_CONFIG = {
   shouldDisconnect: false,
   // Track if using existing session (skip setup tests)
   useExistingSession: false,
+  // Track last reacted message for removeReaction test
+  lastReactedMessage: null as any,
 };
 
 // Test results tracking
@@ -540,18 +542,38 @@ const tests: TestItem[] = [
 
       const result = await client.sendReaction(message, "👍");
       console.log("Success:", result.success);
+
+      // Store for removeReaction test
+      if (result.success) {
+        TEST_CONFIG.lastReactedMessage = message;
+      }
+
       return result.success;
     },
   },
   {
     category: "Messaging",
     name: "removeReaction() - Remove reaction",
-    action: async () => {
+    action: async (client: MiawClient) => {
+      if (!TEST_CONFIG.lastReactedMessage) {
+        console.log("\n⚠️  No previous reaction to remove.");
+        console.log("   Run sendReaction() test first.");
+        return "skip";
+      }
+
       console.log("\n📝 Removing reaction from previous message...");
-      // Get last message we sent reaction to
-      // For simplicity, skip this test
-      console.log("Skipping - requires tracking last reacted message");
-      return "skip";
+      const result = await client.sendReaction(
+        TEST_CONFIG.lastReactedMessage,
+        "" // Empty string removes reaction
+      );
+      console.log("Success:", result.success);
+
+      // Clear the tracked message
+      if (result.success) {
+        TEST_CONFIG.lastReactedMessage = null;
+      }
+
+      return result.success;
     },
   },
   {
