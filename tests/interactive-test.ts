@@ -1357,14 +1357,24 @@ const tests: TestItem[] = [
             );
           });
 
-          // If we created a product earlier but lost the ID, try to recover it
-          if (!TEST_CONFIG.lastCreatedProductId && result.products.length > 0) {
+          // Always try to recover/set a product ID for subsequent tests
+          if (!TEST_CONFIG.lastCreatedProductId) {
+            // First, try to find a test product we created earlier
             const testProduct = result.products.find((p) =>
               p.name?.startsWith("Test Product")
             );
             if (testProduct) {
               TEST_CONFIG.lastCreatedProductId = testProduct.id;
               console.log(`📌 Recovered test product ID: ${testProduct.id}`);
+            } else {
+              // If no test product, use the first product for update/delete tests
+              TEST_CONFIG.lastCreatedProductId = result.products[0].id;
+              console.log(
+                `📌 Using existing product for tests: ${result.products[0].id}`
+              );
+              console.log(
+                `   (${result.products[0].name || "Unnamed"} - ${result.products[0].price} ${result.products[0].currency || ""})`
+              );
             }
           }
         }
@@ -1399,9 +1409,7 @@ const tests: TestItem[] = [
             }
           });
         } else {
-          console.log(
-            "⚠️  No collections found via API."
-          );
+          console.log("⚠️  No collections found via API.");
           console.log(
             "    Note: Collections created in WhatsApp Business app may not"
           );
@@ -1422,7 +1430,9 @@ const tests: TestItem[] = [
     businessOnly: true,
     action: async (client: MiawClient) => {
       if (!TEST_CONFIG.lastCreatedProductId) {
-        console.log("\n⚠️  No product created yet. Run createProduct() first.");
+        console.log(
+          "\n⚠️  No product ID tracked. Run getCatalog() first to auto-detect."
+        );
         return "skip";
       }
 
@@ -1454,7 +1464,9 @@ const tests: TestItem[] = [
     businessOnly: true,
     action: async (client: MiawClient) => {
       if (!TEST_CONFIG.lastCreatedProductId) {
-        console.log("\n⚠️  No product to delete. Run createProduct() first.");
+        console.log(
+          "\n⚠️  No product ID tracked. Run getCatalog() first to auto-detect."
+        );
         return "skip";
       }
 
