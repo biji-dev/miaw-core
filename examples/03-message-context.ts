@@ -90,7 +90,9 @@ client.on("message_delete", async (deletion) => {
 
 // Handle reactions
 client.on("message_reaction", async (reaction) => {
-  console.log(`😀 Reaction: ${reaction.emoji} to message ${reaction.messageId}`);
+  console.log(
+    `😀 Reaction: ${reaction.emoji} to message ${reaction.messageId}`
+  );
 
   if (reaction.isRemoval) {
     console.log("   (Reaction removed)");

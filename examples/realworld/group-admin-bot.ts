@@ -155,26 +155,39 @@ class GroupAdminBot {
     await this.checkContent(message, groupData);
   }
 
-  private async handleCommand(message: MiawMessage, groupData: GroupData): Promise<void> {
+  private async handleCommand(
+    message: MiawMessage,
+    groupData: GroupData
+  ): Promise<void> {
     const text = message.text || "";
     const parts = text.split(" ");
     const command = parts[0].toLowerCase();
     const args = parts.slice(1);
 
     // Admin-only commands
-    if (CONFIG.adminOnly && !groupData.members[message.senderPhone || ""]?.isAdmin) {
+    if (
+      CONFIG.adminOnly &&
+      !groupData.members[message.senderPhone || ""]?.isAdmin
+    ) {
       // Check if user is actually an admin in the group
       const participants = await this.client.getGroupParticipants(message.from);
-      const isAdmin = participants.some((p) => p.jid === message.from && (p.isAdmin || p.isSuperAdmin));
+      const isAdmin = participants.some(
+        (p) => p.jid === message.from && (p.isAdmin || p.isSuperAdmin)
+      );
 
       if (!isAdmin && command !== "!help") {
-        await this.client.sendText(message.from, "❌ This command is for admins only.");
+        await this.client.sendText(
+          message.from,
+          "❌ This command is for admins only."
+        );
         return;
       }
 
       // Mark as admin
       if (message.senderPhone) {
-        groupData.members[message.senderPhone] = groupData.members[message.senderPhone] || {
+        groupData.members[message.senderPhone] = groupData.members[
+          message.senderPhone
+        ] || {
           joinedAt: Date.now(),
           lastActive: Date.now(),
           messageCount: 0,
@@ -234,7 +247,8 @@ class GroupAdminBot {
   }
 
   private async showHelp(message: MiawMessage): Promise<void> {
-    const help = `🤖 *Group Admin Bot Commands*\n\n` +
+    const help =
+      `🤖 *Group Admin Bot Commands*\n\n` +
       `*Everyone:*\n` +
       `!help - Show this message\n` +
       `!rules - Show group rules\n` +
@@ -250,22 +264,30 @@ class GroupAdminBot {
     await this.client.sendText(message.from, help);
   }
 
-  private async showStats(message: MiawMessage, groupData: GroupData): Promise<void> {
+  private async showStats(
+    message: MiawMessage,
+    groupData: GroupData
+  ): Promise<void> {
     const totalMembers = Object.keys(groupData.members).length;
     const activeMembers = Object.values(groupData.members).filter(
       (m) => Date.now() - m.lastActive < 7 * 24 * 60 * 60 * 1000 // Active in last 7 days
     ).length;
 
-    const stats = `📊 *Group Statistics*\n\n` +
+    const stats =
+      `📊 *Group Statistics*\n\n` +
       `Total Members: ${totalMembers}\n` +
       `Active Members (7d): ${activeMembers}\n` +
-      `Total Messages: ${Object.values(groupData.members).reduce((sum, m) => sum + m.messageCount, 0)}`;
+      `Total Messages: ${Object.values(groupData.members).reduce(
+        (sum, m) => sum + m.messageCount,
+        0
+      )}`;
 
     await this.client.sendText(message.from, stats);
   }
 
   private async showRules(message: MiawMessage): Promise<void> {
-    const rules = `📜 *Group Rules*\n\n` +
+    const rules =
+      `📜 *Group Rules*\n\n` +
       `1. Be respectful to all members\n` +
       `2. No spam or self-promotion\n` +
       `3. Stay on topic\n` +
@@ -276,10 +298,18 @@ class GroupAdminBot {
     await this.client.sendText(message.from, rules);
   }
 
-  private async showSettings(message: MiawMessage, groupData: GroupData): Promise<void> {
-    const settings = `⚙️ *Group Settings*\n\n` +
-      `Welcome Messages: ${groupData.settings.welcomeEnabled ? "✅ On" : "❌ Off"}\n` +
-      `Links Allowed: ${groupData.settings.linkAllowed ? "✅ Yes" : "❌ No"}\n` +
+  private async showSettings(
+    message: MiawMessage,
+    groupData: GroupData
+  ): Promise<void> {
+    const settings =
+      `⚙️ *Group Settings*\n\n` +
+      `Welcome Messages: ${
+        groupData.settings.welcomeEnabled ? "✅ On" : "❌ Off"
+      }\n` +
+      `Links Allowed: ${
+        groupData.settings.linkAllowed ? "✅ Yes" : "❌ No"
+      }\n` +
       `Spam Threshold: ${groupData.settings.spamThreshold} msgs/min`;
 
     await this.client.sendText(message.from, settings);
@@ -297,7 +327,11 @@ class GroupAdminBot {
     await this.client.sendText(message.from, warnMsg, { quoted: message });
   }
 
-  private async kickUser(message: MiawMessage, phone: string, groupData: GroupData): Promise<void> {
+  private async kickUser(
+    message: MiawMessage,
+    phone: string,
+    groupData: GroupData
+  ): Promise<void> {
     if (!phone) {
       await this.client.sendText(message.from, "Usage: !kick @phone");
       return;
@@ -307,16 +341,25 @@ class GroupAdminBot {
     const result = await this.client.removeParticipants(message.from, [phone]);
 
     if (result[0]?.success) {
-      await this.client.sendText(message.from, `✅ Removed ${phone} from the group.`);
+      await this.client.sendText(
+        message.from,
+        `✅ Removed ${phone} from the group.`
+      );
       delete groupData.members[phone];
     } else {
-      await this.client.sendText(message.from, `❌ Failed to remove ${phone}. Are they an admin?`);
+      await this.client.sendText(
+        message.from,
+        `❌ Failed to remove ${phone}. Are they an admin?`
+      );
     }
   }
 
   private async announce(message: MiawMessage, text: string): Promise<void> {
     if (!text) {
-      await this.client.sendText(message.from, "Usage: !announce your message here");
+      await this.client.sendText(
+        message.from,
+        "Usage: !announce your message here"
+      );
       return;
     }
 
@@ -324,21 +367,39 @@ class GroupAdminBot {
     await this.client.sendText(message.from, announcement);
   }
 
-  private async toggleWelcome(message: MiawMessage, groupData: GroupData): Promise<void> {
+  private async toggleWelcome(
+    message: MiawMessage,
+    groupData: GroupData
+  ): Promise<void> {
     const enabled = message.text?.toLowerCase().includes("on");
     groupData.settings.welcomeEnabled = enabled;
-    await this.client.sendText(message.from, `✅ Welcome messages ${enabled ? "enabled" : "disabled"}.`);
+    await this.client.sendText(
+      message.from,
+      `✅ Welcome messages ${enabled ? "enabled" : "disabled"}.`
+    );
   }
 
-  private async toggleLinks(message: MiawMessage, groupData: GroupData): Promise<void> {
-    const allowed = message.text?.toLowerCase().includes("on") || message.text?.toLowerCase().includes("allow");
+  private async toggleLinks(
+    message: MiawMessage,
+    groupData: GroupData
+  ): Promise<void> {
+    const allowed =
+      message.text?.toLowerCase().includes("on") ||
+      message.text?.toLowerCase().includes("allow");
     groupData.settings.linkAllowed = allowed;
-    await this.client.sendText(message.from, `✅ Links ${allowed ? "allowed" : "blocked"}.`);
+    await this.client.sendText(
+      message.from,
+      `✅ Links ${allowed ? "allowed" : "blocked"}.`
+    );
   }
 
-  private async cleanInactive(message: MiawMessage, groupData: GroupData): Promise<void> {
+  private async cleanInactive(
+    message: MiawMessage,
+    groupData: GroupData
+  ): Promise<void> {
     const now = Date.now();
-    const inactiveThreshold = CONFIG.moderation.inactiveDays * 24 * 60 * 60 * 1000;
+    const inactiveThreshold =
+      CONFIG.moderation.inactiveDays * 24 * 60 * 60 * 1000;
     const inactivePhones: string[] = [];
 
     for (const [phone, member] of Object.entries(groupData.members)) {
@@ -364,10 +425,16 @@ class GroupAdminBot {
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Rate limit
     }
 
-    await this.client.sendText(message.from, `✅ Removed ${inactivePhones.length} inactive members.`);
+    await this.client.sendText(
+      message.from,
+      `✅ Removed ${inactivePhones.length} inactive members.`
+    );
   }
 
-  private async checkSpam(message: MiawMessage, groupData: GroupData): Promise<void> {
+  private async checkSpam(
+    message: MiawMessage,
+    groupData: GroupData
+  ): Promise<void> {
     const senderPhone = message.senderPhone;
     if (!senderPhone || groupData.members[senderPhone]?.isAdmin) return;
 
@@ -385,12 +452,17 @@ class GroupAdminBot {
     groupData.spamLog[senderPhone].push(now);
 
     // Check threshold
-    if (groupData.spamLog[senderPhone].length > groupData.settings.spamThreshold) {
+    if (
+      groupData.spamLog[senderPhone].length > groupData.settings.spamThreshold
+    ) {
       const warnings = ++groupData.members[senderPhone].warnings;
 
       if (warnings >= 3) {
         // Kick after 3 warnings
-        await this.client.sendText(message.from, `🚫 ${senderPhone} has been removed for spam.`);
+        await this.client.sendText(
+          message.from,
+          `🚫 ${senderPhone} has been removed for spam.`
+        );
         await this.client.removeParticipants(message.from, [senderPhone]);
       } else {
         await this.client.sendText(
@@ -401,21 +473,33 @@ class GroupAdminBot {
     }
   }
 
-  private async checkContent(message: MiawMessage, groupData: GroupData): Promise<void> {
+  private async checkContent(
+    message: MiawMessage,
+    groupData: GroupData
+  ): Promise<void> {
     const text = message.text?.toLowerCase() || "";
     const _senderPhone = message.senderPhone;
 
     // Check for bad words
     for (const badWord of CONFIG.moderation.badWords) {
       if (text.includes(badWord)) {
-        await this.client.sendText(message.from, `⚠️ Please avoid using inappropriate language.`);
+        await this.client.sendText(
+          message.from,
+          `⚠️ Please avoid using inappropriate language.`
+        );
         return;
       }
     }
 
     // Check for links if not allowed
-    if (!groupData.settings.linkAllowed && (text.includes("http://") || text.includes("https://"))) {
-      await this.client.sendText(message.from, `⚠️ Links are not allowed in this group.`);
+    if (
+      !groupData.settings.linkAllowed &&
+      (text.includes("http://") || text.includes("https://"))
+    ) {
+      await this.client.sendText(
+        message.from,
+        `⚠️ Links are not allowed in this group.`
+      );
     }
   }
 

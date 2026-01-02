@@ -113,7 +113,9 @@ client.on("presence", async (presence) => {
     console.log(`${status}: ${presence.jid}`);
 
     if (presence.lastSeen) {
-      console.log(`   Last seen: ${new Date(presence.lastSeen * 1000).toLocaleString()}`);
+      console.log(
+        `   Last seen: ${new Date(presence.lastSeen * 1000).toLocaleString()}`
+      );
     }
   }
 });

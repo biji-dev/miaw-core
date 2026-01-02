@@ -184,7 +184,11 @@ class BroadcastBot {
   /**
    * Create a new campaign
    */
-  createCampaign(name: string, message: string, recipientFilter?: (c: Contact) => boolean): string {
+  createCampaign(
+    name: string,
+    message: string,
+    recipientFilter?: (c: Contact) => boolean
+  ): string {
     const campaignId = `campaign_${Date.now()}`;
 
     // Get recipients (filter opted out and apply custom filter)
@@ -207,7 +211,9 @@ class BroadcastBot {
     this.data.campaigns[campaignId] = campaign;
     this.saveData();
 
-    console.log(`✅ Campaign created: ${name} (${recipients.length} recipients)`);
+    console.log(
+      `✅ Campaign created: ${name} (${recipients.length} recipients)`
+    );
     return campaignId;
   }
 
@@ -240,7 +246,9 @@ class BroadcastBot {
         await this.client.sendText(recipient, campaign.message);
         campaign.sent++;
 
-        console.log(`✅ Sent to ${recipient} (${campaign.sent}/${campaign.total})`);
+        console.log(
+          `✅ Sent to ${recipient} (${campaign.sent}/${campaign.total})`
+        );
 
         // Rate limiting
         await this.sleep(CONFIG.rateLimit.delayBetweenMessages);
@@ -292,7 +300,9 @@ class BroadcastBot {
    */
   showStats(): void {
     const totalContacts = Object.keys(this.data.contacts).length;
-    const optedOut = Object.values(this.data.contacts).filter((c) => c.optedOut).length;
+    const optedOut = Object.values(this.data.contacts).filter(
+      (c) => c.optedOut
+    ).length;
     const active = totalContacts - optedOut;
 
     console.log("\n📊 Broadcast Bot Statistics:");

@@ -42,23 +42,25 @@ client.on("message", async (message) => {
         `✅ *${phone}* is on WhatsApp!\nJID: ${result.jid}`
       );
     } else {
-      await client.sendText(
-        message.from,
-        `❌ *${phone}* is not on WhatsApp.`
-      );
+      await client.sendText(message.from, `❌ *${phone}* is not on WhatsApp.`);
     }
   }
 
   // Check multiple numbers
   // Usage: !checkmany 628123456789,628987654321
   if (text.startsWith("!checkmany ")) {
-    const phones = text.substring(11).split(",").map((p) => p.trim());
+    const phones = text
+      .substring(11)
+      .split(",")
+      .map((p) => p.trim());
     const results = await client.checkNumbers(phones);
 
     let response = "*WhatsApp Number Check Results:*\n\n";
     for (const [phone, result] of Object.entries(results)) {
       const status = result.exists ? "✅" : "❌";
-      response += `${status} ${phone}: ${result.exists ? result.jid : "Not found"}\n`;
+      response += `${status} ${phone}: ${
+        result.exists ? result.jid : "Not found"
+      }\n`;
     }
 
     await client.sendText(message.from, response);
@@ -110,7 +112,11 @@ client.on("message", async (message) => {
       let response = "*Group Information:*\n";
       response += `Name: ${groupInfo.name}\n`;
       response += `ID: ${groupInfo.id}\n`;
-      response += `Created: ${groupInfo.createdAt ? new Date(groupInfo.createdAt * 1000).toLocaleString() : "Unknown"}\n`;
+      response += `Created: ${
+        groupInfo.createdAt
+          ? new Date(groupInfo.createdAt * 1000).toLocaleString()
+          : "Unknown"
+      }\n`;
       response += `Owner: ${groupInfo.owner || "Unknown"}\n`;
       response += `Participants: ${groupInfo.participantCount || 0}\n`;
       response += `Description: ${groupInfo.description || "None"}\n`;
@@ -126,7 +132,11 @@ client.on("message", async (message) => {
     if (participants && participants.length > 0) {
       let response = "*Group Participants:*\n\n";
       for (const p of participants) {
-        const role = p.isAdmin ? "👑 Admin" : p.isSuperAdmin ? "⭐ Owner" : "👤 Member";
+        const role = p.isAdmin
+          ? "👑 Admin"
+          : p.isSuperAdmin
+          ? "⭐ Owner"
+          : "👤 Member";
         response += `${role}: ${p.id}\n`;
       }
       await client.sendText(message.from, response);
