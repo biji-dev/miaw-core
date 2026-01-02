@@ -27,6 +27,11 @@ Miaw Core abstracts away the complexity of Baileys, providing a clean, simple AP
 - **Group Management** - Full admin capabilities for groups
 - **Profile Management** - Customize bot profile picture, name, and status
 
+## Requirements
+
+- **Node.js** >= 18.0.0
+- **ESM** - This package is ESM-only (uses `"type": "module"`)
+
 ## Installation
 
 ```bash
@@ -112,7 +117,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-## Current Capabilities (v1.0.0)
+## Current Capabilities (v1.1.0)
 
 ### Core Features
 - ✅ Send and receive text messages
@@ -210,4 +215,4 @@ Built on top of [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Bail
 
 ---
 
-**Version:** 1.0.0 | **Status:** Stable | **Updated:** 2025-12-24
+**Version:** 1.1.0 | **Status:** Stable | **Updated:** 2026-01-02
