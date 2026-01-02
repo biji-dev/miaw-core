@@ -2944,6 +2944,18 @@ export class MiawClient extends EventEmitter {
         );
       }
 
+      // Build images array from either buffers or URLs
+      // Buffers are recommended for reliability (URLs require WhatsApp servers to fetch)
+      const images: Array<{ url: URL } | Buffer> = [];
+
+      // Prefer buffers if provided (more reliable)
+      if (options.imageBuffers && options.imageBuffers.length > 0) {
+        images.push(...options.imageBuffers);
+      } else if (options.imageUrls && options.imageUrls.length > 0) {
+        // Fall back to URLs (must be publicly accessible)
+        images.push(...options.imageUrls.map((url) => ({ url: new URL(url) })));
+      }
+
       // Build product data matching Baileys' ProductCreate format
       const productData: any = {
         name: options.name,
@@ -2952,7 +2964,7 @@ export class MiawClient extends EventEmitter {
         currency: options.currency,
         isHidden: options.isHidden ?? false,
         originCountryCode: options.originCountryCode,
-        images: (options.imageUrls || []).map((url) => ({ url: new URL(url) })),
+        images,
       };
 
       if (options.retailerId) {
@@ -3000,6 +3012,18 @@ export class MiawClient extends EventEmitter {
         );
       }
 
+      // Build images array from either buffers or URLs
+      // Buffers are recommended for reliability (URLs require WhatsApp servers to fetch)
+      const images: Array<{ url: URL } | Buffer> = [];
+
+      // Prefer buffers if provided (more reliable)
+      if (options.imageBuffers && options.imageBuffers.length > 0) {
+        images.push(...options.imageBuffers);
+      } else if (options.imageUrls && options.imageUrls.length > 0) {
+        // Fall back to URLs (must be publicly accessible)
+        images.push(...options.imageUrls.map((url) => ({ url: new URL(url) })));
+      }
+
       // Build product data matching Baileys' ProductUpdate format
       const productData: any = {
         name: options.name,
@@ -3007,7 +3031,7 @@ export class MiawClient extends EventEmitter {
         price: options.price,
         currency: options.currency,
         isHidden: options.isHidden,
-        images: (options.imageUrls || []).map((url) => ({ url: new URL(url) })),
+        images,
       };
 
       if (options.retailerId) {

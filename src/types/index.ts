@@ -688,8 +688,10 @@ export interface ProductOptions {
   price: number;
   /** Currency code (e.g., "USD", "BRL", "IDR") */
   currency: string;
-  /** Product image URLs */
+  /** Product image URLs (must be publicly accessible for WhatsApp to fetch) */
   imageUrls?: string[];
+  /** Product images as buffers (alternative to imageUrls, recommended for reliability) */
+  imageBuffers?: Buffer[];
   /** Whether product is hidden from catalog */
   isHidden?: boolean;
   /** Your internal product ID/SKU */

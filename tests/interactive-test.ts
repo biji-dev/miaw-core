@@ -1292,6 +1292,24 @@ const tests: TestItem[] = [
     businessOnly: true,
     action: async (client: MiawClient) => {
       console.log("\n🛠️  Creating a test product...");
+      console.log("📷 This requires a test image file.");
+      console.log("Path: tests/test-assets/test-image.jpg");
+      console.log("\nPress ENTER if you have the test image, or skip (s)");
+
+      const answer = await waitForInput();
+      if (answer.toLowerCase() === "s") return "skip";
+
+      const imagePath = "./tests/test-assets/test-image.jpg";
+
+      // Check if file exists
+      if (!fs.existsSync(imagePath)) {
+        console.log(`⚠️  Test image not found at ${imagePath}`);
+        console.log("Create a test image at that path to test this feature.");
+        return "skip";
+      }
+
+      // Read image as buffer
+      const imageBuffer = fs.readFileSync(imagePath);
 
       const productName = `Test Product ${Date.now()}`;
       const result = await client.createProduct({
@@ -1299,9 +1317,7 @@ const tests: TestItem[] = [
         description: "Test product created by miaw-core interactive test",
         price: 10000, // Price in smallest unit (e.g., cents)
         currency: "IDR",
-        imageUrls: [
-          "https://via.placeholder.com/500x500.png?text=Test+Product",
-        ],
+        imageBuffers: [imageBuffer],
       });
 
       console.log("Success:", result.success);
