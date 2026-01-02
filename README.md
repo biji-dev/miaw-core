@@ -1,14 +1,35 @@
 # Miaw Core
 
-**Multiple Instance of App WhatsApp** - A simplified WhatsApp API wrapper for Baileys
+**Multiple Instance of Awesome WhatsApp** - A simplified WhatsApp API wrapper for Baileys
 
 Miaw Core abstracts away the complexity of Baileys, providing a clean, simple API for building WhatsApp bots and automation tools. It handles all the painful parts: session management, QR codes, reconnection logic, and message parsing.
+
+> **Now powered by Baileys v7.0.0** - Full support for the latest WhatsApp Web features including newsletters/channels
+
+## Why Miaw Core vs Baileys Directly?
+
+| Aspect | Baileys (Direct) | Miaw Core |
+|--------|------------------|-----------|
+| **Learning Curve** | Steep - 150+ methods to learn | Gentle - 92 focused methods |
+| **Setup Code** | 50-100 lines boilerplate | 10 lines to start |
+| **Session Management** | Manual auth state handling | Automatic file-based persistence |
+| **Reconnection** | DIY implementation | Built-in with configurable retries |
+| **Message Format** | Complex nested structures | Normalized `MiawMessage` objects |
+| **TypeScript** | Types available but complex | Clean, simplified types |
+| **Multi-Instance** | Manual socket management | Instance ID-based separation |
+
+**Choose Baileys directly** if you need low-level control, custom implementations, or access to every WhatsApp feature.
+
+**Choose Miaw Core** if you want to build bots quickly with clean code, automatic session handling, and don't need every obscure feature.
+
+For a detailed comparison, see [Baileys vs Miaw Core Comparison](./docs/BAILEYS_VS_MIAW_COMPARISON.md).
 
 ## Documentation
 
 - **[Usage Guide](./docs/USAGE.md)** - Complete guide for all current features
-- **[Testing Guide](./docs/TESTING.md)** - Testing strategy and integration tests
+- **[Baileys Comparison](./docs/BAILEYS_VS_MIAW_COMPARISON.md)** - Feature comparison with raw Baileys
 - **[Migration Guide](./docs/MIGRATION.md)** - Upgrading between versions
+- **[Test Coverage](./docs/TEST_COVERAGE_ANALYSIS.md)** - API coverage analysis
 - **[Roadmap](./docs/ROADMAP.md)** - Feature roadmap and development plan
 - **[Changelog](./CHANGELOG.md)** - Version history and changes
 - **[Examples](./examples/)** - Code examples and sample bots
@@ -77,33 +98,40 @@ For more examples and detailed usage, see the [Usage Guide](./docs/USAGE.md).
 
 ### Manual Interactive Testing
 
-Run the interactive test script to manually verify all features:
+Test all 92 API methods interactively:
 
 ```bash
+# Show available test groups
 npm run test:manual
+
+# Run specific test groups
+npm run test:manual all         # All tests
+npm run test:manual messaging   # Messaging tests only
+npm run test:manual newsletter  # Newsletter tests only
+npm run test:manual business    # Business features only
 ```
 
-This will launch an interactive guide that walks you through testing all 80+ features:
+**Available test groups:**
 
-- **Core Client** - Connection, lifecycle, state management
-- **Basic GET Operations** - Fetch contacts, groups, profile, labels, chats, messages
-- **Messaging** - Send text, images, documents, videos, audio; download media
-- **Message Operations** - React, forward, edit, delete messages
-- **Contact Information** - Check numbers, get contact info, business profiles
-- **Group Management** - Create groups, manage participants, admin actions
-- **Profile Management** - Update profile picture, name, status
-- **Business Features** - Labels, catalog operations (WhatsApp Business)
-- **Newsletter/Channels** - Create, manage newsletters and channels
-- **UX Features** - Typing indicators, read receipts, presence
+| Group | Description | Methods |
+|-------|-------------|---------|
+| `core` | Connection, lifecycle | 6 |
+| `get` | Fetch contacts, groups, chats | 6 |
+| `messaging` | Send/receive, reactions, edit | 12 |
+| `contacts` | Check numbers, contact info | 7 |
+| `group` | Create, manage participants | 13 |
+| `profile` | Update picture, name, status | 4 |
+| `business` | Labels, catalog (Business only) | 10 |
+| `newsletter` | Channels, subscriptions | 6 |
+| `ux` | Typing, presence, read receipts | 5 |
 
-The script will:
+**Features:**
+- Auto-connects using existing session (skips QR if already authenticated)
+- Tracks test results with pass/fail/skip status
+- Generates summary report with timestamps
+- Pre-loads test configuration from `.env.test`
 
-1. Guide you step-by-step through each test
-2. Prompt for required inputs (phone numbers, group JIDs, etc.)
-3. Track results (pass/fail/skip)
-4. Generate a summary report with versions and timestamps
-
-See [MANUAL_TEST_CHECKLIST.md](./tests/MANUAL_TEST_CHECKLIST.md) for the complete checklist.
+See [Test Coverage Analysis](./docs/TEST_COVERAGE_ANALYSIS.md) for detailed coverage report.
 
 ### Unit & Integration Tests
 
@@ -119,6 +147,8 @@ npm run test:coverage
 ```
 
 ## Current Capabilities (v1.1.0)
+
+Built on **Baileys v7.0.0-rc.9** - the latest WhatsApp Web protocol implementation.
 
 ### Core Features
 
@@ -155,12 +185,12 @@ npm run test:coverage
 - ✅ Update profile name
 - ✅ Update profile status
 
-### Business & Social (v1.0.0)
+### Business & Social
 
 - ✅ Label operations (WhatsApp Business)
 - ✅ Product catalog management (WhatsApp Business)
-- ✅ Newsletter/channel operations
-- ✅ Contact management
+- ✅ Newsletter/channel operations (create, send, manage)
+- ✅ Contact management (add, edit, remove)
 
 See [ROADMAP.md](./docs/ROADMAP.md) for planned features.
 
@@ -217,8 +247,8 @@ MIT
 
 ## Credits
 
-Built on top of [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys)
+Built on top of [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys) v7.0.0-rc.9
 
 ---
 
-**Version:** 1.1.0 | **Status:** Stable | **Updated:** 2026-01-02
+**Version:** 1.1.0 | **Baileys:** 7.0.0-rc.9 | **Status:** Stable | **Updated:** 2026-01-03
