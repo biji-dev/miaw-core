@@ -8,15 +8,15 @@ Miaw Core abstracts away the complexity of Baileys, providing a clean, simple AP
 
 ## Why Miaw Core vs Baileys Directly?
 
-| Aspect | Baileys (Direct) | Miaw Core |
-|--------|------------------|-----------|
-| **Learning Curve** | Steep - 150+ methods to learn | Gentle - 92 focused methods |
-| **Setup Code** | 50-100 lines boilerplate | 10 lines to start |
-| **Session Management** | Manual auth state handling | Automatic file-based persistence |
-| **Reconnection** | DIY implementation | Built-in with configurable retries |
-| **Message Format** | Complex nested structures | Normalized `MiawMessage` objects |
-| **TypeScript** | Types available but complex | Clean, simplified types |
-| **Multi-Instance** | Manual socket management | Instance ID-based separation |
+| Aspect                 | Baileys (Direct)              | Miaw Core                          |
+| ---------------------- | ----------------------------- | ---------------------------------- |
+| **Learning Curve**     | Steep - 150+ methods to learn | Gentle - 92 focused methods        |
+| **Setup Code**         | 50-100 lines boilerplate      | 10 lines to start                  |
+| **Session Management** | Manual auth state handling    | Automatic file-based persistence   |
+| **Reconnection**       | DIY implementation            | Built-in with configurable retries |
+| **Message Format**     | Complex nested structures     | Normalized `MiawMessage` objects   |
+| **TypeScript**         | Types available but complex   | Clean, simplified types            |
+| **Multi-Instance**     | Manual socket management      | Instance ID-based separation       |
 
 **Choose Baileys directly** if you need low-level control, custom implementations, or access to every WhatsApp feature.
 
@@ -113,19 +113,20 @@ npm run test:manual business    # Business features only
 
 **Available test groups:**
 
-| Group | Description | Methods |
-|-------|-------------|---------|
-| `core` | Connection, lifecycle | 6 |
-| `get` | Fetch contacts, groups, chats | 6 |
-| `messaging` | Send/receive, reactions, edit | 12 |
-| `contacts` | Check numbers, contact info | 7 |
-| `group` | Create, manage participants | 13 |
-| `profile` | Update picture, name, status | 4 |
-| `business` | Labels, catalog (Business only) | 10 |
-| `newsletter` | Channels, subscriptions | 6 |
-| `ux` | Typing, presence, read receipts | 5 |
+| Group        | Description                     | Methods |
+| ------------ | ------------------------------- | ------- |
+| `core`       | Connection, lifecycle           | 6       |
+| `get`        | Fetch contacts, groups, chats   | 6       |
+| `messaging`  | Send/receive, reactions, edit   | 12      |
+| `contacts`   | Check numbers, contact info     | 7       |
+| `group`      | Create, manage participants     | 13      |
+| `profile`    | Update picture, name, status    | 4       |
+| `business`   | Labels, catalog (Business only) | 10      |
+| `newsletter` | Channels, subscriptions         | 6       |
+| `ux`         | Typing, presence, read receipts | 5       |
 
 **Features:**
+
 - Auto-connects using existing session (skips QR if already authenticated)
 - Tracks test results with pass/fail/skip status
 - Generates summary report with timestamps

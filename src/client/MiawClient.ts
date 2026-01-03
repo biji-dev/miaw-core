@@ -4035,9 +4035,32 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
-   * Disconnect from WhatsApp
+   * Disconnect from WhatsApp without logging out.
+   * The session is preserved and can be used to reconnect later without scanning QR again.
+   * Use logout() if you want to fully log out and require a new QR code.
    */
   async disconnect(): Promise<void> {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    if (this.socket) {
+      // Use end() instead of logout() to preserve session
+      // logout() would clear credentials and require new QR scan
+      this.socket.end(undefined);
+      this.socket = null;
+    }
+
+    this.updateConnectionState("disconnected");
+    this.logger.info("Disconnected (session preserved)");
+  }
+
+  /**
+   * Logout from WhatsApp and clear session.
+   * After calling this, the next connect() will require scanning a new QR code.
+   */
+  async logout(): Promise<void> {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -4049,7 +4072,7 @@ export class MiawClient extends EventEmitter {
     }
 
     this.updateConnectionState("disconnected");
-    this.logger.info("Disconnected");
+    this.logger.info("Logged out (session cleared)");
   }
 
   /**
