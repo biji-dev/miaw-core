@@ -27,6 +27,7 @@ const commandTree: Record<string, CommandNode> = {
   use: {},
   connect: {},
   disconnect: {},
+  debug: { flags: ["on", "off"] },
   instances: { aliases: ["ls"] },
 
   // Category commands with subcommands
@@ -214,6 +215,21 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       return;
     }
 
+    // Debug toggle commands
+    if (input === "debug" || input === "debug on") {
+      client.enableDebug();
+      console.log("✅ Debug mode enabled");
+      rl.prompt();
+      return;
+    }
+
+    if (input === "debug off") {
+      client.disableDebug();
+      console.log("✅ Debug mode disabled");
+      rl.prompt();
+      return;
+    }
+
     if (input === "instances" || input === "ls") {
       await showInstances(config.sessionPath);
       rl.prompt();
@@ -284,6 +300,7 @@ REPL-SPECIFIC:
   use <instance-id>    Switch to a different instance
   connect              Connect to WhatsApp
   disconnect           Disconnect from WhatsApp
+  debug [on|off]       Enable/disable debug mode (default: on)
   instances, ls        List all instances
 
 INSTANCE MANAGEMENT:

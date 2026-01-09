@@ -203,6 +203,12 @@ export class MiawClient extends EventEmitter {
    * Connect to WhatsApp
    */
   async connect(): Promise<void> {
+    // Don't reconnect if already connected or connecting
+    if (this.connectionState === "connected" || this.connectionState === "connecting") {
+      this.logger.info(`Already ${this.connectionState}, skipping connect() call`);
+      return;
+    }
+
     try {
       this.updateConnectionState("connecting");
 
@@ -4181,6 +4187,45 @@ export class MiawClient extends EventEmitter {
    */
   isConnected(): boolean {
     return this.connectionState === "connected";
+  }
+
+  /**
+   * Enable debug mode at runtime
+   * Enables verbose logging for debugging
+   */
+  enableDebug(): void {
+    this.options.debug = true;
+    this.logger.level = "trace";
+    this.logger.info("Debug mode enabled");
+  }
+
+  /**
+   * Disable debug mode at runtime
+   * Disables verbose logging
+   */
+  disableDebug(): void {
+    this.options.debug = false;
+    this.logger.level = "info";
+    this.logger.info("Debug mode disabled");
+  }
+
+  /**
+   * Check if debug mode is enabled
+   */
+  isDebugEnabled(): boolean {
+    return this.options.debug;
+  }
+
+  /**
+   * Set debug mode
+   * @param enabled - Whether to enable debug mode
+   */
+  setDebug(enabled: boolean): void {
+    if (enabled) {
+      this.enableDebug();
+    } else {
+      this.disableDebug();
+    }
   }
 
   // TypeScript event emitter type safety
