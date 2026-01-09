@@ -285,6 +285,28 @@ export class MiawClient extends EventEmitter {
       this.emit("session_saved");
     });
 
+    // LID mapping update - captures LID to PN (phone number) mappings
+    // This event is part of Baileys v7 LID privacy feature
+    // Note: This event is WIP and may not always fire
+    this.socket.ev.on("lid-mapping.update", (mapping: { lid: string; pn: string }) => {
+      if (this.options.debug) {
+        console.log("\n========== LID MAPPING UPDATE ==========");
+        console.log(`LID: ${mapping.lid} → PN: ${mapping.pn}`);
+      }
+
+      // Normalize the LID format (ensure it ends with @lid)
+      const lid = mapping.lid.endsWith("@lid") ? mapping.lid : `${mapping.lid}@lid`;
+
+      // Store in our LRU cache
+      this.lidToJidMap.set(lid, mapping.pn);
+
+      if (this.options.debug) {
+        console.log(`Cached LID mapping: ${lid} → ${mapping.pn}`);
+        console.log(`Total LID mappings: ${this.lidToJidMap.size}`);
+        console.log("==========================================\n");
+      }
+    });
+
     // Contact updates - build LID to JID mapping and update store
     this.socket.ev.on("contacts.upsert", (contacts) => {
       this.updateLidToJidMapping(contacts);
