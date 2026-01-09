@@ -153,6 +153,37 @@ export class MiawClient extends EventEmitter {
       reconnectDelay: options.reconnectDelay || 3000,
     };
 
+    // Suppress console logs from libsignal when debug is off
+    // Libsignal uses console.log directly for session management logs
+    if (!this.options.debug) {
+      const _originalLog = console.log;
+      const _originalError = console.error;
+      const _originalWarn = console.warn;
+      const _originalInfo = console.info;
+
+      const shouldSuppress = (args: any[]): boolean => {
+        const msg = args.map(String).join(" ");
+        return (
+          msg.includes("Closing session") ||
+          msg.includes("SessionEntry {") ||
+          (msg.includes("_chains:") && msg.includes("registrationId:"))
+        );
+      };
+
+      console.log = (...args: any[]) => {
+        if (!shouldSuppress(args)) _originalLog.apply(console, args);
+      };
+      console.error = (...args: any[]) => {
+        if (!shouldSuppress(args)) _originalError.apply(console, args);
+      };
+      console.warn = (...args: any[]) => {
+        if (!shouldSuppress(args)) _originalWarn.apply(console, args);
+      };
+      console.info = (...args: any[]) => {
+        if (!shouldSuppress(args)) _originalInfo.apply(console, args);
+      };
+    }
+
     // Initialize logger
     this.logger =
       this.options.logger ||
