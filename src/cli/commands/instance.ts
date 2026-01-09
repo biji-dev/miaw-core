@@ -32,7 +32,7 @@ export async function cmdInstanceList(sessionPath: string): Promise<boolean> {
   for (const instanceId of instances) {
     let status = "disconnected";
     try {
-      const client = createClient({ instanceId, sessionPath });
+      const client = getOrCreateClient({ instanceId, sessionPath });
       if (client.getConnectionState() === "connected") {
         status = "connected";
       }
@@ -71,7 +71,7 @@ export async function cmdInstanceStatus(
     console.log(`\n📱 Instance: ${id}`);
     console.log("─".repeat(50));
 
-    const client = createClient({ instanceId: id, sessionPath });
+    const client = getOrCreateClient({ instanceId: id, sessionPath });
     const state = client.getConnectionState();
 
     console.log(`Status: ${state}`);

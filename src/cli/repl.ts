@@ -5,9 +5,127 @@
  */
 
 import * as readline from "readline";
-import { createClient, ensureConnected, listInstances } from "./utils/session.js";
-import { disconnectAll } from "./utils/client-cache.js";
+import { ensureConnected, listInstances } from "./utils/session.js";
+import { disconnectAll, getOrCreateClient } from "./utils/client-cache.js";
 import { runCommand } from "./commands/index.js";
+
+// =============================================================================
+// Command Tree for Autocomplete
+// =============================================================================
+
+interface CommandNode {
+  aliases?: string[];
+  subcommands?: string[];
+  flags?: string[];
+}
+
+const commandTree: Record<string, CommandNode> = {
+  // REPL-specific commands
+  help: {},
+  status: {},
+  exit: { aliases: ["quit"] },
+  use: {},
+  connect: {},
+  disconnect: {},
+  instances: { aliases: ["ls"] },
+
+  // Category commands with subcommands
+  instance: {
+    subcommands: ["ls", "list", "status", "create", "delete", "connect", "disconnect", "logout"],
+  },
+  get: {
+    subcommands: ["profile", "contacts", "groups", "chats", "messages", "labels"],
+    flags: ["--limit", "--json"],
+  },
+  send: {
+    subcommands: ["text", "image", "document"],
+  },
+  group: {
+    subcommands: ["info", "participants", "invite-link", "create"],
+  },
+  check: {},
+};
+
+// =============================================================================
+// Autocomplete Completer Function
+// =============================================================================
+
+/**
+ * Create autocomplete completer function for readline
+ * @param sessionPath - Path to session directory (for dynamic instance completion)
+ * @returns readline completer function
+ */
+function createCompleter(sessionPath: string): readline.Completer {
+  return (line: string) => {
+    const hits: string[] = [];
+    const parts = line.split(/\s+/);
+    const currentPart = parts[parts.length - 1] || "";
+
+    // Level 1: Top-level commands (only on first word)
+    if (parts.length === 1) {
+      for (const cmd of Object.keys(commandTree)) {
+        if (cmd.startsWith(currentPart)) {
+          hits.push(cmd);
+        }
+        // Also check aliases
+        const aliases = commandTree[cmd]?.aliases || [];
+        for (const alias of aliases) {
+          if (alias.startsWith(currentPart)) {
+            hits.push(alias);
+          }
+        }
+      }
+      return [hits, currentPart];
+    }
+
+    // Level 2: Subcommands (second word onwards)
+    if (parts.length >= 2) {
+      const category = parts[0];
+      const categoryData = commandTree[category];
+
+      if (categoryData?.subcommands) {
+        for (const sub of categoryData.subcommands) {
+          if (sub.startsWith(currentPart)) {
+            hits.push(sub);
+          }
+        }
+        // Only return subcommands if we found matches or currentPart is empty
+        if (hits.length > 0 || currentPart === "") {
+          return [hits, currentPart];
+        }
+      }
+    }
+
+    // Level 3: Flags and instance IDs (third word onwards)
+    if (parts.length >= 3) {
+      const category = parts[0];
+      const categoryData = commandTree[category];
+
+      // Flag completion for commands with flags
+      if (categoryData?.flags && currentPart.startsWith("-")) {
+        for (const flag of categoryData.flags) {
+          if (flag.startsWith(currentPart)) {
+            hits.push(flag);
+          }
+        }
+        return [hits, currentPart];
+      }
+
+      // Instance ID completion (for 'use', 'instance delete', 'instance connect', etc.)
+      if (["use", "instance"].includes(category)) {
+        const instances = listInstances(sessionPath);
+        for (const inst of instances) {
+          if (inst.startsWith(currentPart)) {
+            hits.push(inst);
+          }
+        }
+        return [hits, currentPart];
+      }
+    }
+
+    return [[], line];
+  };
+}
 
 export interface ClientConfig {
   instanceId: string;
@@ -19,8 +137,8 @@ export interface ClientConfig {
  * Run the interactive REPL
  */
 export async function runRepl(config: ClientConfig): Promise<void> {
-  // Create client
-  const client = createClient(config);
+  // Create client (uses cache)
+  const client = getOrCreateClient(config);
 
   // Show welcome message
   showWelcome(config);
@@ -33,11 +151,12 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     console.log("✅ Connected to WhatsApp!");
   }
 
-  // Create readline interface
+  // Create readline interface with autocomplete
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: getPrompt(config.instanceId, state),
+    completer: createCompleter(config.sessionPath),
   });
 
   // Handle REPL commands
