@@ -289,22 +289,7 @@ export class MiawClient extends EventEmitter {
     // This event is part of Baileys v7 LID privacy feature
     // Note: This event is WIP and may not always fire
     this.socket.ev.on("lid-mapping.update", (mapping: { lid: string; pn: string }) => {
-      if (this.options.debug) {
-        console.log("\n========== LID MAPPING UPDATE ==========");
-        console.log(`LID: ${mapping.lid} → PN: ${mapping.pn}`);
-      }
-
-      // Normalize the LID format (ensure it ends with @lid)
-      const lid = mapping.lid.endsWith("@lid") ? mapping.lid : `${mapping.lid}@lid`;
-
-      // Store in our LRU cache
-      this.lidToJidMap.set(lid, mapping.pn);
-
-      if (this.options.debug) {
-        console.log(`Cached LID mapping: ${lid} → ${mapping.pn}`);
-        console.log(`Total LID mappings: ${this.lidToJidMap.size}`);
-        console.log("==========================================\n");
-      }
+      this.addLidMapping(mapping.lid, mapping.pn, "BaileysEvent");
     });
 
     // Contact updates - build LID to JID mapping and update store
@@ -388,14 +373,7 @@ export class MiawClient extends EventEmitter {
           remoteJid?: string | null;
         };
         if (!msgKey.fromMe && msgKey.senderLid && msgKey.remoteJid) {
-          const lid = msgKey.senderLid.endsWith("@lid")
-            ? msgKey.senderLid
-            : `${msgKey.senderLid}@lid`;
-          this.lidToJidMap.set(lid, msgKey.remoteJid);
-
-          if (this.options.debug) {
-            console.log(`[LID Mapping] ${lid} -> ${msg.key.remoteJid}`);
-          }
+          this.addLidMapping(msgKey.senderLid, msgKey.remoteJid, "Message");
         }
 
         const normalized = MessageHandler.normalize({ messages: [msg] });
@@ -538,23 +516,41 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Add LID to JID mapping with normalized format and debug logging
+   * Centralized helper for all LID mapping operations
+   * @param lid - The LID (with or without @lid suffix)
+   * @param jid - The JID to map to (phone number)
+   * @param source - Source of the mapping for debug logs
+   */
+  private addLidMapping(lid: string, jid: string, source: "BaileysEvent" | "Contact" | "Chat" | "Message"): void {
+    if (!lid || !jid) {
+      return;
+    }
+
+    // Normalize LID format (ensure it ends with @lid)
+    const normalizedLid = lid.endsWith("@lid") ? lid : `${lid}@lid`;
+
+    // Store in our LRU cache
+    this.lidToJidMap.set(normalizedLid, jid);
+
+    if (this.options.debug) {
+      console.log(`[LID Mapping: ${source}] ${normalizedLid} -> ${jid}`);
+      console.log(`Total LID mappings: ${this.lidToJidMap.size}`);
+    }
+  }
+
+  /**
    * Update LID to JID mapping from contacts
    */
   private updateLidToJidMapping(contacts: any[]): void {
     for (const contact of contacts) {
       // Contact has both lid and jid - create mapping
       if (contact.lid && contact.id && !contact.id.endsWith("@lid")) {
-        this.lidToJidMap.set(contact.lid, contact.id);
-        if (this.options.debug) {
-          console.log(`[Contact LID Mapping] ${contact.lid} -> ${contact.id}`);
-        }
+        this.addLidMapping(contact.lid, contact.id, "Contact");
       }
       // Also check if id is the LID and jid field exists
       if (contact.id?.endsWith("@lid") && contact.jid) {
-        this.lidToJidMap.set(contact.id, contact.jid);
-        if (this.options.debug) {
-          console.log(`[Contact LID Mapping] ${contact.id} -> ${contact.jid}`);
-        }
+        this.addLidMapping(contact.id, contact.jid, "Contact");
       }
     }
   }
@@ -566,20 +562,11 @@ export class MiawClient extends EventEmitter {
     for (const chat of chats) {
       // Chat may have both id (could be phone or LID) and lidJid
       if (chat.lidJid && chat.id && !chat.id.endsWith("@lid")) {
-        const lid = chat.lidJid.endsWith("@lid")
-          ? chat.lidJid
-          : `${chat.lidJid}@lid`;
-        this.lidToJidMap.set(lid, chat.id);
-        if (this.options.debug) {
-          console.log(`[Chat LID Mapping] ${lid} -> ${chat.id}`);
-        }
+        this.addLidMapping(chat.lidJid, chat.id, "Chat");
       }
       // Reverse: if id is LID and we have a phone JID
       if (chat.id?.endsWith("@lid") && chat.jid) {
-        this.lidToJidMap.set(chat.id, chat.jid);
-        if (this.options.debug) {
-          console.log(`[Chat LID Mapping] ${chat.id} -> ${chat.jid}`);
-        }
+        this.addLidMapping(chat.id, chat.jid, "Chat");
       }
     }
   }
