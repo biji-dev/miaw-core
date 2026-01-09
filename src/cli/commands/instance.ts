@@ -5,15 +5,16 @@
  */
 
 import * as path from "path";
-import { MiawClient } from "../../index.js";
 import {
   createClient,
   deleteInstance,
   ensureConnected,
   listInstances,
-  waitForConnection,
 } from "../utils/session.js";
-import { formatKeyValue, formatList, formatMessage } from "../utils/formatter.js";
+import {
+  disconnectClient,
+  getOrCreateClient,
+} from "../utils/client-cache.js";
 
 /**
  * List all instances
@@ -29,9 +30,6 @@ export async function cmdInstanceList(sessionPath: string): Promise<boolean> {
 
   console.log(`\n📱 Instances (${instances.length}):\n`);
   for (const instanceId of instances) {
-    const instancePath = path.join(sessionPath, instanceId);
-    const credsPath = path.join(instancePath, "creds.json");
-
     let status = "disconnected";
     try {
       const client = createClient({ instanceId, sessionPath });
@@ -155,6 +153,10 @@ export async function cmdInstanceDelete(
     return false;
   }
 
+  // Remove from cache first (disconnects if connected)
+  await disconnectClient({ instanceId, sessionPath });
+
+  // Delete session files
   const success = deleteInstance(sessionPath, instanceId);
   if (success) {
     console.log(`✅ Instance "${instanceId}" deleted.`);
@@ -182,7 +184,8 @@ export async function cmdInstanceConnect(
 
   console.log(`\n📱 Connecting instance: ${instanceId}`);
 
-  const client = createClient({ instanceId, sessionPath });
+  // Use cached client (creates new if not in cache)
+  const client = getOrCreateClient({ instanceId, sessionPath });
 
   const result = await ensureConnected(client);
   if (!result.success) {
@@ -202,15 +205,19 @@ export async function cmdInstanceDisconnect(
   sessionPath: string,
   instanceId: string
 ): Promise<boolean> {
-  const client = createClient({ instanceId, sessionPath });
+  const client = getOrCreateClient({ instanceId, sessionPath });
 
   const state = client.getConnectionState();
   if (state !== "connected") {
     console.log(`ℹ️  Instance "${instanceId}" is not connected.`);
+    // Still remove from cache to clean up
+    await disconnectClient({ instanceId, sessionPath });
     return true;
   }
 
   await client.disconnect();
+  // Remove from cache after disconnecting
+  await disconnectClient({ instanceId, sessionPath });
   console.log(`✅ Disconnected from "${instanceId}"`);
 
   return true;
@@ -223,7 +230,7 @@ export async function cmdInstanceLogout(
   sessionPath: string,
   instanceId: string
 ): Promise<boolean> {
-  const client = createClient({ instanceId, sessionPath });
+  const client = getOrCreateClient({ instanceId, sessionPath });
 
   const state = client.getConnectionState();
   if (state === "connected") {
@@ -242,8 +249,10 @@ export async function cmdInstanceLogout(
     }
   }
 
-  // Also delete the session directory
+  // Remove from cache and delete session files
+  await disconnectClient({ instanceId, sessionPath });
   const success = deleteInstance(sessionPath, instanceId);
+
   if (success) {
     console.log(`✅ Logged out and cleared session for "${instanceId}"`);
     return true;

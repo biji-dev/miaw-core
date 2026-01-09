@@ -4,8 +4,7 @@
  * Routes commands to appropriate handlers
  */
 
-import { MiawClient } from "../../index.js";
-import { createClient, ensureConnected } from "../utils/session.js";
+import { getOrCreateClient } from "../utils/client-cache.js";
 import {
   // Instance commands
   cmdInstanceList,
@@ -42,7 +41,6 @@ export interface CommandContext {
     debug?: boolean;
   };
   jsonOutput?: boolean;
-  flags?: { [key: string]: string | boolean };
 }
 
 /**
@@ -53,7 +51,7 @@ export async function runCommand(
   args: string[],
   context: CommandContext
 ): Promise<boolean> {
-  const { clientConfig, jsonOutput = false, flags = {} } = context;
+  const { clientConfig, jsonOutput = false } = context;
 
   // Parse flags from args
   const parsedArgs = parseCommandArgs(args);
@@ -111,8 +109,8 @@ export async function runCommand(
     }
   }
 
-  // Create client for commands that need connection
-  const client = createClient(clientConfig);
+  // Create or get cached client for commands that need connection
+  const client = getOrCreateClient(clientConfig);
 
   // Get commands
   if (command === "get") {

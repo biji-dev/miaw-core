@@ -7,7 +7,6 @@
 import { MiawClient } from "../../index.js";
 import { ensureConnected } from "../utils/session.js";
 import { formatTable, formatKeyValue, formatMessage } from "../utils/formatter.js";
-import { phoneToJid } from "../utils/session.js";
 
 /**
  * Get group info
@@ -71,14 +70,12 @@ export async function cmdGroupParticipants(
 
   const tableData = participants.map((p) => ({
     jid: p.jid,
-    phone: p.phone || "-",
     role: p.role,
   }));
 
   console.log(
     formatTable(tableData, [
-      { key: "jid", label: "JID", width: 40 },
-      { key: "phone", label: "Phone", width: 15 },
+      { key: "jid", label: "JID", width: 50 },
       { key: "role", label: "Role", width: 15 },
     ])
   );

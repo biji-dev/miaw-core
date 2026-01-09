@@ -6,7 +6,7 @@
 
 import { MiawClient } from "../../index.js";
 import { ensureConnected } from "../utils/session.js";
-import { formatTable, formatMessage } from "../utils/formatter.js";
+import { formatTable } from "../utils/formatter.js";
 
 /**
  * Check if phone number is on WhatsApp
@@ -31,8 +31,8 @@ export async function cmdCheck(
     return true;
   }
 
-  const tableData = results.map((r) => ({
-    phone: r.phone,
+  const tableData = results.map((r, i) => ({
+    phone: args.phones[i],
     exists: r.exists ? "Yes" : "No",
     jid: r.jid || "-",
   }));

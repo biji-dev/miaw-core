@@ -8,7 +8,6 @@ import * as fs from "fs";
 import { MiawClient } from "../../index.js";
 import { ensureConnected } from "../utils/session.js";
 import { formatMessage } from "../utils/formatter.js";
-import { phoneToJid } from "../utils/session.js";
 
 /**
  * Send text message
@@ -103,10 +102,15 @@ export async function cmdSendDocument(
 
   console.log(`📤 Sending document to ${args.phone}...`);
 
+  const options: any = {};
+  if (args.caption) {
+    options.caption = args.caption;
+  }
+
   const sendResult = await client.sendDocument(
     args.phone,
     args.path,
-    args.caption || ""
+    options
   );
 
   if (sendResult.success) {

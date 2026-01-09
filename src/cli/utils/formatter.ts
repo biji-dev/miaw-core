@@ -101,7 +101,7 @@ export function formatKeyValue(
       displayValue = String(value);
     }
 
-    table.push([key, displayValue]);
+    table.push([key, String(displayValue)]);
   }
 
   let output = table.toString();

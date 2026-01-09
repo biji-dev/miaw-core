@@ -7,5 +7,6 @@
 export { runRepl } from "./repl.js";
 export { runCommand } from "./commands/index.js";
 
+export * from "./utils/client-cache.js";
 export * from "./utils/formatter.js";
 export * from "./utils/session.js";

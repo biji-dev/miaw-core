@@ -5,8 +5,8 @@
  */
 
 import * as readline from "readline";
-import * as fs from "fs";
 import { createClient, ensureConnected, listInstances } from "./utils/session.js";
+import { disconnectAll } from "./utils/client-cache.js";
 import { runCommand } from "./commands/index.js";
 
 export interface ClientConfig {
@@ -115,7 +115,6 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       await runCommand(command, args, {
         clientConfig: config,
         jsonOutput: false,
-        flags: {},
       });
     } catch (error: any) {
       console.log(`❌ Error: ${error.message}`);
@@ -126,7 +125,9 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     rl.prompt();
   });
 
-  rl.on("close", () => {
+  rl.on("close", async () => {
+    // Disconnect all cached clients before exiting
+    await disconnectAll();
     console.log();
     process.exit(0);
   });
