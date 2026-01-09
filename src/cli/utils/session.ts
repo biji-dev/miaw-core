@@ -116,28 +116,49 @@ export async function handleQRConnection(
   // Start connection
   client.connect();
 
+  // Wait a moment for connection to initialize
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Check if already connected (race condition check)
+  if (client.getConnectionState() === "connected") {
+    console.log("✅ Connected successfully!");
+    return { success: true };
+  }
+
   // Wait for QR or ready
   const result = await new Promise<"qr" | "ready" | "timeout">(
     (resolve) => {
-      const timeout = setTimeout(() => resolve("timeout"), 120000);
+      const timeout = setTimeout(() => {
+        console.log("\n⏱️  Timeout while waiting for QR/ready event");
+        resolve("timeout");
+      }, 120000);
 
-      client.once("qr", (qr: string) => {
+      const onQr = (qr: string) => {
         clearTimeout(timeout);
         console.log("\n📱 Scan the QR code below with WhatsApp:");
         qrcode.generate(qr, { small: true });
         console.log();
         resolve("qr");
-      });
+      };
 
-      client.once("ready", () => {
+      const onReady = () => {
         clearTimeout(timeout);
         resolve("ready");
-      });
+      };
+
+      client.once("qr", onQr);
+      client.once("ready", onReady);
     }
   );
 
   if (result === "timeout") {
-    return { success: false, reason: "Timeout waiting for connection" };
+    // Check actual state before giving up
+    const finalState = client.getConnectionState();
+    if (finalState === "connected") {
+      console.log("✅ Connected successfully!");
+      return { success: true };
+    }
+    return { success: false, reason: `Timeout waiting for connection (state: ${finalState})` };
   }
 
   if (result === "ready") {
@@ -145,29 +166,72 @@ export async function handleQRConnection(
     return { success: true };
   }
 
-  // QR was shown, wait for ready
+  // QR was shown, wait for ready with polling check as fallback
   console.log("⏳ Waiting for connection...");
 
-  const connected = await new Promise<boolean>((resolve) => {
-    const timeout = setTimeout(() => resolve(false), 120000);
+  // First check if already connected (could have connected during QR display)
+  const initialCheckState = client.getConnectionState();
+  if (initialCheckState === "connected") {
+    console.log("✅ Connected successfully!");
+    return { success: true };
+  }
 
-    client.once("ready", () => {
+  console.log(`(Current state: ${initialCheckState})`);
+
+  const connected = await new Promise<boolean>((resolve) => {
+    const timeout = setTimeout(() => {
+      const finalState = client.getConnectionState();
+      console.log(`\n⏱️  Connection timeout (final state: ${finalState})`);
+      resolve(false);
+    }, 120000);
+
+    const onReady = () => {
       clearTimeout(timeout);
       resolve(true);
-    });
+    };
 
-    client.once("disconnected", () => {
+    const onDisconnected = () => {
       clearTimeout(timeout);
       resolve(false);
-    });
+    };
+
+    client.once("ready", onReady);
+    client.once("disconnected", onDisconnected);
+
+    // Also poll connection state as fallback in case event was missed
+    let dots = 0;
+    const pollInterval = setInterval(() => {
+      const currentState = client.getConnectionState();
+      if (currentState === "connected") {
+        clearInterval(pollInterval);
+        clearTimeout(timeout);
+        client.off("ready", onReady);
+        client.off("disconnected", onDisconnected);
+        resolve(true);
+      } else if (currentState === "disconnected") {
+        clearInterval(pollInterval);
+        clearTimeout(timeout);
+        client.off("ready", onReady);
+        client.off("disconnected", onDisconnected);
+        resolve(false);
+      } else {
+        // Show progress indicator
+        dots = (dots + 1) % 4;
+        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} State: ${currentState}   `);
+      }
+    }, 1000);
   });
+
+  // Clear the progress line
+  process.stdout.write("\r" + " ".repeat(50) + "\r");
 
   if (connected) {
     console.log("✅ Connected successfully!");
     return { success: true };
   }
 
-  return { success: false, reason: "Failed to connect after QR scan" };
+  const finalState = client.getConnectionState();
+  return { success: false, reason: `Failed to connect after QR scan (final state: ${finalState})` };
 }
 
 /**
@@ -181,6 +245,18 @@ export async function ensureConnected(
 
   if (state === "connected") {
     return { success: true };
+  }
+
+  if (state === "connecting" || state === "reconnecting") {
+    if (options?.silent !== true) {
+      console.log("📱 Connection in progress...");
+    }
+    // Wait for connection to complete
+    const connected = await waitForConnection(client, 60000);
+    if (connected) {
+      return { success: true };
+    }
+    return { success: false, reason: "Connection timeout" };
   }
 
   if (options?.silent !== true) {
