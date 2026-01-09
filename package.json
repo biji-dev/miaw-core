@@ -11,6 +11,9 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "bin": {
+    "miaw-cli": "./bin/miaw-cli.ts"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -21,7 +24,8 @@
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "test:manual": "tsx tests/interactive-test.ts",
-    "test:manual:build": "npm run build && node dist/tests/interactive-test.js"
+    "test:manual:build": "npm run build && node dist/tests/interactive-test.js",
+    "cli": "tsx bin/miaw-cli.ts"
   },
   "keywords": [
     "whatsapp",
@@ -35,6 +39,7 @@
   "dependencies": {
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "cli-table3": "^0.6.5",
     "pino": "^8.19.0",
     "qrcode-terminal": "^0.12.0"
   },
