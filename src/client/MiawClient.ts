@@ -3,6 +3,7 @@ import makeWASocket, {
   WASocket,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  Browsers,
   AnyMessageContent,
   downloadMediaMessage,
 } from "@whiskeysockets/baileys";
@@ -133,11 +134,11 @@ export class MiawClient extends EventEmitter {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private logger: any;
   private lidToJidMap: LruCache = new LruCache(1000);
-  // In-memory stores for v0.9.0
+  // Custom stores for contacts, chats, messages (Baileys v7 removed makeInMemoryStore)
   private contactsStore: Map<string, ContactInfo> = new Map();
+  private chatsStore: Map<string, ChatInfo> = new Map();
+  private messagesStore: Map<string, MiawMessage[]> = new Map();
   private labelsStore: Map<string, Label> = new Map();
-  private messagesStore: Map<string, MiawMessage[]> = new Map(); // JID -> messages
-  private chatsStore: Map<string, ChatInfo> = new Map(); // JID -> chat info
 
   constructor(options: MiawClientOptions) {
     super();
@@ -220,10 +221,10 @@ export class MiawClient extends EventEmitter {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, this.logger),
         },
-        browser: ["Miaw", "Chrome", "1.0.0"],
+        browser: Browsers.macOS("Desktop"),  // Desktop for more history
         generateHighQualityLinkPreview: true,
-        // Enable app state sync for labels and other features
-        syncFullHistory: false,
+        // Enable full history sync to populate stores
+        syncFullHistory: true,
         fireInitQueries: true,
       });
 
@@ -284,7 +285,7 @@ export class MiawClient extends EventEmitter {
       this.emit("session_saved");
     });
 
-    // Contact updates - build LID to JID mapping and populate contacts store
+    // Contact updates - build LID to JID mapping and update store
     this.socket.ev.on("contacts.upsert", (contacts) => {
       this.updateLidToJidMapping(contacts);
       this.updateContactsStore(contacts);
@@ -295,7 +296,7 @@ export class MiawClient extends EventEmitter {
       this.updateContactsStore(contacts);
     });
 
-    // Chat updates - extract LID mappings from chat data and populate chats store
+    // Chat updates - extract LID mappings and update store
     this.socket.ev.on("chats.upsert", (chats) => {
       this.updateLidFromChats(chats);
       this.updateChatsStore(chats);
@@ -304,6 +305,37 @@ export class MiawClient extends EventEmitter {
     this.socket.ev.on("chats.update", (chats) => {
       this.updateLidFromChats(chats);
       this.updateChatsStore(chats);
+    });
+
+    // History sync - populates contacts, chats, and messages from history
+    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest }) => {
+      if (this.options.debug) {
+        console.log("\n========== MESSAGING HISTORY SYNC ==========");
+        console.log(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}`);
+        console.log(`Is Latest: ${isLatest}`);
+        console.log("============================================\n");
+      }
+
+      // Update contacts from history
+      this.updateContactsStore(contacts);
+
+      // Update chats from history
+      this.updateChatsStore(chats);
+
+      // Update messages from history
+      // messages is an array of objects with messages property
+      for (const historyItem of messages) {
+        const msgs = (historyItem as any).messages;
+        if (Array.isArray(msgs)) {
+          for (const msg of msgs) {
+            this.addMessageToStore(msg);
+          }
+        }
+      }
+
+      if (this.options.debug && isLatest) {
+        console.log("✅ History sync complete");
+      }
     });
 
     // Messages
@@ -346,7 +378,7 @@ export class MiawClient extends EventEmitter {
 
         const normalized = MessageHandler.normalize({ messages: [msg] });
         if (normalized) {
-          // Store message in messagesStore (v0.9.0)
+          // Store message in messagesStore
           const chatJid = normalized.from;
           if (!this.messagesStore.has(chatJid)) {
             this.messagesStore.set(chatJid, []);
@@ -506,66 +538,6 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
-   * Update in-memory contacts store (v0.9.0)
-   * @param contacts - Array of contact objects from Baileys
-   */
-  private updateContactsStore(contacts: any[]): void {
-    for (const contact of contacts) {
-      // Extract the JID (prefer non-lid IDs)
-      const jid = contact.id?.endsWith("@lid")
-        ? contact.jid || contact.id
-        : contact.id;
-      if (!jid) continue;
-
-      // Extract phone number from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
-
-      // Build contact info
-      const contactInfo: ContactInfo = {
-        jid,
-        phone,
-        name: contact.name || contact.notify || undefined,
-      };
-
-      // Update store
-      this.contactsStore.set(jid, contactInfo);
-    }
-  }
-
-  /**
-   * Update in-memory chats store (v0.9.0)
-   * @param chats - Array of chat objects from Baileys
-   */
-  private updateChatsStore(chats: any[]): void {
-    for (const chat of chats) {
-      const jid = chat.id;
-      if (!jid) continue;
-
-      // Extract phone number from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
-
-      // Build chat info
-      const chatInfo: ChatInfo = {
-        jid,
-        phone,
-        name: chat.name || undefined,
-        isGroup: jid.endsWith("@g.us"),
-        lastMessageTimestamp: chat.timestamp || undefined,
-        unreadCount: chat.unreadCount || undefined,
-        isArchived: chat.archived || false,
-        isPinned: chat.pinned || false,
-      };
-
-      // Update store
-      this.chatsStore.set(jid, chatInfo);
-    }
-  }
-
-  /**
    * Update LID to JID mapping from chat data
    */
   private updateLidFromChats(chats: any[]): void {
@@ -654,6 +626,81 @@ export class MiawClient extends EventEmitter {
    */
   clearLidCache(): void {
     this.lidToJidMap.clear();
+  }
+
+  /**
+   * Update in-memory contacts store
+   * @param contacts - Array of contact objects from Baileys
+   */
+  private updateContactsStore(contacts: any[]): void {
+    for (const contact of contacts) {
+      // Extract the JID (prefer non-lid IDs)
+      const jid = contact.id?.endsWith("@lid")
+        ? contact.jid || contact.id
+        : contact.id;
+      if (!jid) continue;
+
+      // Extract phone number from JID
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
+        : undefined;
+
+      // Build contact info
+      const contactInfo: ContactInfo = {
+        jid,
+        phone,
+        name: contact.name || contact.notify || undefined,
+      };
+
+      // Update store
+      this.contactsStore.set(jid, contactInfo);
+    }
+  }
+
+  /**
+   * Update in-memory chats store
+   * @param chats - Array of chat objects from Baileys
+   */
+  private updateChatsStore(chats: any[]): void {
+    for (const chat of chats) {
+      const jid = chat.id;
+      if (!jid) continue;
+
+      // Extract phone number from JID
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
+        : undefined;
+
+      // Build chat info
+      const chatInfo: ChatInfo = {
+        jid,
+        phone,
+        name: chat.name || undefined,
+        isGroup: jid.endsWith("@g.us"),
+        lastMessageTimestamp: chat.timestamp || undefined,
+        unreadCount: chat.unreadCount || undefined,
+        isArchived: chat.archived || false,
+        isPinned: chat.pinned || false,
+      };
+
+      // Update store
+      this.chatsStore.set(jid, chatInfo);
+    }
+  }
+
+  /**
+   * Add a message to the store
+   * @param msg - Baileys message object
+   */
+  private addMessageToStore(msg: any): void {
+    const normalized = MessageHandler.normalize({ messages: [msg] });
+    if (!normalized) return;
+
+    const chatJid = normalized.from;
+    if (!this.messagesStore.has(chatJid)) {
+      this.messagesStore.set(chatJid, []);
+    }
+    this.messagesStore.get(chatJid)!.push(normalized);
   }
 
   /**
@@ -1288,7 +1335,7 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Fetch all contacts from the in-memory store
-   * Note: Contacts are populated via history sync and contact events
+   * Note: Contacts are populated via Baileys store history sync
    * @returns FetchAllContactsResult with list of contacts
    */
   async fetchAllContacts(): Promise<FetchAllContactsResult> {
@@ -1484,7 +1531,7 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Get chat messages from the in-memory store
-   * Note: Messages are populated via messages.upsert events
+   * Note: Messages are populated via Baileys store history sync
    * @param jidOrPhone - Chat JID or phone number
    * @returns FetchChatMessagesResult with list of messages
    */
@@ -1508,7 +1555,7 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Fetch all chats from the in-memory store
-   * Note: Chats are populated via history sync and chat events
+   * Note: Chats are populated via Baileys store history sync
    * @returns FetchAllChatsResult with list of chats
    */
   async fetchAllChats(): Promise<FetchAllChatsResult> {
