@@ -7,6 +7,7 @@
 
 import { MiawClient } from "../../index.js";
 import { createClient, type ClientConfig } from "./session.js";
+import { registerInstance, unregisterInstance } from "./instance-registry.js";
 
 // Client cache: Map<cacheKey, MiawClient>
 const clientCache = new Map<string, MiawClient>();
@@ -46,6 +47,9 @@ export function getOrCreateClient(config: ClientConfig): MiawClient {
   clientCache.set(key, client);
   lastUsed.set(key, Date.now());
 
+  // Register with instance registry for state tracking
+  registerInstance(config, client);
+
   return client;
 }
 
@@ -59,6 +63,9 @@ export async function disconnectClient(config: ClientConfig): Promise<void> {
   if (client && client.getConnectionState() === "connected") {
     await client.disconnect();
   }
+
+  // Unregister from instance registry
+  unregisterInstance(config);
 
   clientCache.delete(key);
   lastUsed.delete(key);
@@ -82,6 +89,13 @@ export async function disconnectAll(): Promise<void> {
   }
 
   await Promise.all(disconnectPromises);
+
+  // Unregister all from instance registry
+  for (const key of clientCache.keys()) {
+    const [instanceId, sessionPath] = key.split(":");
+    unregisterInstance({ instanceId, sessionPath });
+  }
+
   clientCache.clear();
   lastUsed.clear();
 }
@@ -123,6 +137,10 @@ export function hasClient(config: ClientConfig): boolean {
  */
 export function removeClient(config: ClientConfig): void {
   const key = getCacheKey(config);
+
+  // Unregister from instance registry
+  unregisterInstance(config);
+
   clientCache.delete(key);
   lastUsed.delete(key);
 }

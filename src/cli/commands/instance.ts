@@ -15,6 +15,23 @@ import {
   disconnectClient,
   getOrCreateClient,
 } from "../utils/client-cache.js";
+import { getInstanceState, listInstanceStates } from "../utils/instance-registry.js";
+
+/**
+ * Result type for instance connect command
+ */
+export interface InstanceConnectResult {
+  success: boolean;
+  switchToInstance?: string;
+}
+
+/**
+ * Result type for instance disconnect command
+ */
+export interface InstanceDisconnectResult {
+  success: boolean;
+  switchToInstance?: string;
+}
 
 /**
  * List all instances
@@ -28,16 +45,16 @@ export async function cmdInstanceList(sessionPath: string): Promise<boolean> {
     return true;
   }
 
+  // Get states from registry for all tracked instances
+  const trackedStates = new Map<string, string>();
+  for (const info of listInstanceStates(sessionPath)) {
+    trackedStates.set(info.instanceId, info.state);
+  }
+
   console.log(`\n📱 Instances (${instances.length}):\n`);
   for (const instanceId of instances) {
-    let status = "disconnected";
-    try {
-      const client = getOrCreateClient({ instanceId, sessionPath });
-      if (client.getConnectionState() === "connected") {
-        status = "connected";
-      }
-    } catch {}
-
+    // Use registry state if available, otherwise show as disconnected
+    const status = trackedStates.get(instanceId) ?? "disconnected";
     console.log(`  ${instanceId} [${status}]`);
   }
   console.log();
@@ -71,13 +88,30 @@ export async function cmdInstanceStatus(
     console.log(`\n📱 Instance: ${id}`);
     console.log("─".repeat(50));
 
-    const client = getOrCreateClient({ instanceId: id, sessionPath });
-    const state = client.getConnectionState();
+    // Try to get state from registry first (doesn't create new client)
+    let state = getInstanceState({ instanceId: id, sessionPath });
+    let client: any = null;
+
+    // If not in registry, try to get from cache (but don't create new one)
+    if (state === null) {
+      // Import only when needed to avoid circular dependency
+      const { hasClient, getOrCreateClient } = await import("../utils/client-cache.js");
+      if (hasClient({ instanceId: id, sessionPath })) {
+        client = getOrCreateClient({ instanceId: id, sessionPath });
+        state = client.getConnectionState();
+      } else {
+        state = "disconnected";
+      }
+    } else {
+      // Get client from registry if we have a state
+      const { getInstanceClient } = await import("../utils/instance-registry.js");
+      client = getInstanceClient({ instanceId: id, sessionPath });
+    }
 
     console.log(`Status: ${state}`);
     console.log(`Session: ${path.join(sessionPath, id)}`);
 
-    if (state === "connected") {
+    if (state === "connected" && client) {
       try {
         const profile = await client.getOwnProfile();
         if (profile) {
@@ -173,13 +207,13 @@ export async function cmdInstanceDelete(
 export async function cmdInstanceConnect(
   sessionPath: string,
   instanceId: string
-): Promise<boolean> {
+): Promise<InstanceConnectResult> {
   const instances = listInstances(sessionPath);
 
   if (!instances.includes(instanceId)) {
     console.log(`❌ Instance "${instanceId}" not found.`);
     console.log(`Create it first with: miaw-cli instance create ${instanceId}`);
-    return false;
+    return { success: false };
   }
 
   console.log(`\n📱 Connecting instance: ${instanceId}`);
@@ -190,12 +224,13 @@ export async function cmdInstanceConnect(
   const result = await ensureConnected(client);
   if (!result.success) {
     console.log(`❌ Failed to connect: ${result.reason}`);
-    return false;
+    return { success: false };
   }
 
   console.log(`✅ Connected!`);
 
-  return true;
+  // Signal REPL to switch to this instance
+  return { success: true, switchToInstance: instanceId };
 }
 
 /**
@@ -203,8 +238,9 @@ export async function cmdInstanceConnect(
  */
 export async function cmdInstanceDisconnect(
   sessionPath: string,
-  instanceId: string
-): Promise<boolean> {
+  instanceId: string,
+  currentInstanceId?: string
+): Promise<InstanceDisconnectResult> {
   const client = getOrCreateClient({ instanceId, sessionPath });
 
   const state = client.getConnectionState();
@@ -212,7 +248,7 @@ export async function cmdInstanceDisconnect(
     console.log(`ℹ️  Instance "${instanceId}" is not connected.`);
     // Still remove from cache to clean up
     await disconnectClient({ instanceId, sessionPath });
-    return true;
+    return { success: true };
   }
 
   await client.disconnect();
@@ -220,7 +256,12 @@ export async function cmdInstanceDisconnect(
   await disconnectClient({ instanceId, sessionPath });
   console.log(`✅ Disconnected from "${instanceId}"`);
 
-  return true;
+  // If we disconnected the currently active instance, suggest switching to default
+  if (currentInstanceId && instanceId === currentInstanceId) {
+    return { success: true, switchToInstance: "default" };
+  }
+
+  return { success: true };
 }
 
 /**

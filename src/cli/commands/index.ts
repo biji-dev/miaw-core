@@ -50,7 +50,7 @@ export async function runCommand(
   command: string,
   args: string[],
   context: CommandContext
-): Promise<boolean> {
+): Promise<boolean | { success: boolean; switchToInstance?: string }> {
   const { clientConfig, jsonOutput = false } = context;
 
   // Parse flags from args
@@ -95,7 +95,8 @@ export async function runCommand(
         }
         return await cmdInstanceDisconnect(
           clientConfig.sessionPath,
-          subArgs[0] || clientConfig.instanceId
+          subArgs[0] || clientConfig.instanceId,
+          clientConfig.instanceId
         );
       case "logout":
         if (!subArgs[0]) {

@@ -7,6 +7,7 @@
 import * as readline from "readline";
 import { ensureConnected, listInstances } from "./utils/session.js";
 import { disconnectAll, getOrCreateClient } from "./utils/client-cache.js";
+import { getInstanceState } from "./utils/instance-registry.js";
 import { runCommand } from "./commands/index.js";
 
 // =============================================================================
@@ -247,10 +248,25 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     const args = parts.slice(1);
 
     try {
-      await runCommand(command, args, {
+      const result = await runCommand(command, args, {
         clientConfig: config,
         jsonOutput: false,
       });
+
+      // Check if command suggests switching to a different instance
+      if (result && typeof result === "object" && "switchToInstance" in result) {
+        const switchTo = result.switchToInstance;
+        if (switchTo && switchTo !== config.instanceId) {
+          config.instanceId = switchTo;
+          // Get the new client for the switched instance
+          const newClient = getOrCreateClient(config);
+          console.log(`✅ Switched to instance: ${switchTo}`);
+          // Update prompt with new client's state
+          rl.setPrompt(getPrompt(switchTo, newClient.getConnectionState()));
+          rl.prompt();
+          return;
+        }
+      }
     } catch (error: any) {
       console.log(`❌ Error: ${error.message}`);
     }
@@ -358,9 +374,14 @@ async function showStatus(client: any, config: ClientConfig): Promise<void> {
   console.log(`\n📊 Status:\n`);
   console.log(`Instance:  ${config.instanceId}`);
   console.log(`Session:   ${config.sessionPath}`);
-  console.log(`State:     ${client.getConnectionState()}`);
 
-  if (client.getConnectionState() === "connected") {
+  // Use registry state as the source of truth for consistency
+  const registryState = getInstanceState(config);
+  const state = registryState ?? client.getConnectionState();
+
+  console.log(`State:     ${state}`);
+
+  if (state === "connected") {
     try {
       const profile = await client.getOwnProfile();
       if (profile) {
