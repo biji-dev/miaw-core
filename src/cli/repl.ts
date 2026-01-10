@@ -85,6 +85,17 @@ function createCompleter(sessionPath: string): readline.Completer {
       const category = parts[0];
       const categoryData = commandTree[category];
 
+      // Commands that accept instance ID as second argument
+      if (["use", "connect", "disconnect"].includes(category) && parts.length === 2) {
+        const instances = listInstances(sessionPath);
+        for (const inst of instances) {
+          if (inst.startsWith(currentPart)) {
+            hits.push(inst);
+          }
+        }
+        return [hits, currentPart];
+      }
+
       if (categoryData?.subcommands) {
         for (const sub of categoryData.subcommands) {
           if (sub.startsWith(currentPart)) {
@@ -114,7 +125,7 @@ function createCompleter(sessionPath: string): readline.Completer {
       }
 
       // Instance ID completion (for 'use', 'instance delete', 'instance connect', etc.)
-      if (["use", "instance"].includes(category)) {
+      if (["use", "instance", "connect"].includes(category)) {
         const instances = listInstances(sessionPath);
         for (const inst of instances) {
           if (inst.startsWith(currentPart)) {
@@ -202,8 +213,33 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       return;
     }
 
-    if (input === "connect") {
-      await handleConnect(client);
+    if (input === "connect" || input.startsWith("connect ")) {
+      const parts = input.split(/\s+/);
+      const targetInstanceId = parts[1];
+
+      if (targetInstanceId) {
+        // Connect to specified instance
+        const result = await runCommand("instance", ["connect", targetInstanceId], {
+          clientConfig: config,
+          jsonOutput: false,
+        });
+
+        // Handle auto-switch if result indicates it
+        if (result && typeof result === "object" && "switchToInstance" in result) {
+          const switchTo = result.switchToInstance;
+          if (switchTo && switchTo !== config.instanceId) {
+            config.instanceId = switchTo;
+            const newClient = getOrCreateClient(config);
+            rl.setPrompt(getPrompt(switchTo, newClient.getConnectionState()));
+            rl.prompt();
+            return;
+          }
+        }
+      } else {
+        // Connect to current instance (existing behavior)
+        await handleConnect(client);
+      }
+
       rl.setPrompt(getPrompt(config.instanceId, client.getConnectionState()));
       rl.prompt();
       return;
@@ -314,7 +350,7 @@ REPL-SPECIFIC:
   status               Show connection status
   exit, quit           Exit REPL
   use <instance-id>    Switch to a different instance
-  connect              Connect to WhatsApp
+  connect [id]         Connect to WhatsApp (optional: specify instance)
   disconnect           Disconnect from WhatsApp
   debug [on|off]       Enable/disable debug mode (default: on)
   instances, ls        List all instances

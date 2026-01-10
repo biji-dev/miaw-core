@@ -130,6 +130,9 @@ export class MiawClient extends EventEmitter {
   private socket: WASocket | null = null;
   private authHandler: AuthHandler;
   private connectionState: ConnectionState = "disconnected";
+  private connectionStateTimestamp: number = 0;
+  private connectionWatchdogTimer: NodeJS.Timeout | null = null;
+  private static readonly STUCK_STATE_TIMEOUT = 30000; // 30 seconds
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private logger: any;
@@ -139,6 +142,8 @@ export class MiawClient extends EventEmitter {
   private chatsStore: Map<string, ChatInfo> = new Map();
   private messagesStore: Map<string, MiawMessage[]> = new Map();
   private labelsStore: Map<string, Label> = new Map();
+  // Store auth state for logout access (needed when disconnected)
+  private authState: { creds: any } | null = null;
 
   constructor(options: MiawClientOptions) {
     super();
@@ -203,9 +208,21 @@ export class MiawClient extends EventEmitter {
    * Connect to WhatsApp
    */
   async connect(): Promise<void> {
-    // Don't reconnect if already connected or connecting
-    if (this.connectionState === "connected" || this.connectionState === "connecting") {
-      this.logger.info(`Already ${this.connectionState}, skipping connect() call`);
+    // Check for stale "connecting" state (stuck for more than 30 seconds)
+    if (this.connectionState === "connecting") {
+      const elapsed = Date.now() - this.connectionStateTimestamp;
+      if (elapsed < 30000) {
+        this.logger.info(`Already connecting (${elapsed}ms), skipping connect() call`);
+        return;
+      } else {
+        this.logger.warn(`Stuck in "connecting" state for ${elapsed}ms, forcing reconnect`);
+        this.updateConnectionState("disconnected");
+      }
+    }
+
+    // Don't reconnect if already connected
+    if (this.connectionState === "connected") {
+      this.logger.info("Already connected, skipping connect() call");
       return;
     }
 
@@ -214,6 +231,9 @@ export class MiawClient extends EventEmitter {
 
       // Load auth state
       const { state, saveCreds } = await this.authHandler.initialize();
+
+      // Store auth state for logout access (needed when disconnected)
+      this.authState = { creds: state.creds };
 
       // Get latest Baileys version
       const { version } = await fetchLatestBaileysVersion();
@@ -790,12 +810,12 @@ export class MiawClient extends EventEmitter {
     }
 
     this.reconnectAttempts++;
-    this.updateConnectionState("reconnecting");
+    // Emit event but don't set state - let connect() handle the state transition
     this.emit("reconnecting", this.reconnectAttempts);
 
     this.reconnectTimer = setTimeout(() => {
       this.logger.info(`Reconnecting... Attempt ${this.reconnectAttempts}`);
-      this.connect();
+      this.connect();  // This will set state to "connecting"
     }, this.options.reconnectDelay);
   }
 
@@ -804,7 +824,45 @@ export class MiawClient extends EventEmitter {
    */
   private updateConnectionState(state: ConnectionState): void {
     this.connectionState = state;
+    this.connectionStateTimestamp = Date.now();
     this.emit("connection", state);
+
+    // Start watchdog for potentially stuck states
+    if (state === "connecting" || state === "reconnecting") {
+      this.startConnectionWatchdog();
+    } else {
+      // Clear watchdog if we're no longer in a potentially stuck state
+      if (this.connectionWatchdogTimer) {
+        clearTimeout(this.connectionWatchdogTimer);
+        this.connectionWatchdogTimer = null;
+      }
+    }
+  }
+
+  /**
+   * Start watchdog timer to detect stuck connection states
+   */
+  private startConnectionWatchdog(): void {
+    // Clear any existing watchdog
+    if (this.connectionWatchdogTimer) {
+      clearTimeout(this.connectionWatchdogTimer);
+    }
+
+    this.connectionWatchdogTimer = setTimeout(() => {
+      const currentState = this.connectionState;
+      const elapsed = Date.now() - this.connectionStateTimestamp;
+
+      // If stuck in connecting/reconnecting for too long, reset to disconnected
+      if (
+        (currentState === "connecting" || currentState === "reconnecting") &&
+        elapsed >= MiawClient.STUCK_STATE_TIMEOUT
+      ) {
+        this.logger.warn(
+          `Connection stuck in "${currentState}" state for ${elapsed}ms, resetting`
+        );
+        this.updateConnectionState("disconnected");
+      }
+    }, MiawClient.STUCK_STATE_TIMEOUT);
   }
 
   /**
@@ -4152,15 +4210,72 @@ export class MiawClient extends EventEmitter {
   /**
    * Logout from WhatsApp and clear session.
    * After calling this, the next connect() will require scanning a new QR code.
+   *
+   * This method sends a remove-companion-device request to WhatsApp servers,
+   * waits for acknowledgment, then closes the connection. If disconnected,
+   * it will attempt to reconnect temporarily to send the logout request.
    */
   async logout(): Promise<void> {
+    // Clear any pending reconnection
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
 
+    // Check if we have credentials to logout
+    const jid = this.authState?.creds?.me?.id;
+    if (!jid) {
+      this.logger.warn("No credentials found - cannot send logout request to server");
+      this.updateConnectionState("disconnected");
+      return;
+    }
+
+    // If disconnected, try to reconnect temporarily
+    if (!this.socket || this.connectionState !== "connected") {
+      this.logger.info("Not connected - attempting to reconnect for logout");
+      try {
+        await this.connect();
+        // Wait for connection to be established (max 10 seconds)
+        await this.waitForState("connected", 10000);
+      } catch (error) {
+        this.logger.warn(`Failed to reconnect for logout: ${error}`);
+        // Continue with local cleanup even if reconnect fails
+      }
+    }
+
+    // Send logout request using query() to wait for response
+    if (this.socket && this.connectionState === "connected") {
+      try {
+        this.logger.info("Sending logout request to WhatsApp server...");
+        // Use query() instead of sendNode() to wait for response
+        // This works around Baileys' socket.logout() using sendNode() which
+        // closes the connection before WhatsApp can process the request
+        await this.socket.query({
+          tag: 'iq',
+          attrs: {
+            to: 'S.whatsapp.net',
+            type: 'set',
+            id: this.socket.generateMessageTag(),
+            xmlns: 'md'
+          },
+          content: [{
+            tag: 'remove-companion-device',
+            attrs: {
+              jid,
+              reason: 'user_initiated'
+            }
+          }]
+        });
+        this.logger.info("Logout request acknowledged by WhatsApp server");
+      } catch (error) {
+        this.logger.warn(`Logout request failed: ${error}`);
+        // Continue with cleanup even if logout request fails
+      }
+    }
+
+    // Clean up socket
     if (this.socket) {
-      await this.socket.logout();
+      this.socket.end(undefined);
       this.socket = null;
     }
 
@@ -4173,6 +4288,39 @@ export class MiawClient extends EventEmitter {
    */
   getConnectionState(): ConnectionState {
     return this.connectionState;
+  }
+
+  /**
+   * Wait for connection state to change to desired state
+   * @param desiredState - The state to wait for
+   * @param timeoutMs - Maximum time to wait in milliseconds
+   */
+  private async waitForState(
+    desiredState: ConnectionState,
+    timeoutMs: number = 10000
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Check if already in desired state
+      if (this.connectionState === desiredState) {
+        resolve();
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        this.off("connection", handler);
+        reject(new Error(`Timeout waiting for connection state: ${desiredState}`));
+      }, timeoutMs);
+
+      const handler = (state: ConnectionState) => {
+        if (state === desiredState) {
+          clearTimeout(timer);
+          this.off("connection", handler);
+          resolve();
+        }
+      };
+
+      this.on("connection", handler);
+    });
   }
 
   /**

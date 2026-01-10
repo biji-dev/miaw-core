@@ -282,12 +282,15 @@ export async function cmdInstanceLogout(
       console.log("Cancelled.");
       return false;
     }
+  }
 
-    try {
-      await client.logout();
-    } catch {
-      // Logout might fail if not properly connected, try to clear session
-    }
+  // Always attempt logout to send remove-companion-device request
+  // (will attempt reconnect if disconnected)
+  try {
+    await client.logout();
+  } catch (error) {
+    console.log(`⚠️  Logout request failed: ${error}`);
+    console.log("   Continuing with session cleanup...");
   }
 
   // Remove from cache and delete session files

@@ -178,6 +178,12 @@ export async function handleQRConnection(
 
   console.log(`(Current state: ${initialCheckState})`);
 
+  // Track QR display and reconnection expectations
+  let expectingReconnection = false;
+  const QR_DISPLAY_TIME = Date.now();
+  const QR_GRACE_PERIOD = 5000; // 5 seconds grace period after QR display
+  const QR_SCAN_TIMEOUT = 60000; // 60 seconds to scan QR
+
   const connected = await new Promise<boolean>((resolve) => {
     const timeout = setTimeout(() => {
       const finalState = client.getConnectionState();
@@ -191,6 +197,20 @@ export async function handleQRConnection(
     };
 
     const onDisconnected = () => {
+      const timeSinceQrDisplay = Date.now() - QR_DISPLAY_TIME;
+
+      // During grace period, ignore disconnect (user might be scanning)
+      if (timeSinceQrDisplay < QR_GRACE_PERIOD) {
+        return; // Don't fail yet - give user time to scan
+      }
+
+      // After grace period, only expect reconnection if we saw progress
+      if (expectingReconnection) {
+        expectingReconnection = false;
+        return; // Wait for reconnection
+      }
+
+      // Real disconnect failure
       clearTimeout(timeout);
       resolve(false);
     };
@@ -200,8 +220,18 @@ export async function handleQRConnection(
 
     // Also poll connection state as fallback in case event was missed
     let dots = 0;
+    let stuckStateCount = 0;
+    const STUCK_THRESHOLD = 10; // 10 seconds = 10 polling intervals
     const pollInterval = setInterval(() => {
       const currentState = client.getConnectionState();
+      const now = Date.now();
+      const timeSinceQrDisplay = now - QR_DISPLAY_TIME;
+
+      // If we see connecting/reconnecting, user likely scanned QR
+      if (currentState === "connecting" || currentState === "reconnecting") {
+        expectingReconnection = true;
+      }
+
       if (currentState === "connected") {
         clearInterval(pollInterval);
         clearTimeout(timeout);
@@ -209,13 +239,57 @@ export async function handleQRConnection(
         client.off("disconnected", onDisconnected);
         resolve(true);
       } else if (currentState === "disconnected") {
+        // During grace period, ignore disconnect
+        if (timeSinceQrDisplay < QR_GRACE_PERIOD) {
+          dots = (dots + 1) % 4;
+          process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} Waiting for QR scan...   `);
+          return;
+        }
+
+        // After grace period, only wait if expecting reconnection
+        if (expectingReconnection) {
+          expectingReconnection = false;
+          stuckStateCount = 0; // Reset counter to give reconnection time
+          dots = (dots + 1) % 4;
+          process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} Reconnecting...   `);
+          return;
+        }
+
+        // Real disconnect failure
         clearInterval(pollInterval);
         clearTimeout(timeout);
         client.off("ready", onReady);
         client.off("disconnected", onDisconnected);
         resolve(false);
+      } else if (currentState === "qr_required") {
+        // QR timeout check
+        if (timeSinceQrDisplay > QR_SCAN_TIMEOUT) {
+          clearInterval(pollInterval);
+          clearTimeout(timeout);
+          client.off("ready", onReady);
+          client.off("disconnected", onDisconnected);
+          console.log(`\n⏱️  QR code not scanned within ${QR_SCAN_TIMEOUT / 1000}s`);
+          resolve(false);
+          return;
+        }
+        dots = (dots + 1) % 4;
+        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} Waiting for QR scan...   `);
+      } else if (currentState === "connecting" || currentState === "reconnecting") {
+        stuckStateCount++;
+        dots = (dots + 1) % 4;
+        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} State: ${currentState}   `);
+
+        // If stuck for too long, fail fast
+        if (stuckStateCount > STUCK_THRESHOLD) {
+          clearInterval(pollInterval);
+          clearTimeout(timeout);
+          client.off("ready", onReady);
+          client.off("disconnected", onDisconnected);
+          console.log(`\n⚠️  Connection stuck in "${currentState}" state`);
+          resolve(false);
+        }
       } else {
-        // Show progress indicator
+        stuckStateCount = 0;
         dots = (dots + 1) % 4;
         process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} State: ${currentState}   `);
       }

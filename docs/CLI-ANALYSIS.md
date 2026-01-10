@@ -1,6 +1,6 @@
 # miaw-cli - Feature Analysis & Comparison
 
-**Document Version:** 2.0.0
+**Document Version:** 3.0.0
 **Analysis Date:** 2026-01-10
 **miaw-core Version:** v1.0.0
 **Purpose:** Analyze current CLI features and provide recommendations for enhancement
@@ -61,22 +61,22 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 |
 | **Advanced Messaging Operations** |
 |---|---------|------------------|------------------|-------------|----------|----------|
-| 23 | Send reaction | `sendReaction()` | ✅ Test | ❌ | Message | **P0** |
-| 24 | Remove reaction | `removeReaction()` | ✅ Test | ❌ | Message | **P0** |
-| 25 | Forward message | `forwardMessage()` | ✅ Test | ❌ | Message | **P0** |
-| 26 | Edit message | `editMessage()` | ✅ Test | ❌ | Message | **P0** |
-| 27 | Delete message (everyone) | `deleteMessage()` | ✅ Test | ❌ | Message | **P0** |
-| 28 | Delete message (me only) | `deleteMessageForMe()` | ✅ Test | ❌ | Message | **P0** |
+| 23 | Send reaction | `sendReaction()` | ✅ Test | ❌ | Message | **P1** |
+| 24 | Remove reaction | `removeReaction()` | ✅ Test | ❌ | Message | **P1** |
+| 25 | Forward message | `forwardMessage()` | ✅ Test | ❌ | Message | **P1** |
+| 26 | Edit message | `editMessage()` | ✅ Test | ❌ | Message | **P1** |
+| 27 | Delete message (everyone) | `deleteMessage()` | ✅ Test | ❌ | Message | **P1** |
+| 28 | Delete message (me only) | `deleteMessageForMe()` | ✅ Test | ❌ | Message | **P1** |
 |
 | **Contact & Validation** |
 |---|---------|------------------|------------------|-------------|----------|----------|
 | 29 | Check phone number | `checkNumber()` | ✅ Test | ✅ `check <phone>` | Misc | - |
 | 30 | Batch check numbers | `checkNumbers()` | ✅ Test | ✅ `check <phone1> <phone2>` | Misc | - |
-| 31 | Get contact info | `getContactInfo()` | ✅ Test | ❌ | Contact | **P1** |
-| 32 | Get business profile | `getBusinessProfile()` | ✅ Test | ❌ | Contact | **P1** |
-| 33 | Get profile picture | `getProfilePicture()` | ✅ Test | ❌ | Contact | **P1** |
-| 34 | Add/edit contact | `addOrEditContact()` | ✅ Test | ❌ | Contact | **P1** |
-| 35 | Remove contact | `removeContact()` | ✅ Test | ❌ | Contact | **P1** |
+| 31 | Get contact info | `getContactInfo()` | ✅ Test | ❌ | Contact | **P0** |
+| 32 | Get business profile | `getBusinessProfile()` | ✅ Test | ❌ | Contact | **P0** |
+| 33 | Get profile picture | `getProfilePicture()` | ✅ Test | ❌ | Contact | **P0** |
+| 34 | Add/edit contact | `addOrEditContact()` | ✅ Test | ❌ | Contact | **P0** |
+| 35 | Remove contact | `removeContact()` | ✅ Test | ❌ | Contact | **P0** |
 |
 | **Group Management** |
 |---|---------|------------------|------------------|-------------|----------|----------|
@@ -84,17 +84,17 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 | 37 | Get group participants | `getGroupParticipants()` | ✅ Test | ✅ `group participants <jid>` | Group | - |
 | 38 | Create group | `createGroup()` | ✅ Test | ✅ `group create <name> <phones..>` | Group | - |
 | 39 | Get invite link | `getGroupInviteLink()` | ✅ Test | ✅ `group invite-link <jid>` | Group | - |
-| 40 | Add participants | `addParticipants()` | ✅ Test | ❌ | Group | **P0** |
-| 41 | Remove participants | `removeParticipants()` | ✅ Test | ❌ | Group | **P0** |
+| 40 | Add participants | `addParticipants()` | ✅ Test | ❌ | Group | **P1** |
+| 41 | Remove participants | `removeParticipants()` | ✅ Test | ❌ | Group | **P1** |
 | 42 | Leave group | `leaveGroup()` | ✅ Test | ❌ | Group | **P0** |
-| 43 | Promote to admin | `promoteToAdmin()` | ✅ Test | ❌ | Group | **P0** |
-| 44 | Demote from admin | `demoteFromAdmin()` | ✅ Test | ❌ | Group | **P0** |
-| 45 | Update group name | `updateGroupName()` | ✅ Test | ❌ | Group | **P0** |
-| 46 | Update group description | `updateGroupDescription()` | ✅ Test | ❌ | Group | **P0** |
-| 47 | Update group picture | `updateGroupPicture()` | ✅ Test | ❌ | Group | **P0** |
-| 48 | Revoke invite link | `revokeGroupInvite()` | ✅ Test | ❌ | Group | **P0** |
+| 43 | Promote to admin | `promoteToAdmin()` | ✅ Test | ❌ | Group | **P1** |
+| 44 | Demote from admin | `demoteFromAdmin()` | ✅ Test | ❌ | Group | **P1** |
+| 45 | Update group name | `updateGroupName()` | ✅ Test | ❌ | Group | **P1** |
+| 46 | Update group description | `updateGroupDescription()` | ✅ Test | ❌ | Group | **P1** |
+| 47 | Update group picture | `updateGroupPicture()` | ✅ Test | ❌ | Group | **P1** |
+| 48 | Revoke invite link | `revokeGroupInvite()` | ✅ Test | ❌ | Group | **P1** |
 | 49 | Accept group invite | `acceptGroupInvite()` | ✅ Test | ❌ | Group | **P0** |
-| 50 | Get invite info | `getGroupInviteInfo()` | ✅ Test | ❌ | Group | **P0** |
+| 50 | Get invite info | `getGroupInviteInfo()` | ✅ Test | ❌ | Group | **P1** |
 |
 | **Profile Management** |
 |---|---------|------------------|------------------|-------------|----------|----------|
@@ -114,19 +114,19 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 |
 | **Business - Labels (WhatsApp Business Only)** |
 |---|---------|------------------|------------------|-------------|----------|----------|
-| 61 | Add/create label | `addLabel()` | ✅ Test | ❌ | Label | **P1** |
-| 62 | Add label to chat | `addChatLabel()` | ✅ Test | ❌ | Label | **P1** |
-| 63 | Remove label from chat | `removeChatLabel()` | ✅ Test | ❌ | Label | **P1** |
-| 64 | Add label to message | `addMessageLabel()` | ✅ Test | ❌ | Label | P2 |
-| 65 | Remove label from message | `removeMessageLabel()` | ✅ Test | ❌ | Label | P2 |
+| 61 | Add/create label | `addLabel()` | ✅ Test | ❌ | Label | **P0** |
+| 62 | Add label to chat | `addChatLabel()` | ✅ Test | ❌ | Label | **P0** |
+| 63 | Remove label from chat | `removeChatLabel()` | ✅ Test | ❌ | Label | **P0** |
+| 64 | Add label to message | `addMessageLabel()` | ✅ Test | ❌ | Label | **P1** |
+| 65 | Remove label from message | `removeMessageLabel()` | ✅ Test | ❌ | Label | **P1** |
 |
 | **Business - Catalog (WhatsApp Business Only)** |
 |---|---------|------------------|------------------|-------------|----------|----------|
-| 66 | Get catalog | `getCatalog()` | ✅ Test | ❌ | Catalog | **P2** |
-| 67 | Get collections | `getCollections()` | ✅ Test | ❌ | Catalog | **P2** |
-| 68 | Create product | `createProduct()` | ✅ Test | ❌ | Catalog | **P2** |
-| 69 | Update product | `updateProduct()` | ✅ Test | ❌ | Catalog | **P2** |
-| 70 | Delete products | `deleteProducts()` | ✅ Test | ❌ | Catalog | **P2** |
+| 66 | Get catalog | `getCatalog()` | ✅ Test | ❌ | Catalog | **P0** |
+| 67 | Get collections | `getCollections()` | ✅ Test | ❌ | Catalog | **P0** |
+| 68 | Create product | `createProduct()` | ✅ Test | ❌ | Catalog | **P0** |
+| 69 | Update product | `updateProduct()` | ✅ Test | ❌ | Catalog | **P0** |
+| 70 | Delete products | `deleteProducts()` | ✅ Test | ❌ | Catalog | **P0** |
 |
 | **Newsletter/Channel Operations** |
 |---|---------|------------------|------------------|-------------|----------|----------|
@@ -202,13 +202,48 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 
 ## Missing CLI Commands by Priority
 
-### 🔴 Priority 0 (P0) - High-Value Core Features (22 missing)
+### 🔴 Priority 0 (P0) - Essential Core Features (26 missing)
 
 | # | Feature | miaw-core Method | Proposed CLI Command |
 |---|---------|------------------|---------------------|
 | **Basic Messaging (2)** |
 | 20 | Send video | `sendVideo()` | `send video <phone> <path> [caption]` |
 | 21 | Send audio | `sendAudio()` | `send audio <phone> <path>` |
+| **Contact Operations (5)** |
+| 31 | Get contact info | `getContactInfo()` | `contact info <phone>` |
+| 32 | Get business profile | `getBusinessProfile()` | `contact business <phone>` |
+| 33 | Get profile picture | `getProfilePicture()` | `contact picture <phone> [high]` |
+| 34 | Add/edit contact | `addOrEditContact()` | `contact add <phone> <name>` |
+| 35 | Remove contact | `removeContact()` | `contact remove <phone>` |
+| **Group Join/Leave (2)** |
+| 42 | Leave group | `leaveGroup()` | `group leave <jid>` |
+| 49 | Accept group invite | `acceptGroupInvite()` | `group invite accept <code>` |
+| **Profile Management (4)** |
+| 51 | Update picture | `updateProfilePicture()` | `profile picture set <path>` |
+| 52 | Remove picture | `removeProfilePicture()` | `profile picture remove` |
+| 53 | Update name | `updateProfileName()` | `profile name set <name>` |
+| 54 | Update status | `updateProfileStatus()` | `profile status set <status>` |
+| **Business Labels - Chat (3)** |
+| 61 | Create label | `addLabel()` | `label add <name> [color]` |
+| 62 | Add to chat | `addChatLabel()` | `label chat add <jid> <labelId>` |
+| 63 | Remove from chat | `removeChatLabel()` | `label chat remove <jid> <labelId>` |
+| **Business Catalog (5)** |
+| 66 | Get catalog | `getCatalog()` | `catalog list [--limit N]` |
+| 67 | Get collections | `getCollections()` | `catalog collections` |
+| 68 | Create product | `createProduct()` | `catalog product create <name> <price> <image>` |
+| 69 | Update product | `updateProduct()` | `catalog product update <id> [options]` |
+| 70 | Delete products | `deleteProducts()` | `catalog product delete <id>` |
+| **Other (5)** |
+| 22 | Download media | `downloadMedia()` | `media download <jid> <msgId> <path>` |
+| 40 | Add participants | `addParticipants()` | `group participants add <jid> <phones..>` |
+| 41 | Remove participants | `removeParticipants()` | `group participants remove <jid> <phones..>` |
+
+---
+
+### 🟡 Priority 1 (P1) - Common Use Cases (22 missing)
+
+| # | Feature | miaw-core Method | Proposed CLI Command |
+|---|---------|------------------|---------------------|
 | **Advanced Messaging (6)** |
 | 23 | Send reaction | `sendReaction()` | `message react <jid> <msgId> <emoji>` |
 | 24 | Remove reaction | `removeReaction()` | `message react-remove <jid> <msgId>` |
@@ -216,36 +251,14 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 | 26 | Edit message | `editMessage()` | `message edit <jid> <msgId> <newText>` |
 | 27 | Delete for everyone | `deleteMessage()` | `message delete <jid> <msgId>` |
 | 28 | Delete for me only | `deleteMessageForMe()` | `message delete-for-me <jid> <msgId>` |
-| **Group Management (11)** |
-| 40 | Add participants | `addParticipants()` | `group participants add <jid> <phones..>` |
-| 41 | Remove participants | `removeParticipants()` | `group participants remove <jid> <phones..>` |
-| 42 | Leave group | `leaveGroup()` | `group leave <jid>` |
+| **Group Management (9)** |
 | 43 | Promote to admin | `promoteToAdmin()` | `group participants promote <jid> <phones..>` |
 | 44 | Demote from admin | `demoteFromAdmin()` | `group participants demote <jid> <phones..>` |
 | 45 | Update group name | `updateGroupName()` | `group name set <jid> <name>` |
 | 46 | Update description | `updateGroupDescription()` | `group description set <jid> [desc]` |
 | 47 | Update picture | `updateGroupPicture()` | `group picture set <jid> <path>` |
 | 48 | Revoke invite | `revokeGroupInvite()` | `group invite revoke <jid>` |
-| 49 | Accept invite | `acceptGroupInvite()` | `group invite accept <code>` |
 | 50 | Get invite info | `getGroupInviteInfo()` | `group invite info <code>` |
-| **Profile Management (4)** |
-| 51 | Update picture | `updateProfilePicture()` | `profile picture set <path>` |
-| 52 | Remove picture | `removeProfilePicture()` | `profile picture remove` |
-| 53 | Update name | `updateProfileName()` | `profile name set <name>` |
-| 54 | Update status | `updateProfileStatus()` | `profile status set <status>` |
-
----
-
-### 🟡 Priority 1 (P1) - Common Use Cases (17 missing)
-
-| # | Feature | miaw-core Method | Proposed CLI Command |
-|---|---------|------------------|---------------------|
-| **Contact Operations (5)** |
-| 31 | Get contact info | `getContactInfo()` | `contact info <phone>` |
-| 32 | Get business profile | `getBusinessProfile()` | `contact business <phone>` |
-| 33 | Get profile picture | `getProfilePicture()` | `contact picture <phone> [high]` |
-| 34 | Add/edit contact | `addOrEditContact()` | `contact add <phone> <name>` |
-| 35 | Remove contact | `removeContact()` | `contact remove <phone>` |
 | **Presence Features (6)** |
 | 55 | Mark as read | `markAsRead()` | `presence read <jid> <msgId>` |
 | 56 | Send typing | `sendTyping()` | `presence typing <jid> [duration]` |
@@ -253,30 +266,16 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 | 58 | Stop typing/recording | `stopTyping()` | `presence stop <jid>` |
 | 59 | Set presence | `setPresence()` | `presence set <available\|unavailable>` |
 | 60 | Subscribe presence | `subscribePresence()` | `presence subscribe <jid>` |
-| **Business Labels (3)** |
-| 61 | Create label | `addLabel()` | `label add <name> [color]` |
-| 62 | Add to chat | `addChatLabel()` | `label chat add <jid> <labelId>` |
-| 63 | Remove from chat | `removeChatLabel()` | `label chat remove <jid> <labelId>` |
-| **Other (3)** |
-| 22 | Download media | `downloadMedia()` | `media download <jid> <msgId> <path>` |
-| 8 | Get instance ID | `getInstanceId()` | `instance id` |
-| 9 | Check connected | `isConnected()` | `instance connected` |
+| **Label - Message (1)** |
+| 64 | Add to message | `addMessageLabel()` | `label message add <jid> <msgId> <labelId>` |
+| 65 | Remove from message | `removeMessageLabel()` | `label message remove <jid> <msgId> <labelId>` |
 
 ---
 
-### 🟢 Priority 2 (P2) - Business Features (26 missing)
+### 🟢 Priority 2 (P2) - Newsletter Features (21 missing)
 
 | # | Feature | miaw-core Method | Proposed CLI Command |
 |---|---------|------------------|---------------------|
-| **Catalog (5)** |
-| 66 | Get catalog | `getCatalog()` | `catalog list [--limit N]` |
-| 67 | Get collections | `getCollections()` | `catalog collections` |
-| 68 | Create product | `createProduct()` | `catalog product create <name> <price> <image>` |
-| 69 | Update product | `updateProduct()` | `catalog product update <id> [options]` |
-| 70 | Delete products | `deleteProducts()` | `catalog product delete <id>` |
-| **Labels - Message (2)** |
-| 64 | Add to message | `addMessageLabel()` | `label message add <jid> <msgId> <labelId>` |
-| 65 | Remove from message | `removeMessageLabel()` | `label message remove <jid> <msgId> <labelId>` |
 | **Newsletter (21)** |
 | 71 | Create newsletter | `createNewsletter()` | `newsletter create <name> [desc]` |
 | 72 | Get metadata | `getNewsletterMetadata()` | `newsletter info <id>` |
@@ -302,7 +301,7 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 
 ---
 
-### 🔵 Priority 3 (P3) - Advanced/Power-User Features (10 missing)
+### 🔵 Priority 3 (P3) - Advanced/Power-User Features (6 missing)
 
 | # | Feature | miaw-core Method | Proposed CLI Command |
 |---|---------|------------------|---------------------|
@@ -313,62 +312,65 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 | 95 | Get mappings | `getLidMappings()` | `lid cache show` |
 | 96 | Get cache size | `getLidCacheSize()` | `lid cache size` |
 | 97 | Clear cache | `clearLidCache()` | `lid cache clear` |
-| **Other (4)** |
+| **Other (3)** |
 | 10 | Dispose client | `dispose()` | `instance dispose <id>` |
-| 103-106 | REPL commands | N/A | Already in REPL |
+| 8 | Get instance ID | `getInstanceId()` | `instance id` |
+| 9 | Check connected | `isConnected()` | `instance connected` |
 
 ---
 
 ## Implementation Roadmap
 
-### Phase 1: P0 High-Value Features (22 commands)
+### Phase 1: P0 Essential Features (26 commands)
 
-**Target:** MVP completion with essential messaging, profile, and group operations
+**Target:** MVP completion with essential messaging, contact, profile, group join/leave, business labels, and catalog
 
 **Timeline:** Immediate - High priority for most users
 
 **Commands to implement:**
 - Basic Messaging: `send video`, `send audio`
-- Advanced Messaging: `message react`, `message react-remove`, `message forward`, `message edit`, `message delete`, `message delete-for-me`
-- Group Management: `group participants add/remove/promote/demote`, `group leave`, `group name/description/picture set`, `group invite revoke/accept/info`
+- Contact Operations: `contact info/business/picture/add/remove`
+- Group Join/Leave: `group leave`, `group invite accept`
 - Profile: `profile picture set/remove`, `profile name/status set`
+- Business Labels (Chat): `label add`, `label chat add/remove`
+- Business Catalog: `catalog list/collections/product create/update/delete`
+- Other: `media download`, `group participants add/remove`
 
-**Expected coverage after Phase 1:** 53/106 (50%)
+**Expected coverage after Phase 1:** 57/106 (54%)
 
 ---
 
-### Phase 2: P1 Common Use Cases (17 commands)
+### Phase 2: P1 Common Use Cases (27 commands)
 
-**Target:** Full contact management and presence features
+**Target:** Advanced messaging, group management, presence, and catalog features
 
 **Timeline:** Short-term following Phase 1
 
 **Commands to implement:**
-- Contact: `contact info/business/picture/add/remove`
+- Advanced Messaging: `message react`, `message react-remove`, `message forward`, `message edit`, `message delete`, `message delete-for-me`
+- Group Management: `group participants promote/demote`, `group name/description/picture set`, `group invite revoke/info`
 - Presence: `presence read/typing/recording/stop/set/subscribe`
-- Labels: `label add`, `label chat add/remove`
-- Other: `media download`, `instance id`, `instance connected`
+- Business Catalog: `catalog list/collections/product create/update/delete`
+- Labels: `label message add/remove`
 
-**Expected coverage after Phase 2:** 70/106 (66%)
+**Expected coverage after Phase 2:** 79/106 (75%)
 
 ---
 
-### Phase 3: P2 Business Features (26 commands)
+### Phase 3: P2 Newsletter Features (21 commands)
 
-**Target:** Complete business automation support
+**Target:** Complete newsletter/channel support
 
 **Timeline:** Medium-term
 
 **Commands to implement:**
-- Catalog: `catalog list/collections/product create/update/delete`
-- Newsletter: 21 newsletter commands
-- Labels: `label message add/remove`
+- Newsletter: All 21 newsletter commands
 
-**Expected coverage after Phase 3:** 96/106 (91%)
+**Expected coverage after Phase 3:** 100/106 (94%)
 
 ---
 
-### Phase 4: P3 Advanced Features (10 commands)
+### Phase 4: P3 Advanced Features (6 commands)
 
 **Target:** Power-user and debugging features
 
@@ -376,7 +378,7 @@ The current miaw-cli implements **22 commands** covering basic WhatsApp operatio
 
 **Commands to implement:**
 - LID: 6 LID/privacy commands
-- Other: `instance dispose`, remaining instance utilities
+- Other: `instance dispose`, `instance id`, `instance connected`
 
 **Expected coverage after Phase 4:** 106/106 (100%)
 
@@ -391,14 +393,14 @@ src/cli/commands/
 ├── instance.ts              # Instance commands (existing) ⚡ Phase 4
 ├── get.ts                   # GET commands (existing) ✅
 ├── send.ts                  # Send commands (existing) ⚡ Phase 1
-├── group.ts                 # Group commands (existing) ⚡ Phase 1
-├── misc.ts                  # Misc commands (existing) ⚡ Phase 2
-├── message.ts               # NEW ⚡ Phase 1
+├── group.ts                 # Group commands (existing) ⚡ Phase 1/2
+├── misc.ts                  # Misc commands (existing) ⚡ Phase 1
+├── message.ts               # NEW ⚡ Phase 2
 ├── profile.ts               # NEW ⚡ Phase 1
-├── contact.ts               # NEW ⚡ Phase 2
+├── contact.ts               # NEW ⚡ Phase 1
 ├── presence.ts              # NEW ⚡ Phase 2
-├── label.ts                 # NEW ⚡ Phase 2
-├── catalog.ts               # NEW ⚡ Phase 3
+├── label.ts                 # NEW ⚡ Phase 1/2
+├── catalog.ts               # NEW ⚡ Phase 2
 ├── newsletter.ts            # NEW ⚡ Phase 3
 └── lid.ts                   # NEW ⚡ Phase 4
 ```
@@ -412,10 +414,10 @@ src/cli/commands/
 | Phase | New Commands | Total Commands | Coverage | Target Status |
 |-------|--------------|----------------|----------|---------------|
 | Current | - | 31 | 29% | Baseline |
-| Phase 1 (P0) | +22 | 53 | 50% | ✅ MVP |
-| Phase 2 (P1) | +17 | 70 | 66% | ✅ Complete |
-| Phase 3 (P2) | +26 | 96 | 91% | ✅ Full Feature |
-| Phase 4 (P3) | +10 | 106 | 100% | ✅ Power User |
+| Phase 1 (P0) | +21 | 52 | 49% | ✅ MVP |
+| Phase 2 (P1) | +27 | 79 | 75% | ✅ Complete |
+| Phase 3 (P2) | +21 | 100 | 94% | ✅ Full Feature |
+| Phase 4 (P3) | +6 | 106 | 100% | ✅ Power User |
 
 ### Quality Metrics
 
@@ -435,21 +437,25 @@ The current miaw-cli provides a solid foundation with **31 commands** (including
 
 1. **Basic GET Operations** are 100% complete ✅
 2. **Debug & REPL features** are 100% complete ✅
-3. **Advanced Messaging** has 0% coverage ❌ (6 missing)
-4. **Profile Management** has 0% coverage ❌ (4 missing)
-5. **Presence & UX** has 0% coverage ❌ (6 missing)
-6. **Business Features** have 0% coverage ❌ (31 missing)
+3. **Advanced Messaging** has 0% coverage ❌ (6 missing - P1)
+4. **Profile Management** has 0% coverage ❌ (4 missing - P0)
+5. **Presence & UX** has 0% coverage ❌ (6 missing - P1)
+6. **Contact Operations** has 29% coverage ⚠️ (5 missing - P0)
+7. **Business Labels (Chat)** has 0% coverage ❌ (3 missing - P0)
+8. **Business Catalog** has 0% coverage ❌ (5 missing - P1)
+9. **Newsletter** has 0% coverage ❌ (21 missing - P2)
+10. **Group Management** has 27% coverage ⚠️ (11 missing - 2 in P0, 9 in P1)
 
 **Recommended Action Plan:**
 
-1. **Phase 1 (Immediate):** Implement 22 P0 high-value commands
-2. **Phase 2 (Short-term):** Add 17 P1 common use case commands
-3. **Phase 3 (Medium-term):** Complete business features with 26 P2 commands
-4. **Phase 4 (Long-term):** Add 10 P3 advanced power-user features
+1. **Phase 1 (Immediate):** Implement 21 P0 essential commands including contact operations, profile management, group join/leave, and business labels
+2. **Phase 2 (Short-term):** Add 27 P1 common use case commands (advanced messaging, group management, presence, catalog)
+3. **Phase 3 (Medium-term):** Complete newsletter features with 21 P2 commands
+4. **Phase 4 (Long-term):** Add 6 P3 advanced power-user features (LID/privacy, instance utilities)
 
 This phased approach ensures the CLI evolves to match miaw-core's comprehensive capabilities while maintaining code quality and user experience.
 
 ---
 
-**Document Status:** ✅ Complete (Updated with detailed feature comparison table)
-**Next Steps:** Review with team, prioritize based on user feedback, begin Phase 1 implementation
+**Document Status:** ✅ Complete (Updated v3.0.0 with revised priorities)
+**Next Steps:** Review with team, begin Phase 1 implementation with focus on contact operations, profile management, group join/leave, and business labels
