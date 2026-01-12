@@ -9,6 +9,7 @@ import { ensureConnected, listInstances } from "./utils/session.js";
 import { disconnectAll, getOrCreateClient } from "./utils/client-cache.js";
 import { getInstanceState } from "./utils/instance-registry.js";
 import { runCommand } from "./commands/index.js";
+import { setReplReadline, setReplLineHandler, clearReplReadline } from "./utils/prompt.js";
 
 // =============================================================================
 // Command Tree for Autocomplete
@@ -151,7 +152,7 @@ export interface ClientConfig {
  */
 export async function runRepl(config: ClientConfig): Promise<void> {
   // Create client (uses cache)
-  const client = getOrCreateClient(config);
+  let client = getOrCreateClient(config);
 
   // Show welcome message
   showWelcome(config);
@@ -172,10 +173,14 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     completer: createCompleter(config.sessionPath),
   });
 
+  // Register with prompt utility (to avoid double-character echo)
+  setReplReadline(rl);
+
   // Handle REPL commands
   rl.prompt();
 
-  rl.on("line", async (line) => {
+  // Define the line handler as a named function so we can store and restore it
+  const lineHandler = async (line: string) => {
     const input = line.trim();
 
     if (!input) {
@@ -206,6 +211,7 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       const newInstanceId = input.slice(4).trim();
       if (newInstanceId) {
         config.instanceId = newInstanceId;
+        client = getOrCreateClient(config);
         console.log(`✅ Switched to instance: ${newInstanceId}`);
         rl.setPrompt(getPrompt(newInstanceId, client.getConnectionState()));
       }
@@ -229,8 +235,8 @@ export async function runRepl(config: ClientConfig): Promise<void> {
           const switchTo = result.switchToInstance;
           if (switchTo && switchTo !== config.instanceId) {
             config.instanceId = switchTo;
-            const newClient = getOrCreateClient(config);
-            rl.setPrompt(getPrompt(switchTo, newClient.getConnectionState()));
+            client = getOrCreateClient(config);
+            rl.setPrompt(getPrompt(switchTo, client.getConnectionState()));
             rl.prompt();
             return;
           }
@@ -295,10 +301,10 @@ export async function runRepl(config: ClientConfig): Promise<void> {
         if (switchTo && switchTo !== config.instanceId) {
           config.instanceId = switchTo;
           // Get the new client for the switched instance
-          const newClient = getOrCreateClient(config);
+          client = getOrCreateClient(config);
           console.log(`✅ Switched to instance: ${switchTo}`);
           // Update prompt with new client's state
-          rl.setPrompt(getPrompt(switchTo, newClient.getConnectionState()));
+          rl.setPrompt(getPrompt(switchTo, client.getConnectionState()));
           rl.prompt();
           return;
         }
@@ -310,9 +316,18 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     // Update prompt in case connection state changed
     rl.setPrompt(getPrompt(config.instanceId, client.getConnectionState()));
     rl.prompt();
-  });
+  };
+
+  // Store the line handler so prompt utility can restore it
+  setReplLineHandler(lineHandler);
+
+  // Register the line handler
+  rl.on("line", lineHandler);
 
   rl.on("close", async () => {
+    // Clear REPL readline reference
+    clearReplReadline();
+
     // Disconnect all cached clients before exiting
     await disconnectAll();
     console.log();

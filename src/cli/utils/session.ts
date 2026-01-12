@@ -6,9 +6,11 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import * as readline from "readline";
 import qrcode from "qrcode-terminal";
 import { MiawClient } from "../../index.js";
+
+// Re-export prompt functions from shared utility
+export { prompt, confirm } from "./prompt.js";
 
 export interface ClientConfig {
   instanceId: string;
@@ -178,10 +180,9 @@ export async function handleQRConnection(
 
   console.log(`(Current state: ${initialCheckState})`);
 
-  // Track QR display and reconnection expectations
-  let expectingReconnection = false;
+  // Track QR display timing
   const QR_DISPLAY_TIME = Date.now();
-  const QR_GRACE_PERIOD = 5000; // 5 seconds grace period after QR display
+  const QR_GRACE_PERIOD = 30000; // 30 seconds - covers full connection handshake including transient disconnects
   const QR_SCAN_TIMEOUT = 60000; // 60 seconds to scan QR
 
   const connected = await new Promise<boolean>((resolve) => {
@@ -193,79 +194,58 @@ export async function handleQRConnection(
 
     const onReady = () => {
       clearTimeout(timeout);
+      clearInterval(pollInterval);
+      client.off("ready", onReady);
+      client.off("disconnected", onDisconnected);
       resolve(true);
     };
 
     const onDisconnected = () => {
       const timeSinceQrDisplay = Date.now() - QR_DISPLAY_TIME;
 
-      // During grace period, ignore disconnect (user might be scanning)
+      // During 30s grace period after QR display, ignore all disconnects
+      // Baileys emits transient disconnects (codes 408/428) during normal connection handshake
       if (timeSinceQrDisplay < QR_GRACE_PERIOD) {
-        return; // Don't fail yet - give user time to scan
+        return; // Wait patiently - this is expected during QR scan and initial handshake
       }
 
-      // After grace period, only expect reconnection if we saw progress
-      if (expectingReconnection) {
-        expectingReconnection = false;
-        return; // Wait for reconnection
-      }
-
-      // Real disconnect failure
-      clearTimeout(timeout);
-      resolve(false);
+      // After grace period, continue to be patient
+      // Auto-reconnect will retry transient issues
+      // Let the main timeout (120s) catch true hangs
+      // Don't fail prematurely - the ready event will fire when truly connected
     };
 
     client.once("ready", onReady);
-    client.once("disconnected", onDisconnected);
+    client.on("disconnected", onDisconnected);
 
     // Also poll connection state as fallback in case event was missed
     let dots = 0;
     let stuckStateCount = 0;
-    const STUCK_THRESHOLD = 10; // 10 seconds = 10 polling intervals
+    const STUCK_THRESHOLD = 30; // 30 seconds = 30 polling intervals - be patient
     const pollInterval = setInterval(() => {
       const currentState = client.getConnectionState();
       const now = Date.now();
       const timeSinceQrDisplay = now - QR_DISPLAY_TIME;
 
-      // If we see connecting/reconnecting, user likely scanned QR
-      if (currentState === "connecting" || currentState === "reconnecting") {
-        expectingReconnection = true;
-      }
-
       if (currentState === "connected") {
-        clearInterval(pollInterval);
         clearTimeout(timeout);
+        clearInterval(pollInterval);
         client.off("ready", onReady);
         client.off("disconnected", onDisconnected);
         resolve(true);
       } else if (currentState === "disconnected") {
-        // During grace period, ignore disconnect
-        if (timeSinceQrDisplay < QR_GRACE_PERIOD) {
-          dots = (dots + 1) % 4;
-          process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} Waiting for QR scan...   `);
-          return;
-        }
-
-        // After grace period, only wait if expecting reconnection
-        if (expectingReconnection) {
-          expectingReconnection = false;
-          stuckStateCount = 0; // Reset counter to give reconnection time
-          dots = (dots + 1) % 4;
-          process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} Reconnecting...   `);
-          return;
-        }
-
-        // Real disconnect failure
-        clearInterval(pollInterval);
-        clearTimeout(timeout);
-        client.off("ready", onReady);
-        client.off("disconnected", onDisconnected);
-        resolve(false);
+        // Just show feedback - don't fail here
+        // The onDisconnected event handler and main timeout will handle failures
+        const message = timeSinceQrDisplay < QR_GRACE_PERIOD
+          ? "Waiting for QR scan..."
+          : "Waiting for connection...";
+        dots = (dots + 1) % 4;
+        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} ${message}   `);
       } else if (currentState === "qr_required") {
         // QR timeout check
         if (timeSinceQrDisplay > QR_SCAN_TIMEOUT) {
-          clearInterval(pollInterval);
           clearTimeout(timeout);
+          clearInterval(pollInterval);
           client.off("ready", onReady);
           client.off("disconnected", onDisconnected);
           console.log(`\n⏱️  QR code not scanned within ${QR_SCAN_TIMEOUT / 1000}s`);
@@ -279,14 +259,10 @@ export async function handleQRConnection(
         dots = (dots + 1) % 4;
         process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} State: ${currentState}   `);
 
-        // If stuck for too long, fail fast
+        // If stuck for too long, reset counter and keep trying
+        // Let the main timeout (120s) catch true hangs
         if (stuckStateCount > STUCK_THRESHOLD) {
-          clearInterval(pollInterval);
-          clearTimeout(timeout);
-          client.off("ready", onReady);
-          client.off("disconnected", onDisconnected);
-          console.log(`\n⚠️  Connection stuck in "${currentState}" state`);
-          resolve(false);
+          stuckStateCount = 0; // Reset and keep waiting - be patient
         }
       } else {
         stuckStateCount = 0;
@@ -338,31 +314,6 @@ export async function ensureConnected(
   }
 
   return handleQRConnection(client);
-}
-
-/**
- * Prompt user for input
- */
-export function prompt(question: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
-}
-
-/**
- * Prompt for confirmation
- */
-export async function confirm(question: string): Promise<boolean> {
-  const answer = await prompt(`${question} [y/N]: `);
-  return answer.toLowerCase() === "y" || answer.toLowerCase() === "yes";
 }
 
 /**
