@@ -15,6 +15,9 @@ const clientCache = new Map<string, MiawClient>();
 // Track last usage time for potential TTL eviction (future enhancement)
 const lastUsed = new Map<string, number>();
 
+// Track when clients were cached (for grace period check)
+const cachedTime = new Map<string, number>();
+
 /**
  * Generate cache key from client config
  */
@@ -28,24 +31,38 @@ function getCacheKey(config: ClientConfig): string {
 export function getOrCreateClient(config: ClientConfig): MiawClient {
   const key = getCacheKey(config);
 
-  // Check cache for existing connected client
+  // Check cache for existing client
   const cached = clientCache.get(key);
   if (cached) {
     const state = cached.getConnectionState();
-    // Return cached client if it's in a good state
+    const cacheTime = cachedTime.get(key) || 0;
+    const age = Date.now() - cacheTime;
+
+    // Within 60s grace period, always return cached client regardless of state
+    // This allows transient disconnects during and after QR connection handshake
+    if (age < 60000) {
+      lastUsed.set(key, Date.now());
+      return cached;
+    }
+
+    // After grace period, prefer clients in good states
     if (state === "connected" || state === "connecting" || state === "reconnecting") {
       lastUsed.set(key, Date.now());
       return cached;
     }
-    // Client is disconnected or in bad state, remove from cache
-    clientCache.delete(key);
-    lastUsed.delete(key);
+
+    // Don't evict - return cached client even in bad state
+    // Let explicit cleanup (disconnectClient) handle eviction
+    // This prevents cache churn during transient state changes
+    lastUsed.set(key, Date.now());
+    return cached;
   }
 
   // Create new client and cache it
   const client = createClient(config);
   clientCache.set(key, client);
   lastUsed.set(key, Date.now());
+  cachedTime.set(key, Date.now()); // Track cache time for grace period
 
   // Register with instance registry for state tracking
   registerInstance(config, client);
@@ -69,6 +86,7 @@ export async function disconnectClient(config: ClientConfig): Promise<void> {
 
   clientCache.delete(key);
   lastUsed.delete(key);
+  cachedTime.delete(key);
 }
 
 /**
@@ -98,6 +116,7 @@ export async function disconnectAll(): Promise<void> {
 
   clientCache.clear();
   lastUsed.clear();
+  cachedTime.clear();
 }
 
 /**
@@ -143,6 +162,7 @@ export function removeClient(config: ClientConfig): void {
 
   clientCache.delete(key);
   lastUsed.delete(key);
+  cachedTime.delete(key);
 }
 
 // =============================================================================
@@ -170,4 +190,5 @@ process.on("exit", () => {
   // Synchronous cleanup only - actual disconnect should have happened in SIGINT/SIGTERM
   clientCache.clear();
   lastUsed.clear();
+  cachedTime.clear();
 });
