@@ -6,6 +6,8 @@ import makeWASocket, {
   Browsers,
   AnyMessageContent,
   downloadMediaMessage,
+  useMultiFileAuthState,
+  S_WHATSAPP_NET,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { EventEmitter } from "node:events";
@@ -135,6 +137,7 @@ export class MiawClient extends EventEmitter {
   private static readonly STUCK_STATE_TIMEOUT = 30000; // 30 seconds
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  private loggingOut = false;
   private logger: any;
   private lidToJidMap: LruCache = new LruCache(1000);
   // Custom stores for contacts, chats, messages (Baileys v7 removed makeInMemoryStore)
@@ -487,6 +490,30 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Remove all socket event listeners
+   * Call this before closing socket to prevent stale event handlers
+   */
+  private removeSocketEvents(): void {
+    if (!this.socket) return;
+
+    this.logger.debug("Removing socket event listeners");
+
+    // Remove all event listeners
+    this.socket.ev.removeAllListeners("connection.update");
+    this.socket.ev.removeAllListeners("creds.update");
+    this.socket.ev.removeAllListeners("lid-mapping.update");
+    this.socket.ev.removeAllListeners("contacts.upsert");
+    this.socket.ev.removeAllListeners("contacts.update");
+    this.socket.ev.removeAllListeners("chats.upsert");
+    this.socket.ev.removeAllListeners("chats.update");
+    this.socket.ev.removeAllListeners("messaging-history.set");
+    this.socket.ev.removeAllListeners("messages.upsert");
+    this.socket.ev.removeAllListeners("messages.reaction");
+    this.socket.ev.removeAllListeners("presence.update");
+    this.socket.ev.removeAllListeners("labels.edit");
+  }
+
+  /**
    * Handle protocol messages (edits, deletes)
    */
   private handleProtocolMessage(msg: any, protocolMessage: any): void {
@@ -758,6 +785,9 @@ export class MiawClient extends EventEmitter {
       this.reconnectTimer = null;
     }
 
+    // Reset logout flag
+    this.loggingOut = false;
+
     // Clear LID cache
     this.lidToJidMap.clear();
 
@@ -766,6 +796,7 @@ export class MiawClient extends EventEmitter {
 
     // Close socket if connected
     if (this.socket) {
+      this.removeSocketEvents();
       this.socket.end(undefined);
       this.socket = null;
     }
@@ -784,6 +815,13 @@ export class MiawClient extends EventEmitter {
     this.logger.info("Disconnected:", reason, "Code:", statusCode);
     this.updateConnectionState("disconnected");
     this.emit("disconnected", reason);
+
+    // Don't reconnect if logging out
+    if (this.loggingOut) {
+      this.logger.info("Logout in progress, skipping auto-reconnect");
+      this.loggingOut = false;  // Reset flag
+      return false;
+    }
 
     // Don't reconnect if logged out - clear session for fresh QR code on next connect
     if (statusCode === DisconnectReason.loggedOut) {
@@ -4211,34 +4249,63 @@ export class MiawClient extends EventEmitter {
    * Logout from WhatsApp and clear session.
    * After calling this, the next connect() will require scanning a new QR code.
    *
-   * This method sends a remove-companion-device request to WhatsApp servers,
-   * waits for acknowledgment, then closes the connection. If disconnected,
-   * it will attempt to reconnect temporarily to send the logout request.
+   * This method:
+   * 1. Attempts to reconnect if disconnected (max 10 seconds)
+   * 2. Sends a logout request to WhatsApp servers using socket.query() to wait for acknowledgment
+   * 3. Clears local session files
+   * 4. Closes the connection
+   *
+   * Note: The socket.query() method waits for WhatsApp's acknowledgment before proceeding.
+   * This is more reliable than Baileys' native socket.logout() which uses sendNode() (fire-and-forget).
    */
   async logout(): Promise<void> {
+    // Set flag to prevent auto-reconnect during logout
+    this.loggingOut = true;
+
     // Clear any pending reconnection
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
 
-    // Check if we have credentials to logout
-    const jid = this.authState?.creds?.me?.id;
+    // Get JID from auth state (if connected) or load from session file
+    let jid = this.authState?.creds?.me?.id;
+
+    // If not in memory, try loading from session file
+    if (!jid) {
+      try {
+        const authPath = path.join(this.options.sessionPath, this.options.instanceId);
+        const { state } = await useMultiFileAuthState(authPath);
+        jid = state.creds.me?.id;
+        this.logger.info(`Loaded credentials from session file: ${jid ? 'JID found' : 'no JID'}`);
+      } catch (error) {
+        this.logger.warn(`Failed to load credentials from session file: ${error}`);
+      }
+    }
+
     if (!jid) {
       this.logger.warn("No credentials found - cannot send logout request to server");
       this.updateConnectionState("disconnected");
       return;
     }
 
-    // If disconnected, try to reconnect temporarily
-    if (!this.socket || this.connectionState !== "connected") {
-      this.logger.info("Not connected - attempting to reconnect for logout");
+    // If disconnected, try to reconnect temporarily (only if we have credentials)
+    if ((!this.socket || this.connectionState !== "connected") && jid) {
+      this.logger.info("Not connected - attempting quick reconnect for logout");
       try {
-        await this.connect();
-        // Wait for connection to be established (max 10 seconds)
-        await this.waitForState("connected", 10000);
+        // Race between connect+wait and timeout to prevent hanging
+        await Promise.race([
+          (async () => {
+            await this.connect();
+            await this.waitForState("connected", 5000);
+          })(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Reconnect timeout")), 5000)
+          )
+        ]);
+        this.logger.info("Reconnected successfully for logout");
       } catch (error) {
-        this.logger.warn(`Failed to reconnect for logout: ${error}`);
+        this.logger.warn(`Quick reconnect failed: ${error instanceof Error ? error.message : error}`);
         // Continue with local cleanup even if reconnect fails
       }
     }
@@ -4250,12 +4317,12 @@ export class MiawClient extends EventEmitter {
         // Use query() instead of sendNode() to wait for response
         // This works around Baileys' socket.logout() using sendNode() which
         // closes the connection before WhatsApp can process the request
+        // Note: socket.query() auto-generates the 'id' attribute if not provided
         await this.socket.query({
           tag: 'iq',
           attrs: {
-            to: 'S.whatsapp.net',
+            to: S_WHATSAPP_NET,
             type: 'set',
-            id: this.socket.generateMessageTag(),
             xmlns: 'md'
           },
           content: [{
@@ -4275,9 +4342,16 @@ export class MiawClient extends EventEmitter {
 
     // Clean up socket
     if (this.socket) {
+      this.removeSocketEvents();
       this.socket.end(undefined);
       this.socket = null;
     }
+
+    // Clear session files
+    this.authHandler.clearSession();
+
+    // Reset logout flag
+    this.loggingOut = false;
 
     this.updateConnectionState("disconnected");
     this.logger.info("Logged out (session cleared)");
