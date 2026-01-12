@@ -64,5 +64,43 @@ export type {
   ChatInfo,
 } from "./types/index.js";
 
+// v1.2.0 Logger types (for custom logger implementations)
+export type { MiawLogger } from "./types/logger.js";
+
+// v1.2.0 Baileys types (for advanced users working with raw Baileys data)
+export type {
+  BaileysMessage,
+  BaileysMessageUpsert,
+  BaileysConnectionUpdate,
+  BaileysMessageKey,
+  BaileysMessageContent,
+  Long,
+} from "./types/baileys.js";
+
 // Utility exports for advanced users
 export { MessageHandler } from "./handlers/MessageHandler.js";
+
+// v1.2.0 Logger utilities
+export { createFilteredLogger } from "./utils/filtered-logger.js";
+
+// v1.2.0 Validation utilities
+export {
+  validatePhoneNumber,
+  validateJID,
+  validateMessageText,
+  validateGroupName,
+  validatePhoneNumbers,
+} from "./utils/validation.js";
+
+// v1.2.0 Type guard utilities
+export {
+  isError,
+  getErrorMessage,
+  isBaileysMessage,
+  isBaileysMessageUpsert,
+} from "./utils/type-guards.js";
+
+// v1.2.0 Constants
+export { TIMEOUTS, THRESHOLDS } from "./constants/timeouts.js";
+export { CACHE_CONFIG } from "./constants/cache.js";
+export { LABEL_COLOR_NAMES, getLabelColorName } from "./constants/colors.js";
