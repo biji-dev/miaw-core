@@ -103,7 +103,11 @@ export async function runCommand(
           console.log("❌ Usage: miaw-cli instance logout <id>");
           return false;
         }
-        return await cmdInstanceLogout(clientConfig.sessionPath, subArgs[0]);
+        return await cmdInstanceLogout(
+          clientConfig.sessionPath,
+          subArgs[0],
+          clientConfig.instanceId
+        );
       default:
         console.log(`❌ Unknown instance command: ${subCommand}`);
         return false;

@@ -15,7 +15,8 @@ import {
   disconnectClient,
   getOrCreateClient,
 } from "../utils/client-cache.js";
-import { getInstanceState, listInstanceStates } from "../utils/instance-registry.js";
+import { getInstanceState, listInstanceStates, updateInstanceState } from "../utils/instance-registry.js";
+import { confirm } from "../utils/prompt.js";
 
 /**
  * Result type for instance connect command
@@ -229,6 +230,10 @@ export async function cmdInstanceConnect(
 
   console.log(`✅ Connected!`);
 
+  // Explicitly update registry state for immediate consistency
+  // The event listener might not have fired yet, so update proactively
+  updateInstanceState({ instanceId, sessionPath }, "connected");
+
   // Signal REPL to switch to this instance
   return { success: true, switchToInstance: instanceId };
 }
@@ -269,59 +274,70 @@ export async function cmdInstanceDisconnect(
  */
 export async function cmdInstanceLogout(
   sessionPath: string,
-  instanceId: string
-): Promise<boolean> {
+  instanceId: string,
+  currentInstanceId?: string
+): Promise<boolean | { success: boolean; switchToInstance?: string }> {
   const client = getOrCreateClient({ instanceId, sessionPath });
 
-  const state = client.getConnectionState();
-  if (state === "connected") {
-    const ans = await confirm(
-      `This will logout and clear the session for "${instanceId}". Continue?`
-    );
-    if (!ans) {
-      console.log("Cancelled.");
-      return false;
-    }
+  // Always ask for confirmation
+  const ans = await confirm(
+    `This will logout and clear the session for "${instanceId}". Continue?`
+  );
+  if (!ans) {
+    console.log("Cancelled.");
+    return false;
   }
+
+  // Show loading indicator
+  console.log(`⏳ Logging out "${instanceId}"...`);
 
   // Always attempt logout to send remove-companion-device request
   // (will attempt reconnect if disconnected)
+  // Note: client.logout() already clears the session directory via authHandler.clearSession()
   try {
     await client.logout();
+
+    // Wait a brief moment for socket event handlers to complete
+    // This prevents output appearing after REPL prompt is shown
+    await new Promise(resolve => setTimeout(resolve, 100));
   } catch (error) {
     console.log(`⚠️  Logout request failed: ${error}`);
     console.log("   Continuing with session cleanup...");
   }
 
-  // Remove from cache and delete session files
+  // Remove from cache
   await disconnectClient({ instanceId, sessionPath });
-  const success = deleteInstance(sessionPath, instanceId);
 
-  if (success) {
+  // Double-check session directory is deleted (logout should have already done this)
+  const sessionStillExists = deleteInstance(sessionPath, instanceId);
+
+  if (sessionStillExists) {
+    // This means logout didn't clean up properly - now we cleaned it manually
+    console.log(`✅ Logged out and cleared remaining session files for "${instanceId}"`);
+  } else {
+    // Normal case - logout already cleaned everything
     console.log(`✅ Logged out and cleared session for "${instanceId}"`);
-    return true;
   }
 
-  console.log(`⚠️  Logged out but session directory may still exist.`);
+  // Final brief pause to ensure message is displayed before prompt returns
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  // Check if we need to switch instances (when logging out the current instance)
+  if (currentInstanceId && instanceId === currentInstanceId) {
+    // Get remaining instances
+    const instances = listInstances(sessionPath);
+
+    if (instances.length > 0) {
+      // Try to switch to "default" if it exists, otherwise use the first available
+      const newInstance = instances.includes("default") ? "default" : instances[0];
+      console.log(`📌 Switching to instance: ${newInstance}`);
+      return { success: true, switchToInstance: newInstance };
+    } else {
+      // No instances left - stay on current (non-existent) instance
+      console.log(`⚠️  No instances available. Use "instance create <id>" to create one.`);
+      return true;
+    }
+  }
+
   return true;
-}
-
-/**
- * Helper: Import confirm from session utils
- */
-async function confirm(question: string): Promise<boolean> {
-  const readline = await import("readline");
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    rl.question(`${question} [y/N]: `, (answer) => {
-      rl.close();
-      resolve(
-        answer.toLowerCase() === "y" || answer.toLowerCase() === "yes"
-      );
-    });
-  });
 }
