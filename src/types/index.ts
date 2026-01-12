@@ -1,3 +1,5 @@
+import type { MiawLogger } from "./logger.js";
+
 /**
  * Configuration options for MiawClient
  */
@@ -11,8 +13,8 @@ export interface MiawClientOptions {
   /** Enable verbose logging (default: false) */
   debug?: boolean;
 
-  /** Custom logger instance (default: pino) */
-  logger?: any;
+  /** Custom logger instance (default: filtered pino) */
+  logger?: MiawLogger;
 
   /** Auto-reconnect on connection loss (default: true) */
   autoReconnect?: boolean;
@@ -22,6 +24,19 @@ export interface MiawClientOptions {
 
   /** Delay between reconnection attempts in ms (default: 3000) */
   reconnectDelay?: number;
+
+  // Advanced timeout configurations
+  /** Timeout for detecting stuck connection state in ms (default: 30000) */
+  stuckStateTimeout?: number;
+
+  /** QR code grace period in ms (default: 30000) */
+  qrGracePeriod?: number;
+
+  /** QR code scan timeout in ms (default: 60000) */
+  qrScanTimeout?: number;
+
+  /** Connection establishment timeout in ms (default: 120000) */
+  connectionTimeout?: number;
 }
 
 /**

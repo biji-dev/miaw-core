@@ -6,12 +6,11 @@ import makeWASocket, {
   Browsers,
   AnyMessageContent,
   downloadMediaMessage,
-  useMultiFileAuthState,
-  S_WHATSAPP_NET,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { EventEmitter } from "node:events";
-import pino from "pino";
+import { MiawLogger } from "../types/logger.js";
+import { createFilteredLogger } from "../utils/filtered-logger.js";
 import {
   MiawClientOptions,
   ConnectionState,
@@ -70,6 +69,15 @@ import {
 import * as path from "node:path";
 import { AuthHandler } from "../handlers/AuthHandler.js";
 import { MessageHandler } from "../handlers/MessageHandler.js";
+import { TIMEOUTS } from "../constants/timeouts.js";
+import { CACHE_CONFIG } from "../constants/cache.js";
+import {
+  validatePhoneNumber,
+  validateJID,
+  validateMessageText,
+  validateGroupName,
+  validatePhoneNumbers,
+} from "../utils/validation.js";
 
 /**
  * LRU Cache for LID to JID mappings
@@ -79,7 +87,7 @@ class LruCache {
   private cache: Map<string, string>;
   private maxSize: number;
 
-  constructor(maxSize = 1000) {
+  constructor(maxSize = CACHE_CONFIG.LID_MAP_MAX_SIZE) {
     this.cache = new Map();
     this.maxSize = maxSize;
   }
@@ -122,6 +130,38 @@ class LruCache {
   get size(): number {
     return this.cache.size;
   }
+
+  /**
+   * Get an iterator for all entries in the cache
+   * @returns Iterator of [key, value] tuples
+   */
+  entries(): IterableIterator<[string, string]> {
+    return this.cache.entries();
+  }
+
+  /**
+   * Get an iterator for all keys in the cache
+   * @returns Iterator of keys
+   */
+  keys(): IterableIterator<string> {
+    return this.cache.keys();
+  }
+
+  /**
+   * Get an iterator for all values in the cache
+   * @returns Iterator of values
+   */
+  values(): IterableIterator<string> {
+    return this.cache.values();
+  }
+
+  /**
+   * Execute a callback for each entry in the cache
+   * @param callback - Function to call for each entry
+   */
+  forEach(callback: (value: string, key: string) => void): void {
+    this.cache.forEach(callback);
+  }
 }
 
 /**
@@ -134,12 +174,11 @@ export class MiawClient extends EventEmitter {
   private connectionState: ConnectionState = "disconnected";
   private connectionStateTimestamp: number = 0;
   private connectionWatchdogTimer: NodeJS.Timeout | null = null;
-  private static readonly STUCK_STATE_TIMEOUT = 30000; // 30 seconds
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private loggingOut = false;
-  private logger: any;
-  private lidToJidMap: LruCache = new LruCache(1000);
+  private logger: MiawLogger;
+  private lidToJidMap: LruCache = new LruCache();
   // Custom stores for contacts, chats, messages (Baileys v7 removed makeInMemoryStore)
   private contactsStore: Map<string, ContactInfo> = new Map();
   private chatsStore: Map<string, ChatInfo> = new Map();
@@ -151,54 +190,26 @@ export class MiawClient extends EventEmitter {
   constructor(options: MiawClientOptions) {
     super();
 
+    // Initialize logger first (needed for options)
+    const logger = options.logger || createFilteredLogger(options.debug || false);
+
     // Set default options
     this.options = {
       instanceId: options.instanceId,
       sessionPath: options.sessionPath || "./sessions",
       debug: options.debug || false,
-      logger: options.logger,
+      logger: logger,
       autoReconnect: options.autoReconnect !== false,
       maxReconnectAttempts: options.maxReconnectAttempts || Infinity,
-      reconnectDelay: options.reconnectDelay || 3000,
+      reconnectDelay: options.reconnectDelay || TIMEOUTS.RECONNECT_DELAY,
+      stuckStateTimeout: options.stuckStateTimeout || TIMEOUTS.STUCK_STATE,
+      qrGracePeriod: options.qrGracePeriod || TIMEOUTS.QR_GRACE_PERIOD,
+      qrScanTimeout: options.qrScanTimeout || TIMEOUTS.QR_SCAN_TIMEOUT,
+      connectionTimeout: options.connectionTimeout || TIMEOUTS.CONNECTION_TIMEOUT,
     };
 
-    // Suppress console logs from libsignal when debug is off
-    // Libsignal uses console.log directly for session management logs
-    if (!this.options.debug) {
-      const _originalLog = console.log;
-      const _originalError = console.error;
-      const _originalWarn = console.warn;
-      const _originalInfo = console.info;
-
-      const shouldSuppress = (args: any[]): boolean => {
-        const msg = args.map(String).join(" ");
-        return (
-          msg.includes("Closing session") ||
-          msg.includes("SessionEntry {") ||
-          (msg.includes("_chains:") && msg.includes("registrationId:"))
-        );
-      };
-
-      console.log = (...args: any[]) => {
-        if (!shouldSuppress(args)) _originalLog.apply(console, args);
-      };
-      console.error = (...args: any[]) => {
-        if (!shouldSuppress(args)) _originalError.apply(console, args);
-      };
-      console.warn = (...args: any[]) => {
-        if (!shouldSuppress(args)) _originalWarn.apply(console, args);
-      };
-      console.info = (...args: any[]) => {
-        if (!shouldSuppress(args)) _originalInfo.apply(console, args);
-      };
-    }
-
-    // Initialize logger
-    this.logger =
-      this.options.logger ||
-      pino({
-        level: this.options.debug ? "debug" : "silent",
-      });
+    // Use the initialized logger
+    this.logger = logger;
 
     // Initialize handlers
     this.authHandler = new AuthHandler(
@@ -211,10 +222,10 @@ export class MiawClient extends EventEmitter {
    * Connect to WhatsApp
    */
   async connect(): Promise<void> {
-    // Check for stale "connecting" state (stuck for more than 30 seconds)
+    // Check for stale "connecting" state (stuck for more than configured timeout)
     if (this.connectionState === "connecting") {
       const elapsed = Date.now() - this.connectionStateTimestamp;
-      if (elapsed < 30000) {
+      if (elapsed < this.options.stuckStateTimeout) {
         this.logger.info(`Already connecting (${elapsed}ms), skipping connect() call`);
         return;
       } else {
@@ -346,10 +357,10 @@ export class MiawClient extends EventEmitter {
     // History sync - populates contacts, chats, and messages from history
     this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest }) => {
       if (this.options.debug) {
-        console.log("\n========== MESSAGING HISTORY SYNC ==========");
-        console.log(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}`);
-        console.log(`Is Latest: ${isLatest}`);
-        console.log("============================================\n");
+        this.logger.debug("\n========== MESSAGING HISTORY SYNC ==========");
+        this.logger.debug(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}`);
+        this.logger.debug(`Is Latest: ${isLatest}`);
+        this.logger.debug("============================================\n");
       }
 
       // Update contacts from history
@@ -370,7 +381,7 @@ export class MiawClient extends EventEmitter {
       }
 
       if (this.options.debug && isLatest) {
-        console.log("✅ History sync complete");
+        this.logger.debug("✅ History sync complete");
       }
     });
 
@@ -381,9 +392,9 @@ export class MiawClient extends EventEmitter {
       for (const msg of m.messages) {
         // Debug: Log raw Baileys message structure
         if (this.options.debug) {
-          console.log("\n========== RAW BAILEYS MESSAGE ==========");
-          console.log(JSON.stringify(msg, null, 2));
-          console.log("=========================================\n");
+          this.logger.debug("\n========== RAW BAILEYS MESSAGE ==========");
+          this.logger.debug(JSON.stringify(msg, null, 2));
+          this.logger.debug("=========================================\n");
         }
 
         // Check for protocol messages (edits and deletes)
@@ -405,7 +416,7 @@ export class MiawClient extends EventEmitter {
           this.addLidMapping(msgKey.senderLid, msgKey.remoteJid, "Message");
         }
 
-        const normalized = MessageHandler.normalize({ messages: [msg] });
+        const normalized = MessageHandler.normalize({ messages: [msg as any], type: "notify" }, this.logger);
         if (normalized) {
           // Store message in messagesStore
           const chatJid = normalized.from;
@@ -432,9 +443,9 @@ export class MiawClient extends EventEmitter {
         };
 
         if (this.options.debug) {
-          console.log("\n========== REACTION ==========");
-          console.log(JSON.stringify(reactionData, null, 2));
-          console.log("==============================\n");
+          this.logger.debug("\n========== REACTION ==========");
+          this.logger.debug(JSON.stringify(reactionData, null, 2));
+          this.logger.debug("==============================\n");
         }
 
         this.emit("message_reaction", reactionData);
@@ -454,9 +465,9 @@ export class MiawClient extends EventEmitter {
         };
 
         if (this.options.debug) {
-          console.log("\n========== PRESENCE UPDATE ==========");
-          console.log(JSON.stringify(update, null, 2));
-          console.log("=====================================\n");
+          this.logger.debug("\n========== PRESENCE UPDATE ==========");
+          this.logger.debug(JSON.stringify(update, null, 2));
+          this.logger.debug("=====================================\n");
         }
 
         this.emit("presence", update);
@@ -466,9 +477,9 @@ export class MiawClient extends EventEmitter {
     // Label updates (WhatsApp Business)
     this.socket.ev.on("labels.edit", (label: any) => {
       if (this.options.debug) {
-        console.log("\n========== LABEL UPDATE ==========");
-        console.log(JSON.stringify(label, null, 2));
-        console.log("==================================\n");
+        this.logger.debug("\n========== LABEL UPDATE ==========");
+        this.logger.debug(JSON.stringify(label, null, 2));
+        this.logger.debug("==================================\n");
       }
 
       // Update label in store
@@ -531,9 +542,9 @@ export class MiawClient extends EventEmitter {
       };
 
       if (this.options.debug) {
-        console.log("\n========== MESSAGE DELETED ==========");
-        console.log(JSON.stringify(deletion, null, 2));
-        console.log("=====================================\n");
+        this.logger.debug("\n========== MESSAGE DELETED ==========");
+        this.logger.debug(JSON.stringify(deletion, null, 2));
+        this.logger.debug("=====================================\n");
       }
 
       this.emit("message_delete", deletion);
@@ -559,9 +570,9 @@ export class MiawClient extends EventEmitter {
       };
 
       if (this.options.debug) {
-        console.log("\n========== MESSAGE EDITED ==========");
-        console.log(JSON.stringify(edit, null, 2));
-        console.log("====================================\n");
+        this.logger.debug("\n========== MESSAGE EDITED ==========");
+        this.logger.debug(JSON.stringify(edit, null, 2));
+        this.logger.debug("====================================\n");
       }
 
       this.emit("message_edit", edit);
@@ -587,8 +598,8 @@ export class MiawClient extends EventEmitter {
     this.lidToJidMap.set(normalizedLid, jid);
 
     if (this.options.debug) {
-      console.log(`[LID Mapping: ${source}] ${normalizedLid} -> ${jid}`);
-      console.log(`Total LID mappings: ${this.lidToJidMap.size}`);
+      this.logger.debug(`[LID Mapping: ${source}] ${normalizedLid} -> ${jid}`);
+      this.logger.debug(`Total LID mappings: ${this.lidToJidMap.size}`);
     }
   }
 
@@ -667,12 +678,16 @@ export class MiawClient extends EventEmitter {
    * Get all registered LID mappings
    * Useful for persisting mappings to storage
    */
+  /**
+   * Get all LID to JID mappings (for debugging/monitoring)
+   * @returns Record of LID to JID mappings
+   */
   getLidMappings(): Record<string, string> {
     const result: Record<string, string> = {};
-    // Iterate through the cache
-    for (const [key, value] of (this.lidToJidMap as any).cache) {
+    // Use proper encapsulated iteration method
+    this.lidToJidMap.forEach((value, key) => {
       result[key] = value;
-    }
+    });
     return result;
   }
 
@@ -755,7 +770,7 @@ export class MiawClient extends EventEmitter {
    * @param msg - Baileys message object
    */
   private addMessageToStore(msg: any): void {
-    const normalized = MessageHandler.normalize({ messages: [msg] });
+    const normalized = MessageHandler.normalize({ messages: [msg], type: "notify" }, this.logger);
     if (!normalized) return;
 
     const chatJid = normalized.from;
@@ -893,14 +908,14 @@ export class MiawClient extends EventEmitter {
       // If stuck in connecting/reconnecting for too long, reset to disconnected
       if (
         (currentState === "connecting" || currentState === "reconnecting") &&
-        elapsed >= MiawClient.STUCK_STATE_TIMEOUT
+        elapsed >= this.options.stuckStateTimeout
       ) {
         this.logger.warn(
           `Connection stuck in "${currentState}" state for ${elapsed}ms, resetting`
         );
         this.updateConnectionState("disconnected");
       }
-    }, MiawClient.STUCK_STATE_TIMEOUT);
+    }, this.options.stuckStateTimeout);
   }
 
   /**
@@ -923,6 +938,26 @@ export class MiawClient extends EventEmitter {
         throw new Error(
           `Cannot send message. Connection state: ${this.connectionState}`
         );
+      }
+
+      // Validate recipient (phone or JID)
+      const isJID = to.includes("@");
+      if (isJID) {
+        const jidValidation = validateJID(to);
+        if (!jidValidation.valid) {
+          return { success: false, error: jidValidation.error };
+        }
+      } else {
+        const phoneValidation = validatePhoneNumber(to);
+        if (!phoneValidation.valid) {
+          return { success: false, error: phoneValidation.error };
+        }
+      }
+
+      // Validate message text
+      const textValidation = validateMessageText(text);
+      if (!textValidation.valid) {
+        return { success: false, error: textValidation.error };
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
@@ -2226,6 +2261,18 @@ export class MiawClient extends EventEmitter {
         throw new Error(
           `Cannot create group. Connection state: ${this.connectionState}`
         );
+      }
+
+      // Validate group name
+      const nameValidation = validateGroupName(name);
+      if (!nameValidation.valid) {
+        return { success: false, error: nameValidation.error };
+      }
+
+      // Validate participant phone numbers
+      const phonesValidation = validatePhoneNumbers(participants);
+      if (!phonesValidation.valid) {
+        return { success: false, error: phonesValidation.error };
       }
 
       // Format participant JIDs
@@ -4272,10 +4319,15 @@ export class MiawClient extends EventEmitter {
     let jid = this.authState?.creds?.me?.id;
 
     // If not in memory, try loading from session file
+    if (!jid && this.authState) {
+      jid = this.authState.creds.me?.id;
+      this.logger.info(`Retrieved JID from auth state: ${jid ? 'JID found' : 'no JID'}`);
+    }
+
+    // If still not found, try initializing auth handler
     if (!jid) {
       try {
-        const authPath = path.join(this.options.sessionPath, this.options.instanceId);
-        const { state } = await useMultiFileAuthState(authPath);
+        const { state } = await this.authHandler.initialize();
         jid = state.creds.me?.id;
         this.logger.info(`Loaded credentials from session file: ${jid ? 'JID found' : 'no JID'}`);
       } catch (error) {
@@ -4321,7 +4373,7 @@ export class MiawClient extends EventEmitter {
         await this.socket.query({
           tag: 'iq',
           attrs: {
-            to: S_WHATSAPP_NET,
+            to: "s.whatsapp.net",
             type: 'set',
             xmlns: 'md'
           },
