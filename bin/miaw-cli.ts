@@ -12,13 +12,11 @@
  *   miaw-cli instance status
  */
 
-import * as fs from "fs";
-import * as path from "path";
 import * as dotenv from "dotenv";
-import { MiawClient } from "../src/index.js";
 import { runRepl } from "../src/cli/repl.js";
 import { runCommand } from "../src/cli/commands/index.js";
 import { initializeCLICleanup } from "../src/cli/utils/cleanup.js";
+import { getErrorMessage } from "../src/utils/type-guards.js";
 
 // Initialize CLI cleanup handlers for graceful shutdown
 initializeCLICleanup();
@@ -171,8 +169,8 @@ async function main() {
 
     try {
       await runRepl(clientConfig);
-    } catch (error: any) {
-      console.error("❌ REPL error:", error.message);
+    } catch (error: unknown) {
+      console.error("❌ REPL error:", getErrorMessage(error));
       process.exit(1);
     }
     return;
@@ -189,9 +187,9 @@ async function main() {
     if (!success) {
       process.exit(1);
     }
-  } catch (error: any) {
-    console.error("❌ Command error:", error.message);
-    if (debugMode) {
+  } catch (error: unknown) {
+    console.error("❌ Command error:", getErrorMessage(error));
+    if (debugMode && error instanceof Error) {
       console.error(error.stack);
     }
     process.exit(1);

@@ -17,8 +17,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "eslint src tests examples",
-    "lint:fix": "eslint src tests examples --fix",
+    "lint": "eslint src tests examples bin",
+    "lint:fix": "eslint src tests examples bin --fix",
     "prepublishOnly": "npm run build",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
