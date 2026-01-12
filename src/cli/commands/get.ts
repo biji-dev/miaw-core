@@ -7,6 +7,7 @@
 import { MiawClient } from "../../index.js";
 import { ensureConnected } from "../utils/session.js";
 import { formatTable, formatKeyValue, formatJson } from "../utils/formatter.js";
+import { getLabelColorName } from "../../constants/colors.js";
 
 /**
  * Get own profile
@@ -305,7 +306,7 @@ export async function cmdGetLabels(
     id: l.id,
     name: l.name,
     color: l.color,
-    colorName: getColorName(l.color),
+    colorName: getLabelColorName(l.color),
   }));
 
   console.log(
@@ -320,19 +321,3 @@ export async function cmdGetLabels(
   return true;
 }
 
-/**
- * Helper: Get color name from color number
- */
-function getColorName(color: number): string {
-  const colors: { [key: number]: string } = {
-    0: "Color1 (Dark Blue)",
-    1: "Color2 (Teal)",
-    2: "Color3 (Green)",
-    3: "Color4 (Orange)",
-    4: "Color5 (Red)",
-    5: "Color6 (Pink)",
-    6: "Color7 (Purple)",
-    7: "Color8 (Blue)",
-  };
-  return colors[color] || `Unknown (${color})`;
-}

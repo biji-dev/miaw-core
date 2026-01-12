@@ -5,6 +5,7 @@
  */
 
 import { getOrCreateClient } from "../utils/client-cache.js";
+import { defaultCLIContext } from "../context.js";
 import {
   // Instance commands
   cmdInstanceList,
@@ -68,7 +69,8 @@ export async function runCommand(
       case "status":
         return await cmdInstanceStatus(
           clientConfig.sessionPath,
-          subArgs[0] || clientConfig.instanceId
+          subArgs[0] || clientConfig.instanceId,
+          defaultCLIContext
         );
       case "create":
         if (!subArgs[0]) {

@@ -10,6 +10,8 @@ import { disconnectAll, getOrCreateClient } from "./utils/client-cache.js";
 import { getInstanceState } from "./utils/instance-registry.js";
 import { runCommand } from "./commands/index.js";
 import { setReplReadline, setReplLineHandler, clearReplReadline } from "./utils/prompt.js";
+import { initializeCLICleanup } from "./utils/cleanup.js";
+import { getErrorMessage } from "../utils/type-guards.js";
 
 // =============================================================================
 // Command Tree for Autocomplete
@@ -151,6 +153,9 @@ export interface ClientConfig {
  * Run the interactive REPL
  */
 export async function runRepl(config: ClientConfig): Promise<void> {
+  // Initialize CLI cleanup handlers for graceful shutdown
+  initializeCLICleanup();
+
   // Create client (uses cache)
   let client = getOrCreateClient(config);
 
@@ -318,11 +323,22 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     rl.prompt();
   };
 
-  // Store the line handler so prompt utility can restore it
-  setReplLineHandler(lineHandler);
+  // Wrap async handler to catch promise rejections
+  const safeLineHandler = (line: string) => {
+    lineHandler(line).catch((error: unknown) => {
+      console.error("❌ Command error:", getErrorMessage(error));
+      if (config.debug) {
+        console.error(error);
+      }
+      rl.prompt(); // Re-display prompt after error
+    });
+  };
 
-  // Register the line handler
-  rl.on("line", lineHandler);
+  // Store the line handler so prompt utility can restore it
+  setReplLineHandler(safeLineHandler);
+
+  // Register the safe line handler
+  rl.on("line", safeLineHandler);
 
   rl.on("close", async () => {
     // Clear REPL readline reference

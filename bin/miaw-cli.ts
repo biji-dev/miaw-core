@@ -18,6 +18,10 @@ import * as dotenv from "dotenv";
 import { MiawClient } from "../src/index.js";
 import { runRepl } from "../src/cli/repl.js";
 import { runCommand } from "../src/cli/commands/index.js";
+import { initializeCLICleanup } from "../src/cli/utils/cleanup.js";
+
+// Initialize CLI cleanup handlers for graceful shutdown
+initializeCLICleanup();
 
 // Load environment variables
 dotenv.config();

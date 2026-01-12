@@ -15,8 +15,9 @@ import {
   disconnectClient,
   getOrCreateClient,
 } from "../utils/client-cache.js";
-import { getInstanceState, listInstanceStates, updateInstanceState } from "../utils/instance-registry.js";
+import { listInstanceStates, updateInstanceState } from "../utils/instance-registry.js";
 import { confirm } from "../utils/prompt.js";
+import type { CLIContext } from "../context.js";
 
 /**
  * Result type for instance connect command
@@ -68,7 +69,8 @@ export async function cmdInstanceList(sessionPath: string): Promise<boolean> {
  */
 export async function cmdInstanceStatus(
   sessionPath: string,
-  instanceId: string
+  instanceId: string,
+  context: CLIContext
 ): Promise<boolean> {
   const instances = listInstances(sessionPath);
 
@@ -90,23 +92,21 @@ export async function cmdInstanceStatus(
     console.log("─".repeat(50));
 
     // Try to get state from registry first (doesn't create new client)
-    let state = getInstanceState({ instanceId: id, sessionPath });
+    let state = context.registry.getInstanceState({ instanceId: id, sessionPath });
     let client: any = null;
 
     // If not in registry, try to get from cache (but don't create new one)
     if (state === null) {
-      // Import only when needed to avoid circular dependency
-      const { hasClient, getOrCreateClient } = await import("../utils/client-cache.js");
-      if (hasClient({ instanceId: id, sessionPath })) {
-        client = getOrCreateClient({ instanceId: id, sessionPath });
+      // Use context to access cache without circular dependency
+      if (context.cache.hasClient({ instanceId: id, sessionPath })) {
+        client = context.cache.getOrCreateClient({ instanceId: id, sessionPath });
         state = client.getConnectionState();
       } else {
         state = "disconnected";
       }
     } else {
       // Get client from registry if we have a state
-      const { getInstanceClient } = await import("../utils/instance-registry.js");
-      client = getInstanceClient({ instanceId: id, sessionPath });
+      client = context.registry.getInstanceClient({ instanceId: id, sessionPath });
     }
 
     console.log(`Status: ${state}`);

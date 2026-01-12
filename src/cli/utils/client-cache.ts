@@ -8,6 +8,7 @@
 import { MiawClient } from "../../index.js";
 import { createClient, type ClientConfig } from "./session.js";
 import { registerInstance, unregisterInstance } from "./instance-registry.js";
+import { TIMEOUTS } from "../../constants/timeouts.js";
 
 // Client cache: Map<cacheKey, MiawClient>
 const clientCache = new Map<string, MiawClient>();
@@ -38,9 +39,9 @@ export function getOrCreateClient(config: ClientConfig): MiawClient {
     const cacheTime = cachedTime.get(key) || 0;
     const age = Date.now() - cacheTime;
 
-    // Within 60s grace period, always return cached client regardless of state
+    // Within grace period, always return cached client regardless of state
     // This allows transient disconnects during and after QR connection handshake
-    if (age < 60000) {
+    if (age < TIMEOUTS.CACHE_GRACE_PERIOD) {
       lastUsed.set(key, Date.now());
       return cached;
     }
@@ -164,31 +165,3 @@ export function removeClient(config: ClientConfig): void {
   lastUsed.delete(key);
   cachedTime.delete(key);
 }
-
-// =============================================================================
-// Process Exit Handlers
-// Ensure all clients are properly disconnected on process exit
-// =============================================================================
-
-// Note: 'exit' event is emitted when the process is about to exit
-// We can't use async operations in the exit handler, so we rely on SIGINT/SIGTERM
-
-process.on("SIGINT", async () => {
-  console.log("\n🔄 Disconnecting all clients...");
-  await disconnectAll();
-  process.exit(0);
-});
-
-process.on("SIGTERM", async () => {
-  console.log("\n🔄 Disconnecting all clients...");
-  await disconnectAll();
-  process.exit(0);
-});
-
-// Also handle normal exit as best effort
-process.on("exit", () => {
-  // Synchronous cleanup only - actual disconnect should have happened in SIGINT/SIGTERM
-  clientCache.clear();
-  lastUsed.clear();
-  cachedTime.clear();
-});

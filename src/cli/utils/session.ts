@@ -8,6 +8,7 @@ import * as fs from "fs";
 import * as path from "path";
 import qrcode from "qrcode-terminal";
 import { MiawClient } from "../../index.js";
+import { TIMEOUTS, THRESHOLDS } from "../../constants/timeouts.js";
 
 // Re-export prompt functions from shared utility
 export { prompt, confirm } from "./prompt.js";
@@ -82,7 +83,7 @@ export function createClient(config: ClientConfig): MiawClient {
  */
 export async function waitForConnection(
   client: MiawClient,
-  timeout: number = 120000
+  timeout: number = TIMEOUTS.CONNECTION_TIMEOUT
 ): Promise<boolean> {
   const state = client.getConnectionState();
 
@@ -108,6 +109,134 @@ export async function waitForConnection(
 }
 
 /**
+ * Wait for initial QR code or ready event
+ * @param client - MiawClient instance
+ * @returns "qr" if QR was shown, "ready" if connected, "timeout" if timed out
+ */
+async function waitForQROrReady(client: MiawClient): Promise<"qr" | "ready" | "timeout"> {
+  return new Promise<"qr" | "ready" | "timeout">((resolve) => {
+    const timeout = setTimeout(() => {
+      console.log("\n⏱️  Timeout while waiting for QR/ready event");
+      resolve("timeout");
+    }, TIMEOUTS.CONNECTION_TIMEOUT);
+
+    const onQr = (qr: string) => {
+      clearTimeout(timeout);
+      console.log("\n📱 Scan the QR code below with WhatsApp:");
+      qrcode.generate(qr, { small: true });
+      console.log();
+      resolve("qr");
+    };
+
+    const onReady = () => {
+      clearTimeout(timeout);
+      resolve("ready");
+    };
+
+    client.once("qr", onQr);
+    client.once("ready", onReady);
+  });
+}
+
+/**
+ * Wait for connection with polling fallback after QR display
+ * @param client - MiawClient instance
+ * @param qrDisplayTime - Timestamp when QR was displayed
+ * @returns true if connected, false if timeout
+ */
+async function waitForConnectionWithPolling(
+  client: MiawClient,
+  qrDisplayTime: number
+): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const timeout = setTimeout(() => {
+      const finalState = client.getConnectionState();
+      console.log(`\n⏱️  Connection timeout (final state: ${finalState})`);
+      resolve(false);
+    }, TIMEOUTS.CONNECTION_TIMEOUT);
+
+    const onReady = () => {
+      clearTimeout(timeout);
+      clearInterval(pollInterval);
+      client.off("ready", onReady);
+      client.off("disconnected", onDisconnected);
+      resolve(true);
+    };
+
+    const onDisconnected = () => {
+      const timeSinceQrDisplay = Date.now() - qrDisplayTime;
+
+      // During grace period after QR display, ignore all disconnects
+      // Baileys emits transient disconnects (codes 408/428) during normal connection handshake
+      if (timeSinceQrDisplay < TIMEOUTS.QR_GRACE_PERIOD) {
+        return; // Wait patiently - this is expected during QR scan and initial handshake
+      }
+
+      // After grace period, continue to be patient
+      // Auto-reconnect will retry transient issues
+      // Let the main timeout catch true hangs
+      // Don't fail prematurely - the ready event will fire when truly connected
+    };
+
+    client.once("ready", onReady);
+    client.on("disconnected", onDisconnected);
+
+    // Also poll connection state as fallback in case event was missed
+    let dots = 0;
+    let stuckStateCount = 0;
+    const pollInterval = setInterval(() => {
+      const currentState = client.getConnectionState();
+      const now = Date.now();
+      const timeSinceQrDisplay = now - qrDisplayTime;
+
+      if (currentState === "connected") {
+        clearTimeout(timeout);
+        clearInterval(pollInterval);
+        client.off("ready", onReady);
+        client.off("disconnected", onDisconnected);
+        resolve(true);
+      } else if (currentState === "disconnected") {
+        // Just show feedback - don't fail here
+        // The onDisconnected event handler and main timeout will handle failures
+        const message =
+          timeSinceQrDisplay < TIMEOUTS.QR_GRACE_PERIOD
+            ? "Waiting for QR scan..."
+            : "Waiting for connection...";
+        dots = (dots + 1) % 4;
+        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} ${message}   `);
+      } else if (currentState === "qr_required") {
+        // QR timeout check
+        if (timeSinceQrDisplay > TIMEOUTS.QR_SCAN_TIMEOUT) {
+          clearTimeout(timeout);
+          clearInterval(pollInterval);
+          client.off("ready", onReady);
+          client.off("disconnected", onDisconnected);
+          console.log(`\n⏱️  QR code not scanned within ${TIMEOUTS.QR_SCAN_TIMEOUT / 1000}s`);
+          resolve(false);
+          return;
+        }
+        dots = (dots + 1) % 4;
+        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} Waiting for QR scan...   `);
+      } else if (currentState === "connecting" || currentState === "reconnecting") {
+        stuckStateCount++;
+        dots = (dots + 1) % 4;
+        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} State: ${currentState}   `);
+
+        // If stuck for too long, reset counter and keep trying
+        // Let the main timeout catch true hangs
+        if (stuckStateCount > THRESHOLDS.STUCK_STATE_COUNT) {
+          stuckStateCount = 0; // Reset and keep waiting - be patient
+        }
+      } else {
+        stuckStateCount = 0;
+        dots = (dots + 1) % 4;
+        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} State: ${currentState}   `);
+      }
+    }, TIMEOUTS.POLL_INTERVAL);
+  });
+}
+
+/**
  * Handle QR code display and wait for connection
  */
 export async function handleQRConnection(
@@ -119,7 +248,7 @@ export async function handleQRConnection(
   client.connect();
 
   // Wait a moment for connection to initialize
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, TIMEOUTS.SOCKET_INIT_WAIT));
 
   // Check if already connected (race condition check)
   if (client.getConnectionState() === "connected") {
@@ -128,30 +257,7 @@ export async function handleQRConnection(
   }
 
   // Wait for QR or ready
-  const result = await new Promise<"qr" | "ready" | "timeout">(
-    (resolve) => {
-      const timeout = setTimeout(() => {
-        console.log("\n⏱️  Timeout while waiting for QR/ready event");
-        resolve("timeout");
-      }, 120000);
-
-      const onQr = (qr: string) => {
-        clearTimeout(timeout);
-        console.log("\n📱 Scan the QR code below with WhatsApp:");
-        qrcode.generate(qr, { small: true });
-        console.log();
-        resolve("qr");
-      };
-
-      const onReady = () => {
-        clearTimeout(timeout);
-        resolve("ready");
-      };
-
-      client.once("qr", onQr);
-      client.once("ready", onReady);
-    }
-  );
+  const result = await waitForQROrReady(client);
 
   if (result === "timeout") {
     // Check actual state before giving up
@@ -160,7 +266,10 @@ export async function handleQRConnection(
       console.log("✅ Connected successfully!");
       return { success: true };
     }
-    return { success: false, reason: `Timeout waiting for connection (state: ${finalState})` };
+    return {
+      success: false,
+      reason: `Timeout waiting for connection (state: ${finalState})`,
+    };
   }
 
   if (result === "ready") {
@@ -181,96 +290,10 @@ export async function handleQRConnection(
   console.log(`(Current state: ${initialCheckState})`);
 
   // Track QR display timing
-  const QR_DISPLAY_TIME = Date.now();
-  const QR_GRACE_PERIOD = 30000; // 30 seconds - covers full connection handshake including transient disconnects
-  const QR_SCAN_TIMEOUT = 60000; // 60 seconds to scan QR
+  const qrDisplayTime = Date.now();
 
-  const connected = await new Promise<boolean>((resolve) => {
-    const timeout = setTimeout(() => {
-      const finalState = client.getConnectionState();
-      console.log(`\n⏱️  Connection timeout (final state: ${finalState})`);
-      resolve(false);
-    }, 120000);
-
-    const onReady = () => {
-      clearTimeout(timeout);
-      clearInterval(pollInterval);
-      client.off("ready", onReady);
-      client.off("disconnected", onDisconnected);
-      resolve(true);
-    };
-
-    const onDisconnected = () => {
-      const timeSinceQrDisplay = Date.now() - QR_DISPLAY_TIME;
-
-      // During 30s grace period after QR display, ignore all disconnects
-      // Baileys emits transient disconnects (codes 408/428) during normal connection handshake
-      if (timeSinceQrDisplay < QR_GRACE_PERIOD) {
-        return; // Wait patiently - this is expected during QR scan and initial handshake
-      }
-
-      // After grace period, continue to be patient
-      // Auto-reconnect will retry transient issues
-      // Let the main timeout (120s) catch true hangs
-      // Don't fail prematurely - the ready event will fire when truly connected
-    };
-
-    client.once("ready", onReady);
-    client.on("disconnected", onDisconnected);
-
-    // Also poll connection state as fallback in case event was missed
-    let dots = 0;
-    let stuckStateCount = 0;
-    const STUCK_THRESHOLD = 30; // 30 seconds = 30 polling intervals - be patient
-    const pollInterval = setInterval(() => {
-      const currentState = client.getConnectionState();
-      const now = Date.now();
-      const timeSinceQrDisplay = now - QR_DISPLAY_TIME;
-
-      if (currentState === "connected") {
-        clearTimeout(timeout);
-        clearInterval(pollInterval);
-        client.off("ready", onReady);
-        client.off("disconnected", onDisconnected);
-        resolve(true);
-      } else if (currentState === "disconnected") {
-        // Just show feedback - don't fail here
-        // The onDisconnected event handler and main timeout will handle failures
-        const message = timeSinceQrDisplay < QR_GRACE_PERIOD
-          ? "Waiting for QR scan..."
-          : "Waiting for connection...";
-        dots = (dots + 1) % 4;
-        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} ${message}   `);
-      } else if (currentState === "qr_required") {
-        // QR timeout check
-        if (timeSinceQrDisplay > QR_SCAN_TIMEOUT) {
-          clearTimeout(timeout);
-          clearInterval(pollInterval);
-          client.off("ready", onReady);
-          client.off("disconnected", onDisconnected);
-          console.log(`\n⏱️  QR code not scanned within ${QR_SCAN_TIMEOUT / 1000}s`);
-          resolve(false);
-          return;
-        }
-        dots = (dots + 1) % 4;
-        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} Waiting for QR scan...   `);
-      } else if (currentState === "connecting" || currentState === "reconnecting") {
-        stuckStateCount++;
-        dots = (dots + 1) % 4;
-        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} State: ${currentState}   `);
-
-        // If stuck for too long, reset counter and keep trying
-        // Let the main timeout (120s) catch true hangs
-        if (stuckStateCount > STUCK_THRESHOLD) {
-          stuckStateCount = 0; // Reset and keep waiting - be patient
-        }
-      } else {
-        stuckStateCount = 0;
-        dots = (dots + 1) % 4;
-        process.stdout.write(`\r${".".repeat(dots).padEnd(3, " ")} State: ${currentState}   `);
-      }
-    }, 1000);
-  });
+  // Wait for connection with polling
+  const connected = await waitForConnectionWithPolling(client, qrDisplayTime);
 
   // Clear the progress line
   process.stdout.write("\r" + " ".repeat(50) + "\r");
@@ -281,7 +304,10 @@ export async function handleQRConnection(
   }
 
   const finalState = client.getConnectionState();
-  return { success: false, reason: `Failed to connect after QR scan (final state: ${finalState})` };
+  return {
+    success: false,
+    reason: `Failed to connect after QR scan (final state: ${finalState})`,
+  };
 }
 
 /**
