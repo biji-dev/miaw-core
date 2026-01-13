@@ -254,10 +254,14 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       return;
     }
 
-    if (input === "disconnect") {
+    if (input === "disconnect" || input.startsWith("disconnect ")) {
+      const parts = input.split(/\s+/);
+      const targetInstanceId = parts[1] || config.instanceId;
+
+      // Always use cmdInstanceDisconnect for consistency
       const result = await cmdInstanceDisconnect(
         config.sessionPath,
-        config.instanceId,
+        targetInstanceId,
         config.instanceId
       );
 
@@ -395,7 +399,7 @@ REPL-SPECIFIC:
   exit, quit           Exit REPL
   use <instance-id>    Switch to a different instance
   connect [id]         Connect to WhatsApp (optional: specify instance)
-  disconnect           Disconnect from WhatsApp
+  disconnect [id]      Disconnect from WhatsApp (optional: specify instance)
   debug [on|off]       Enable/disable debug mode (default: on)
   instances, ls        List all instances
 
