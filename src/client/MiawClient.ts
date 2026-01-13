@@ -12,6 +12,10 @@ import { EventEmitter } from "node:events";
 import { MiawLogger } from "../types/logger.js";
 import { createFilteredLogger } from "../utils/filtered-logger.js";
 import {
+  enableConsoleFilter,
+  disableConsoleFilter,
+} from "../utils/console-filter.js";
+import {
   MiawClientOptions,
   ConnectionState,
   SendTextOptions,
@@ -210,6 +214,12 @@ export class MiawClient extends EventEmitter {
 
     // Use the initialized logger
     this.logger = logger;
+
+    // Enable console filter to suppress libsignal logs when debug is off
+    // libsignal logs directly to console.info/warn, bypassing our logger
+    if (!this.options.debug) {
+      enableConsoleFilter();
+    }
 
     // Initialize handlers
     this.authHandler = new AuthHandler(
@@ -4288,6 +4298,11 @@ export class MiawClient extends EventEmitter {
       this.socket = null;
     }
 
+    // Cleanup console filter if it was enabled (reference counted)
+    if (!this.options.debug) {
+      disableConsoleFilter();
+    }
+
     this.updateConnectionState("disconnected");
     this.logger.info("Disconnected (session preserved)");
   }
@@ -4405,6 +4420,11 @@ export class MiawClient extends EventEmitter {
     // Reset logout flag
     this.loggingOut = false;
 
+    // Cleanup console filter if it was enabled (reference counted)
+    if (!this.options.debug) {
+      disableConsoleFilter();
+    }
+
     this.updateConnectionState("disconnected");
     this.logger.info("Logged out (session cleared)");
   }
@@ -4465,22 +4485,44 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Enable debug mode at runtime
-   * Enables verbose logging for debugging
+   * Enables verbose logging for debugging (includes libsignal session logs)
    */
   enableDebug(): void {
     this.options.debug = true;
-    this.logger.level = "trace";
+    // Recreate logger with debug enabled
+    this.logger = createFilteredLogger(true);
+    this.options.logger = this.logger;
+
+    // Update socket logger if connected
+    if (this.socket) {
+      (this.socket as any).logger = this.logger;
+    }
+
+    // Disable console filter to show libsignal logs in debug mode
+    disableConsoleFilter();
+
     this.logger.info("Debug mode enabled");
   }
 
   /**
    * Disable debug mode at runtime
-   * Disables verbose logging
+   * Disables verbose logging and suppresses libsignal session logs
    */
   disableDebug(): void {
-    this.options.debug = false;
-    this.logger.level = "info";
     this.logger.info("Debug mode disabled");
+    this.options.debug = false;
+
+    // Recreate logger with debug disabled
+    this.logger = createFilteredLogger(false);
+    this.options.logger = this.logger;
+
+    // Update socket logger if connected
+    if (this.socket) {
+      (this.socket as any).logger = this.logger;
+    }
+
+    // Enable console filter to suppress libsignal session logs
+    enableConsoleFilter();
   }
 
   /**
