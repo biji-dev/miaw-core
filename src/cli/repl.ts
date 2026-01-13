@@ -5,13 +5,19 @@
  */
 
 import * as readline from "readline";
-import { ensureConnected, listInstances } from "./utils/session.js";
+import { listInstances } from "./utils/session.js";
 import { disconnectAll, getOrCreateClient } from "./utils/client-cache.js";
-import { getInstanceState } from "./utils/instance-registry.js";
 import { runCommand } from "./commands/index.js";
 import { setReplReadline, setReplLineHandler, clearReplReadline } from "./utils/prompt.js";
 import { initializeCLICleanup } from "./utils/cleanup.js";
 import { getErrorMessage } from "../utils/type-guards.js";
+import { defaultCLIContext } from "./context.js";
+import {
+  cmdInstanceList,
+  cmdInstanceStatus,
+  cmdInstanceConnect,
+  cmdInstanceDisconnect,
+} from "./commands/commands-index.js";
 
 // =============================================================================
 // Command Tree for Autocomplete
@@ -207,7 +213,7 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     }
 
     if (input === "status") {
-      await showStatus(client, config);
+      await cmdInstanceStatus(config.sessionPath, config.instanceId, defaultCLIContext);
       rl.prompt();
       return;
     }
@@ -226,29 +232,21 @@ export async function runRepl(config: ClientConfig): Promise<void> {
 
     if (input === "connect" || input.startsWith("connect ")) {
       const parts = input.split(/\s+/);
-      const targetInstanceId = parts[1];
+      const targetInstanceId = parts[1] || config.instanceId;
 
-      if (targetInstanceId) {
-        // Connect to specified instance
-        const result = await runCommand("instance", ["connect", targetInstanceId], {
-          clientConfig: config,
-          jsonOutput: false,
-        });
+      // Always use cmdInstanceConnect for consistency
+      const result = await cmdInstanceConnect(config.sessionPath, targetInstanceId);
 
-        // Handle auto-switch if result indicates it
-        if (result && typeof result === "object" && "switchToInstance" in result) {
-          const switchTo = result.switchToInstance;
-          if (switchTo && switchTo !== config.instanceId) {
-            config.instanceId = switchTo;
-            client = getOrCreateClient(config);
-            rl.setPrompt(getPrompt(switchTo, client.getConnectionState()));
-            rl.prompt();
-            return;
-          }
+      // Handle auto-switch if result indicates it
+      if (result && typeof result === "object" && "switchToInstance" in result) {
+        const switchTo = result.switchToInstance;
+        if (switchTo && switchTo !== config.instanceId) {
+          config.instanceId = switchTo;
+          client = getOrCreateClient(config);
+          rl.setPrompt(getPrompt(switchTo, client.getConnectionState()));
+          rl.prompt();
+          return;
         }
-      } else {
-        // Connect to current instance (existing behavior)
-        await handleConnect(client);
       }
 
       rl.setPrompt(getPrompt(config.instanceId, client.getConnectionState()));
@@ -257,7 +255,22 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     }
 
     if (input === "disconnect") {
-      await handleDisconnect(client);
+      const result = await cmdInstanceDisconnect(
+        config.sessionPath,
+        config.instanceId,
+        config.instanceId
+      );
+
+      // Handle auto-switch if result suggests it
+      if (result && typeof result === "object" && "switchToInstance" in result) {
+        const switchTo = result.switchToInstance;
+        if (switchTo && switchTo !== config.instanceId) {
+          config.instanceId = switchTo;
+          client = getOrCreateClient(config);
+          console.log(`✅ Switched to instance: ${switchTo}`);
+        }
+      }
+
       rl.setPrompt(getPrompt(config.instanceId, client.getConnectionState()));
       rl.prompt();
       return;
@@ -279,7 +292,7 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     }
 
     if (input === "instances" || input === "ls") {
-      await showInstances(config.sessionPath);
+      await cmdInstanceList(config.sessionPath);
       rl.prompt();
       return;
     }
@@ -434,85 +447,3 @@ function getPrompt(instanceId: string, state: string): string {
   return `miaw-cli[${instanceId}] ${status}> `;
 }
 
-/**
- * Show connection status
- */
-async function showStatus(client: any, config: ClientConfig): Promise<void> {
-  console.log(`\n📊 Status:\n`);
-  console.log(`Instance:  ${config.instanceId}`);
-  console.log(`Session:   ${config.sessionPath}`);
-
-  // Use registry state as the source of truth for consistency
-  const registryState = getInstanceState(config);
-  const state = registryState ?? client.getConnectionState();
-
-  console.log(`State:     ${state}`);
-
-  if (state === "connected") {
-    try {
-      const profile = await client.getOwnProfile();
-      if (profile) {
-        console.log(`Phone:     ${profile.phone || "(not available)"}`);
-        console.log(`Name:      ${profile.name || "(not set)"}`);
-        console.log(`Business:  ${profile.isBusiness ? "Yes" : "No"}`);
-      }
-    } catch {
-      // Ignore profile errors
-    }
-  }
-  console.log();
-}
-
-/**
- * Handle connect command
- */
-async function handleConnect(client: any): Promise<void> {
-  const state = client.getConnectionState();
-  if (state === "connected") {
-    console.log("✅ Already connected");
-    return;
-  }
-
-  console.log("📱 Connecting...");
-  const result = await ensureConnected(client);
-
-  if (result.success) {
-    console.log("✅ Connected!");
-  } else {
-    console.log(`❌ Failed to connect: ${result.reason}`);
-  }
-}
-
-/**
- * Handle disconnect command
- */
-async function handleDisconnect(client: any): Promise<void> {
-  const state = client.getConnectionState();
-  if (state !== "connected") {
-    console.log("ℹ️  Not connected");
-    return;
-  }
-
-  await client.disconnect();
-  console.log("✅ Disconnected");
-}
-
-/**
- * Show all instances
- */
-async function showInstances(sessionPath: string): Promise<void> {
-  const instances = listInstances(sessionPath);
-
-  console.log(`\n📱 Instances (${instances.length}):\n`);
-
-  if (instances.length === 0) {
-    console.log("  No instances found");
-    console.log('  Create one with: instance create <id>\n');
-    return;
-  }
-
-  for (const instanceId of instances) {
-    console.log(`  ${instanceId}`);
-  }
-  console.log();
-}
