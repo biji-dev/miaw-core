@@ -6,7 +6,7 @@
 
 import * as readline from "readline";
 import { listInstances } from "./utils/session.js";
-import { disconnectAll, getOrCreateClient } from "./utils/client-cache.js";
+import { disconnectAll, disconnectClient, getOrCreateClient } from "./utils/client-cache.js";
 import { runCommand } from "./commands/index.js";
 import { setReplReadline, setReplLineHandler, clearReplReadline } from "./utils/prompt.js";
 import { initializeCLICleanup } from "./utils/cleanup.js";
@@ -220,11 +220,21 @@ export async function runRepl(config: ClientConfig): Promise<void> {
 
     if (input.startsWith("use ")) {
       const newInstanceId = input.slice(4).trim();
-      if (newInstanceId) {
+      if (newInstanceId && newInstanceId !== config.instanceId) {
+        // Disconnect previous instance to prevent WhatsApp connection conflicts
+        // WhatsApp only allows one active connection per account
+        const previousState = client.getConnectionState();
+        if (previousState === "connected" || previousState === "connecting") {
+          console.log(`📴 Disconnecting previous instance: ${config.instanceId}`);
+          await disconnectClient({ instanceId: config.instanceId, sessionPath: config.sessionPath });
+        }
+
         config.instanceId = newInstanceId;
         client = getOrCreateClient(config);
         console.log(`✅ Switched to instance: ${newInstanceId}`);
         rl.setPrompt(getPrompt(newInstanceId, client.getConnectionState()));
+      } else if (newInstanceId === config.instanceId) {
+        console.log(`ℹ️  Already using instance: ${newInstanceId}`);
       }
       rl.prompt();
       return;
@@ -233,6 +243,16 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     if (input === "connect" || input.startsWith("connect ")) {
       const parts = input.split(/\s+/);
       const targetInstanceId = parts[1] || config.instanceId;
+
+      // If connecting to a different instance, disconnect the current one first
+      // to prevent WhatsApp connection conflicts
+      if (targetInstanceId !== config.instanceId) {
+        const previousState = client.getConnectionState();
+        if (previousState === "connected" || previousState === "connecting") {
+          console.log(`📴 Disconnecting current instance: ${config.instanceId}`);
+          await disconnectClient({ instanceId: config.instanceId, sessionPath: config.sessionPath });
+        }
+      }
 
       // Always use cmdInstanceConnect for consistency
       const result = await cmdInstanceConnect(config.sessionPath, targetInstanceId);
@@ -321,6 +341,12 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       if (result && typeof result === "object" && "switchToInstance" in result) {
         const switchTo = result.switchToInstance;
         if (switchTo && switchTo !== config.instanceId) {
+          // Disconnect previous instance to prevent WhatsApp connection conflicts
+          const previousState = client.getConnectionState();
+          if (previousState === "connected" || previousState === "connecting") {
+            console.log(`📴 Disconnecting previous instance: ${config.instanceId}`);
+            await disconnectClient({ instanceId: config.instanceId, sessionPath: config.sessionPath });
+          }
           config.instanceId = switchTo;
           // Get the new client for the switched instance
           client = getOrCreateClient(config);
@@ -418,7 +444,7 @@ GET OPERATIONS:
   get groups [--limit N]         List all groups
   get chats [--limit N]          List all chats
   get messages <jid> [--limit N] Get chat messages
-  get labels                     List labels (Business)
+  get labels                     List labels/lists
 
 SEND OPERATIONS:
   send text <phone> <message>    Send text message
