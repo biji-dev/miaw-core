@@ -87,8 +87,8 @@ COMMANDS:
 INSTANCE MANAGEMENT:
   instance ls                    List all instances
   instance status [id]           Show connection status
-  instance create <id>           Create new instance (triggers QR)
-  instance delete <id>           Delete instance session
+  instance create <id>           Create new instance
+  instance delete <id>           Delete instance
   instance connect <id>          Connect instance
   instance disconnect <id>       Disconnect instance
   instance logout <id>           Logout and clear session
@@ -99,7 +99,10 @@ GET OPERATIONS:
   get groups [--limit N]         List all groups
   get chats [--limit N]          List all chats
   get messages <jid> [--limit N] Get chat messages
-  get labels                     List labels (Business only)
+  get labels                     List labels/lists
+
+LOAD OPERATIONS:
+  load messages <jid> [--count N] Load older messages (default: 50)
 
 SEND OPERATIONS:
   send text <phone> <message>    Send text message
@@ -116,18 +119,22 @@ UTILITY:
   check <phone>                  Check if number on WhatsApp
   check <phone1> <phone2>        Batch check numbers
 
-REPL COMMANDS (when in interactive mode):
+REPL COMMANDS (interactive mode):
   help                           Show all commands
   status                         Show connection status
   use <instance-id>              Switch active instance
+  connect [id]                   Connect to WhatsApp
+  disconnect [id]                Disconnect from WhatsApp
+  debug [on|off]                 Toggle debug mode
+  instances, ls                  List all instances
   exit, quit                     Exit REPL
 
 EXAMPLES:
   miaw-cli get groups --limit 10
   miaw-cli get contacts --json
   miaw-cli send text 6281234567890 "Hello"
+  miaw-cli load messages 6281234567890@s.whatsapp.net
   miaw-cli check 6281234567890
-  miaw-cli instance status
 
 For more information: https://github.com/biji-dev/miaw-core
 `);

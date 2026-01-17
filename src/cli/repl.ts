@@ -56,6 +56,10 @@ const commandTree: Record<string, CommandNode> = {
   group: {
     subcommands: ["info", "participants", "invite-link", "create"],
   },
+  load: {
+    subcommands: ["messages"],
+    flags: ["--count"],
+  },
   check: {},
 };
 
@@ -496,14 +500,14 @@ function showReplHelp(): void {
 ╚════════════════════════════════════════════════════════════╝
 
 REPL-SPECIFIC:
-  help                 Show this help message
-  status               Show connection status
-  exit, quit           Exit REPL
-  use <instance-id>    Switch to a different instance
-  connect [id]         Connect to WhatsApp (optional: specify instance)
-  disconnect [id]      Disconnect from WhatsApp (optional: specify instance)
-  debug [on|off]       Enable/disable debug mode (default: on)
-  instances, ls        List all instances
+  help                           Show this help message
+  status                         Show connection status
+  use <instance-id>              Switch active instance
+  connect [id]                   Connect to WhatsApp
+  disconnect [id]                Disconnect from WhatsApp
+  debug [on|off]                 Toggle debug mode
+  instances, ls                  List all instances
+  exit, quit                     Exit REPL
 
 INSTANCE MANAGEMENT:
   instance ls                    List all instances
@@ -522,6 +526,9 @@ GET OPERATIONS:
   get messages <jid> [--limit N] Get chat messages
   get labels                     List labels/lists
 
+LOAD OPERATIONS:
+  load messages <jid> [--count N] Load older messages (default: 50)
+
 SEND OPERATIONS:
   send text <phone> <message>    Send text message
   send image <phone> <path>      Send image
@@ -539,8 +546,9 @@ UTILITY:
 
 EXAMPLES:
   get groups --limit 5
+  get contacts --json
   send text 6281234567890 "Hello"
-  group info 123456789@g.us
+  load messages 6281234567890@s.whatsapp.net
   check 6281234567890
 `);
 }
