@@ -265,6 +265,7 @@ export class MiawClient extends EventEmitter {
       this.loadLabelsFromFile();
       this.loadContactsFromFile();
       this.loadChatsFromFile();
+      this.loadMessagesFromFile();
 
       // Load auth state
       const { state, saveCreds } = await this.authHandler.initialize();
@@ -492,6 +493,7 @@ export class MiawClient extends EventEmitter {
             this.messagesStore.set(chatJid, []);
           }
           this.messagesStore.get(chatJid)!.push(normalized);
+          this.saveMessagesToFile();
 
           this.emit("message", normalized);
         }
@@ -919,6 +921,7 @@ export class MiawClient extends EventEmitter {
       this.messagesStore.set(chatJid, []);
     }
     this.messagesStore.get(chatJid)!.push(normalized);
+    this.saveMessagesToFile();
   }
 
   /**
@@ -2099,6 +2102,96 @@ export class MiawClient extends EventEmitter {
     } catch (error) {
       this.logger.warn("Failed to load chats from file:", error);
     }
+  }
+
+  // ============================================
+  // MESSAGES PERSISTENCE
+  // ============================================
+
+  private getMessagesFilePath(): string {
+    return path.join(
+      this.options.sessionPath,
+      this.options.instanceId,
+      "messages.json"
+    );
+  }
+
+  /**
+   * Save messages to disk for persistence across reconnections
+   * Baileys v7 history sync doesn't always fire, so we persist messages locally
+   */
+  private saveMessagesToFile(): void {
+    try {
+      const messagesPath = this.getMessagesFilePath();
+      const messagesDir = path.dirname(messagesPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(messagesDir)) {
+        fs.mkdirSync(messagesDir, { recursive: true });
+      }
+
+      // Convert Map to object for JSON serialization
+      // Structure: { "jid1": [msg1, msg2], "jid2": [msg3] }
+      const messagesData: Record<string, MiawMessage[]> = {};
+      for (const [jid, messages] of this.messagesStore.entries()) {
+        messagesData[jid] = messages;
+      }
+
+      // Count total messages
+      const totalMessages = Array.from(this.messagesStore.values()).reduce(
+        (sum, msgs) => sum + msgs.length,
+        0
+      );
+
+      fs.writeFileSync(messagesPath, JSON.stringify(messagesData, null, 2), "utf8");
+      this.logger.debug(`Saved ${totalMessages} messages across ${this.messagesStore.size} chats to ${messagesPath}`);
+    } catch (error) {
+      this.logger.warn("Failed to save messages to file:", error);
+    }
+  }
+
+  /**
+   * Load messages from disk
+   * Called on connection to restore messages from previous session
+   */
+  private loadMessagesFromFile(): void {
+    try {
+      const messagesPath = this.getMessagesFilePath();
+
+      if (!fs.existsSync(messagesPath)) {
+        this.logger.debug("No messages file found, starting with empty store");
+        return;
+      }
+
+      const messagesData = JSON.parse(fs.readFileSync(messagesPath, "utf8"));
+
+      if (messagesData && typeof messagesData === "object") {
+        // Clear existing store and populate from file
+        this.messagesStore.clear();
+        let totalMessages = 0;
+        for (const [jid, messages] of Object.entries(messagesData)) {
+          if (Array.isArray(messages)) {
+            this.messagesStore.set(jid, messages as MiawMessage[]);
+            totalMessages += messages.length;
+          }
+        }
+        this.logger.info(`Loaded ${totalMessages} messages across ${this.messagesStore.size} chats from disk`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load messages from file:", error);
+    }
+  }
+
+  /**
+   * Get message counts for all chats
+   * @returns Map of JID to message count
+   */
+  getMessageCounts(): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const [jid, messages] of this.messagesStore.entries()) {
+      counts.set(jid, messages.length);
+    }
+    return counts;
   }
 
   /**

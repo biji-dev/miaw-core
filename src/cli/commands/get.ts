@@ -183,12 +183,16 @@ export async function cmdGetChats(
     return true;
   }
 
+  // Get message counts for all chats
+  const messageCounts = client.getMessageCounts();
+
   console.log(`\n💬 Chats (${chats.length}):\n`);
 
   const tableData = chats.map((c) => ({
     jid: c.jid,
     name: c.name || "-",
     type: c.isGroup ? "Group" : "Individual",
+    messages: messageCounts.get(c.jid) || 0,
     unread: c.unreadCount || 0,
     archived: c.isArchived ? "Yes" : "No",
   }));
@@ -198,6 +202,7 @@ export async function cmdGetChats(
       { key: "jid", label: "JID", width: 40 },
       { key: "name", label: "Name", width: 25 },
       { key: "type", label: "Type", width: 12 },
+      { key: "messages", label: "Msgs", width: 6 },
       { key: "unread", label: "Unread", width: 8 },
       { key: "archived", label: "Archived", width: 10 },
     ])
