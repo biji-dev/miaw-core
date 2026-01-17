@@ -71,6 +71,7 @@ import {
   ChatInfo,
 } from "../types/index.js";
 import * as path from "node:path";
+import * as fs from "node:fs";
 import { AuthHandler } from "../handlers/AuthHandler.js";
 import { MessageHandler } from "../handlers/MessageHandler.js";
 import { TIMEOUTS } from "../constants/timeouts.js";
@@ -188,6 +189,11 @@ export class MiawClient extends EventEmitter {
   private chatsStore: Map<string, ChatInfo> = new Map();
   private messagesStore: Map<string, MiawMessage[]> = new Map();
   private labelsStore: Map<string, Label> = new Map();
+  private labelEventCount = 0;
+  private lastLabelSyncTime?: Date;
+  // Track initial label sync to ensure fetchAllLabels waits for it
+  private initialLabelSyncPromise: Promise<void> | null = null;
+  private initialLabelSyncComplete = false;
   // Store auth state for logout access (needed when disconnected)
   private authState: { creds: any } | null = null;
 
@@ -252,6 +258,10 @@ export class MiawClient extends EventEmitter {
 
     try {
       this.updateConnectionState("connecting");
+
+      // Load persisted labels from disk before connecting
+      // This ensures labels are available even if resyncAppState returns only patches
+      this.loadLabelsFromFile();
 
       // Load auth state
       const { state, saveCreds } = await this.authHandler.initialize();
@@ -321,11 +331,18 @@ export class MiawClient extends EventEmitter {
         this.emit("ready");
         this.logger.info("Connected to WhatsApp");
 
-        // Sync app state to populate labels (WhatsApp Business)
-        // Labels are stored in the 'regular' app state collection
-        this.syncLabelsFromAppState().catch((error) => {
-          this.logger.warn("Failed to sync labels from app state:", error);
-        });
+        // Track the initial sync promise so fetchAllLabels can await it
+        // This ensures CLI commands that run immediately after connection
+        // will wait for the sync to complete before returning empty results
+        this.initialLabelSyncPromise = this.syncLabelsFromAppState()
+          .then(() => {
+            this.initialLabelSyncComplete = true;
+            this.logger.debug("Initial label sync completed");
+          })
+          .catch((error) => {
+            this.logger.warn("Failed to sync labels from app state:", error);
+            this.initialLabelSyncComplete = true; // Mark complete even on error
+          });
       }
     });
 
@@ -486,6 +503,8 @@ export class MiawClient extends EventEmitter {
 
     // Label updates (WhatsApp Business)
     this.socket.ev.on("labels.edit", (label: any) => {
+      this.labelEventCount++;
+
       if (this.options.debug) {
         this.logger.debug("\n========== LABEL UPDATE ==========");
         this.logger.debug(JSON.stringify(label, null, 2));
@@ -506,6 +525,18 @@ export class MiawClient extends EventEmitter {
           };
           this.labelsStore.set(label.id, labelData);
         }
+        // Persist labels to disk after every update
+        // This ensures labels survive reconnections where resyncAppState returns only patches
+        this.saveLabelsToFile();
+      }
+    });
+
+    // Debug listener for labels.association (chat/message label associations)
+    this.socket.ev.on("labels.association", (association: any) => {
+      if (this.options.debug) {
+        this.logger.debug("\n========== LABEL ASSOCIATION ==========");
+        this.logger.debug(JSON.stringify(association, null, 2));
+        this.logger.debug("=======================================\n");
       }
     });
   }
@@ -532,6 +563,7 @@ export class MiawClient extends EventEmitter {
     this.socket.ev.removeAllListeners("messages.reaction");
     this.socket.ev.removeAllListeners("presence.update");
     this.socket.ev.removeAllListeners("labels.edit");
+    this.socket.ev.removeAllListeners("labels.association");
   }
 
   /**
@@ -840,6 +872,10 @@ export class MiawClient extends EventEmitter {
     this.logger.info("Disconnected:", reason, "Code:", statusCode);
     this.updateConnectionState("disconnected");
     this.emit("disconnected", reason);
+
+    // Reset label sync state so next connection will trigger fresh sync
+    this.initialLabelSyncPromise = null;
+    this.initialLabelSyncComplete = false;
 
     // Don't reconnect if logging out
     if (this.loggingOut) {
@@ -1633,7 +1669,7 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Sync labels from WhatsApp app state
-   * This triggers a resync of the 'regular' collection which contains labels
+   * This triggers a resync of ALL app state collections to ensure labels are synced
    * Labels will be emitted via labels.edit events and stored in labelsStore
    */
   private async syncLabelsFromAppState(): Promise<void> {
@@ -1643,9 +1679,14 @@ export class MiawClient extends EventEmitter {
 
     try {
       // resyncAppState is provided by Baileys to sync app state collections
-      // The 'regular' collection contains labels
+      // Sync ALL collections like Baileys does during initial sync
+      // Labels could be in any of: critical_block, critical_unblock_low, regular_high, regular_low, regular
       // The second parameter (false) means this is not an initial sync
-      await this.socket.resyncAppState(["regular"], false);
+      await this.socket.resyncAppState(
+        ["critical_block", "critical_unblock_low", "regular_high", "regular_low", "regular"],
+        false
+      );
+      this.lastLabelSyncTime = new Date();
       this.logger.info(
         "App state sync completed, labels should be populated via labels.edit events"
       );
@@ -1661,13 +1702,47 @@ export class MiawClient extends EventEmitter {
    * @param forceSync - If true, force a resync from WhatsApp before returning labels
    * @returns FetchAllLabelsResult with list of labels
    */
-  async fetchAllLabels(forceSync = false): Promise<FetchAllLabelsResult> {
+  async fetchAllLabels(
+    forceSync = false,
+    syncTimeout = 2000
+  ): Promise<FetchAllLabelsResult> {
     try {
-      // Force resync if requested or if store is empty (first call)
+      // If initial sync is still in progress, wait for it first
+      // This handles the case where fetchAllLabels is called immediately after connection
+      // (e.g., CLI "get labels" right after connect)
+      if (this.initialLabelSyncPromise && !this.initialLabelSyncComplete) {
+        this.logger.debug("Waiting for initial label sync to complete...");
+        try {
+          await Promise.race([
+            this.initialLabelSyncPromise,
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Initial sync timeout")),
+                10000
+              )
+            ),
+          ]);
+        } catch (error) {
+          this.logger.debug("Initial sync wait timed out or failed:", error);
+        }
+      }
+
+      // Force resync if explicitly requested OR if store is empty (first call)
+      // This ensures labels are always available even if automatic sync hasn't completed
       if (forceSync || this.labelsStore.size === 0) {
         await this.syncLabelsFromAppState();
-        // Give a brief moment for labels.edit events to be processed
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Wait for buffered events to process
+        // Baileys uses ev.createBufferedFunction which processes events async
+        await new Promise((resolve) => setTimeout(resolve, syncTimeout));
+      }
+
+      // If store is still empty after sync, try loading from disk as fallback
+      // This handles reconnection scenarios where resyncAppState returns only patches
+      if (this.labelsStore.size === 0) {
+        this.logger.debug(
+          "Labels store still empty after sync, attempting to load from disk"
+        );
+        this.loadLabelsFromFile();
       }
 
       const labels = Array.from(this.labelsStore.values());
@@ -1682,6 +1757,102 @@ export class MiawClient extends EventEmitter {
         success: false,
         error: (error as Error).message,
       };
+    }
+  }
+
+  /**
+   * Get the count of label events received
+   * Useful for debugging label sync issues
+   * @returns Number of labels.edit events received since connection
+   */
+  public getLabelEventCount(): number {
+    return this.labelEventCount;
+  }
+
+  /**
+   * Get detailed information about the labels store
+   * Useful for debugging label sync issues
+   * @returns Object with store size, event count, and last sync time
+   */
+  public getLabelsStoreInfo(): {
+    size: number;
+    eventCount: number;
+    lastSyncTime?: Date;
+  } {
+    return {
+      size: this.labelsStore.size,
+      eventCount: this.labelEventCount,
+      lastSyncTime: this.lastLabelSyncTime,
+    };
+  }
+
+  // =============================================================================
+  // Persistent Label Storage
+  // =============================================================================
+
+  /**
+   * Get the path to the labels storage file
+   */
+  private getLabelsFilePath(): string {
+    return path.join(
+      this.options.sessionPath,
+      this.options.instanceId,
+      "labels.json"
+    );
+  }
+
+  /**
+   * Save labels to disk for persistence across reconnections
+   * WhatsApp's resyncAppState only returns patches (not full snapshot) when version > 0,
+   * so we need to persist labels locally to survive reconnections
+   */
+  private saveLabelsToFile(): void {
+    try {
+      const labelsPath = this.getLabelsFilePath();
+      const labelsDir = path.dirname(labelsPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(labelsDir)) {
+        fs.mkdirSync(labelsDir, { recursive: true });
+      }
+
+      // Convert Map to array for JSON serialization
+      const labelsData = Array.from(this.labelsStore.values());
+
+      fs.writeFileSync(labelsPath, JSON.stringify(labelsData, null, 2), "utf8");
+      this.logger.debug(`Saved ${labelsData.length} labels to ${labelsPath}`);
+    } catch (error) {
+      this.logger.warn("Failed to save labels to file:", error);
+    }
+  }
+
+  /**
+   * Load labels from disk
+   * Called on connection to restore labels from previous session
+   */
+  private loadLabelsFromFile(): void {
+    try {
+      const labelsPath = this.getLabelsFilePath();
+
+      if (!fs.existsSync(labelsPath)) {
+        this.logger.debug("No labels file found, starting with empty store");
+        return;
+      }
+
+      const labelsData = JSON.parse(fs.readFileSync(labelsPath, "utf8"));
+
+      if (Array.isArray(labelsData)) {
+        // Clear existing store and populate from file
+        this.labelsStore.clear();
+        for (const label of labelsData) {
+          if (label.id) {
+            this.labelsStore.set(label.id, label as Label);
+          }
+        }
+        this.logger.info(`Loaded ${this.labelsStore.size} labels from disk`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load labels from file:", error);
     }
   }
 
