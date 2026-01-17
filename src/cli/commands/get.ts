@@ -275,6 +275,47 @@ export async function cmdGetMessages(
 }
 
 /**
+ * Load more (older) messages for a chat
+ */
+export async function cmdLoadMoreMessages(
+  client: MiawClient,
+  args: { jid: string; count?: number },
+  jsonOutput: boolean
+): Promise<boolean> {
+  const result = await ensureConnected(client);
+  if (!result.success) {
+    console.log(`❌ Not connected: ${result.reason}`);
+    return false;
+  }
+
+  const count = args.count || 50;
+  console.log(`\n⏳ Loading ${count} older messages for ${args.jid}...`);
+
+  const loadResult = await client.loadMoreMessages(args.jid, count);
+
+  if (!loadResult.success) {
+    console.log(`❌ Failed to load messages: ${loadResult.error}`);
+    return false;
+  }
+
+  if (jsonOutput) {
+    console.log(formatJson(loadResult));
+    return true;
+  }
+
+  console.log(`✅ Loaded ${loadResult.messagesLoaded} messages`);
+  console.log(`   Has more: ${loadResult.hasMore ? "Yes" : "No"}`);
+
+  // Show updated message count
+  const fetchResult = await client.getChatMessages(args.jid);
+  if (fetchResult.success) {
+    console.log(`   Total messages in store: ${fetchResult.messages?.length || 0}`);
+  }
+
+  return true;
+}
+
+/**
  * Get all labels/lists
  * - WhatsApp Business: Called "Labels" for organizing contacts/chats
  * - WhatsApp Personal: Called "Lists" for chat organization (added Oct 2024)

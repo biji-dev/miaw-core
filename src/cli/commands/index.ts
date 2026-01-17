@@ -21,6 +21,7 @@ import {
   cmdGetGroups,
   cmdGetChats,
   cmdGetMessages,
+  cmdLoadMoreMessages,
   cmdGetLabels,
   // Send commands
   cmdSendText,
@@ -235,6 +236,27 @@ export async function runCommand(
       return false;
     }
     return await cmdCheck(client, { phones: parsedArgs._ }, jsonOutput);
+  }
+
+  // Load commands
+  if (command === "load") {
+    const subCommand = parsedArgs._[0] || "";
+
+    switch (subCommand) {
+      case "messages":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli load messages <jid> [--count N]");
+          return false;
+        }
+        return await cmdLoadMoreMessages(
+          client,
+          { jid: parsedArgs._[1], count: parsedArgs.count },
+          jsonOutput
+        );
+      default:
+        console.log(`❌ Unknown load command: ${subCommand}`);
+        return false;
+    }
   }
 
   console.log(`❌ Unknown command: ${command}`);

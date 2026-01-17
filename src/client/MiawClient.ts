@@ -189,6 +189,12 @@ export class MiawClient extends EventEmitter {
   private chatsStore: Map<string, ChatInfo> = new Map();
   private messagesStore: Map<string, MiawMessage[]> = new Map();
   private labelsStore: Map<string, Label> = new Map();
+  // Track pending history fetch requests for loadMoreMessages
+  private pendingHistoryRequests: Map<string, {
+    jid: string;
+    resolve: (result: { success: boolean; messagesLoaded: number; hasMore: boolean }) => void;
+    initialCount: number;
+  }> = new Map();
   private labelEventCount = 0;
   private lastLabelSyncTime?: Date;
   // Track initial label sync to ensure fetchAllLabels waits for it
@@ -425,11 +431,11 @@ export class MiawClient extends EventEmitter {
     });
 
     // History sync - populates contacts, chats, and messages from history
-    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest }) => {
+    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest, peerDataRequestSessionId }) => {
       if (this.options.debug) {
         this.logger.debug("\n========== MESSAGING HISTORY SYNC ==========");
         this.logger.debug(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}`);
-        this.logger.debug(`Is Latest: ${isLatest}`);
+        this.logger.debug(`Is Latest: ${isLatest}, SessionId: ${peerDataRequestSessionId || 'none'}`);
         this.logger.debug("============================================\n");
       }
 
@@ -447,6 +453,22 @@ export class MiawClient extends EventEmitter {
       // Baileys v7: messages is a flat WAMessage[] array (not nested)
       for (const msg of messages) {
         this.addMessageToStore(msg);
+      }
+
+      // Check for pending loadMoreMessages requests
+      if (peerDataRequestSessionId && this.pendingHistoryRequests.has(peerDataRequestSessionId)) {
+        const request = this.pendingHistoryRequests.get(peerDataRequestSessionId)!;
+        const newCount = (this.messagesStore.get(request.jid) || []).length;
+        const messagesLoaded = newCount - request.initialCount;
+
+        this.pendingHistoryRequests.delete(peerDataRequestSessionId);
+        request.resolve({
+          success: true,
+          messagesLoaded,
+          hasMore: !isLatest,
+        });
+
+        this.logger.debug(`History request ${peerDataRequestSessionId} completed: ${messagesLoaded} messages loaded`);
       }
 
       if (this.options.debug && isLatest) {
@@ -2211,6 +2233,104 @@ export class MiawClient extends EventEmitter {
       };
     } catch (error) {
       this.logger.error("Failed to get chat messages:", error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Load more (older) messages for a specific chat
+   * Uses Baileys fetchMessageHistory to fetch earlier messages
+   * @param jidOrPhone - Chat JID or phone number
+   * @param count - Number of messages to fetch (max 50)
+   * @param timeoutMs - Timeout in milliseconds (default 30000)
+   * @returns Result with number of messages loaded and whether more are available
+   */
+  async loadMoreMessages(
+    jidOrPhone: string,
+    count: number = 50,
+    timeoutMs: number = 30000
+  ): Promise<{ success: boolean; messagesLoaded?: number; hasMore?: boolean; error?: string }> {
+    try {
+      if (!this.socket) {
+        return { success: false, error: "Not connected. Call connect() first." };
+      }
+
+      if (this.connectionState !== "connected") {
+        return { success: false, error: `Cannot load messages. Connection state: ${this.connectionState}` };
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      const messages = this.messagesStore.get(jid) || [];
+
+      if (messages.length === 0) {
+        return { success: false, error: "No messages in store to paginate from. Send or receive a message first." };
+      }
+
+      // Find the oldest message (messages are stored newest first after history sync)
+      // We need the raw Baileys message for the key and timestamp
+      let oldestMessage: MiawMessage | null = null;
+      let oldestTimestamp = Infinity;
+
+      for (const msg of messages) {
+        if (msg.timestamp < oldestTimestamp) {
+          oldestTimestamp = msg.timestamp;
+          oldestMessage = msg;
+        }
+      }
+
+      if (!oldestMessage || !oldestMessage.raw) {
+        return { success: false, error: "Cannot find message with raw data for pagination cursor." };
+      }
+
+      const rawMsg = oldestMessage.raw;
+      const msgKey = rawMsg.key;
+      const msgTimestamp = rawMsg.messageTimestamp;
+
+      if (!msgKey || !msgTimestamp) {
+        return { success: false, error: "Message missing key or timestamp for pagination." };
+      }
+
+      // Clamp count to max 50
+      const fetchCount = Math.min(count, 50);
+      const initialCount = messages.length;
+
+      this.logger.debug(`Fetching ${fetchCount} older messages for ${jid} (current: ${initialCount})`);
+
+      // Call Baileys fetchMessageHistory
+      const sessionId = await this.socket.fetchMessageHistory(
+        fetchCount,
+        msgKey,
+        typeof msgTimestamp === 'number' ? msgTimestamp * 1000 : Number(msgTimestamp) * 1000
+      );
+
+      this.logger.debug(`History fetch initiated with sessionId: ${sessionId}`);
+
+      // Create a Promise that will be resolved when the history arrives
+      return new Promise((resolve) => {
+        // Set up timeout
+        const timeout = setTimeout(() => {
+          this.pendingHistoryRequests.delete(sessionId);
+          resolve({
+            success: false,
+            error: `Timeout waiting for history (${timeoutMs}ms)`,
+          });
+        }, timeoutMs);
+
+        // Store the pending request
+        this.pendingHistoryRequests.set(sessionId, {
+          jid,
+          initialCount,
+          resolve: (result) => {
+            clearTimeout(timeout);
+            resolve(result);
+          },
+        });
+      });
+    } catch (error) {
+      this.logger.error("Failed to load more messages:", error);
       return {
         success: false,
         error: (error as Error).message,

@@ -20,6 +20,7 @@ export {
   cmdGetGroups,
   cmdGetChats,
   cmdGetMessages,
+  cmdLoadMoreMessages,
   cmdGetLabels,
 } from "./get.js";
 
