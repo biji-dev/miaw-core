@@ -270,7 +270,10 @@ export async function cmdGetMessages(
 }
 
 /**
- * Get all labels (Business only)
+ * Get all labels/lists
+ * - WhatsApp Business: Called "Labels" for organizing contacts/chats
+ * - WhatsApp Personal: Called "Lists" for chat organization (added Oct 2024)
+ * Both use the same underlying protocol mechanism
  */
 export async function cmdGetLabels(
   client: MiawClient,
@@ -282,9 +285,12 @@ export async function cmdGetLabels(
     return false;
   }
 
-  const fetchResult = await client.fetchAllLabels(true);
+  // Force sync to ensure we get fresh labels from WhatsApp
+  // This matches the behavior of interactive tests which work reliably
+  const fetchResult = await client.fetchAllLabels(true, 3000);
+
   if (!fetchResult.success) {
-    console.log("❌ Failed to fetch labels (Business account required)");
+    console.log("❌ Failed to fetch labels/lists");
     return false;
   }
 
@@ -296,11 +302,11 @@ export async function cmdGetLabels(
   }
 
   if (labels.length === 0) {
-    console.log("🏷️  No labels found (Business feature)");
+    console.log("🏷️  No labels/lists found");
     return true;
   }
 
-  console.log(`\n🏷️  Labels (${labels.length}):\n`);
+  console.log(`\n🏷️  Labels/Lists (${labels.length}):\n`);
 
   const tableData = labels.map((l) => ({
     id: l.id,
