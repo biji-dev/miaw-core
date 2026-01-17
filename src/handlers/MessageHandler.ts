@@ -1,4 +1,14 @@
 import { MiawMessage, MediaInfo } from "../types/index.js";
+import type { MiawLogger } from "../types/logger.js";
+import {
+  BaileysMessageUpsert,
+  BaileysImageMessage,
+  BaileysVideoMessage,
+  BaileysDocumentMessage,
+  BaileysAudioMessage,
+  BaileyStickerMessage,
+} from "../types/baileys.js";
+import { isBaileysMessageUpsert, getErrorMessage } from "../utils/type-guards.js";
 
 /**
  * Handles message normalization and parsing
@@ -6,11 +16,26 @@ import { MiawMessage, MediaInfo } from "../types/index.js";
 export class MessageHandler {
   /**
    * Normalize a Baileys message into simplified MiawMessage format
+   * @param msg - Baileys message upsert event
+   * @param logger - Optional logger for error reporting
+   * @returns Normalized message or null if parsing fails
    */
-  static normalize(msg: any): MiawMessage | null {
+  static normalize(
+    msg: BaileysMessageUpsert,
+    logger?: MiawLogger
+  ): MiawMessage | null {
     try {
+      // Add type guard check
+      if (!isBaileysMessageUpsert(msg)) {
+        logger?.warn("Invalid message structure, skipping normalization");
+        return null;
+      }
+
       const message = msg.messages?.[0];
-      if (!message) return null;
+      if (!message) {
+        logger?.debug("Empty message array, skipping normalization");
+        return null;
+      }
 
       const isGroup = message.key.remoteJid?.endsWith("@g.us") || false;
 
@@ -67,38 +92,47 @@ export class MessageHandler {
 
       const normalized: MiawMessage = {
         id: message.key.id || "",
-        from: message.key.remoteJid || "",
-        senderPhone,
-        senderName,
+        from: message.key.remoteJid ?? "",
+        senderPhone: senderPhone ?? undefined,
+        senderName: senderName ?? undefined,
         text,
         timestamp: message.messageTimestamp
           ? Number(message.messageTimestamp)
           : Math.floor(Date.now() / 1000),
         isGroup,
-        participant: isGroup ? message.key.participant : undefined,
-        fromMe: message.key.fromMe || false,
+        participant: isGroup ? (message.key.participant ?? undefined) : undefined,
+        fromMe: message.key.fromMe ?? false,
         type,
         media,
         raw: message,
       };
 
       return normalized;
-    } catch (error) {
-      console.error("Failed to normalize message:", error);
+    } catch (error: unknown) {
+      // Log with details but don't throw (prevents crashing on malformed messages)
+      if (logger) {
+        logger.error("Failed to normalize message", {
+          error: getErrorMessage(error),
+          messageId: msg.messages?.[0]?.key?.id,
+        });
+      }
       return null;
     }
   }
 
   /**
    * Extract metadata from image message
+   * @param imgMsg - Baileys image message
+   * @param isViewOnce - Whether this is a view-once message
+   * @returns Media metadata
    */
   private static extractImageMetadata(
-    imgMsg: any,
+    imgMsg: BaileysImageMessage,
     isViewOnce: boolean
   ): MediaInfo {
     return {
       mimetype: imgMsg.mimetype,
-      fileSize: imgMsg.fileLength ? Number(imgMsg.fileLength) : undefined,
+      fileSize: imgMsg.fileSize || (imgMsg.fileLength ? Number(imgMsg.fileLength) : undefined),
       width: imgMsg.width,
       height: imgMsg.height,
       viewOnce: isViewOnce,
@@ -107,17 +141,20 @@ export class MessageHandler {
 
   /**
    * Extract metadata from video message
+   * @param vidMsg - Baileys video message
+   * @param isViewOnce - Whether this is a view-once message
+   * @returns Media metadata
    */
   private static extractVideoMetadata(
-    vidMsg: any,
+    vidMsg: BaileysVideoMessage,
     isViewOnce: boolean
   ): MediaInfo {
     return {
       mimetype: vidMsg.mimetype,
-      fileSize: vidMsg.fileLength ? Number(vidMsg.fileLength) : undefined,
+      fileSize: vidMsg.fileSize || (vidMsg.fileLength ? Number(vidMsg.fileLength) : undefined),
       width: vidMsg.width,
       height: vidMsg.height,
-      duration: vidMsg.seconds,
+      duration: vidMsg.duration || vidMsg.seconds,
       gifPlayback: vidMsg.gifPlayback || false,
       viewOnce: isViewOnce,
     };
@@ -125,34 +162,40 @@ export class MessageHandler {
 
   /**
    * Extract metadata from document message
+   * @param docMsg - Baileys document message
+   * @returns Media metadata
    */
-  private static extractDocumentMetadata(docMsg: any): MediaInfo {
+  private static extractDocumentMetadata(docMsg: BaileysDocumentMessage): MediaInfo {
     return {
       mimetype: docMsg.mimetype,
-      fileSize: docMsg.fileLength ? Number(docMsg.fileLength) : undefined,
+      fileSize: docMsg.fileSize || (docMsg.fileLength ? Number(docMsg.fileLength) : undefined),
       fileName: docMsg.fileName,
     };
   }
 
   /**
    * Extract metadata from audio message
+   * @param audMsg - Baileys audio message
+   * @returns Media metadata
    */
-  private static extractAudioMetadata(audMsg: any): MediaInfo {
+  private static extractAudioMetadata(audMsg: BaileysAudioMessage): MediaInfo {
     return {
       mimetype: audMsg.mimetype,
-      fileSize: audMsg.fileLength ? Number(audMsg.fileLength) : undefined,
-      duration: audMsg.seconds,
+      fileSize: audMsg.fileSize || (audMsg.fileLength ? Number(audMsg.fileLength) : undefined),
+      duration: audMsg.duration || audMsg.seconds,
       ptt: audMsg.ptt || false,
     };
   }
 
   /**
    * Extract metadata from sticker message
+   * @param stkMsg - Baileys sticker message
+   * @returns Media metadata
    */
-  private static extractStickerMetadata(stkMsg: any): MediaInfo {
+  private static extractStickerMetadata(stkMsg: BaileyStickerMessage): MediaInfo {
     return {
       mimetype: stkMsg.mimetype,
-      fileSize: stkMsg.fileLength ? Number(stkMsg.fileLength) : undefined,
+      fileSize: stkMsg.fileSize || (stkMsg.fileLength ? Number(stkMsg.fileLength) : undefined),
       width: stkMsg.width,
       height: stkMsg.height,
     };

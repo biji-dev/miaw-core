@@ -10,6 +10,8 @@ dist-test/
 # Session data (sensitive)
 sessions/
 test-sessions/
+test-sessions-manual/
+sessions-cli/
 *.session.json
 
 # Logs

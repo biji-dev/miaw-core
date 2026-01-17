@@ -26,6 +26,7 @@ For a detailed comparison, see [Baileys vs Miaw Core Comparison](./docs/BAILEYS_
 
 ## Documentation
 
+- **[CLI Guide](./docs/CLI.md)** - Command-line interface usage
 - **[Usage Guide](./docs/USAGE.md)** - Complete guide for all current features
 - **[Baileys Comparison](./docs/BAILEYS_VS_MIAW_COMPARISON.md)** - Feature comparison with raw Baileys
 - **[Migration Guide](./docs/MIGRATION.md)** - Upgrading between versions
@@ -59,7 +60,36 @@ For a detailed comparison, see [Baileys vs Miaw Core Comparison](./docs/BAILEYS_
 npm install miaw-core
 ```
 
-## Quick Start
+## Quick Start: CLI Tool
+
+Miaw Core includes a built-in CLI tool for quick WhatsApp operations:
+
+```bash
+# Start interactive mode
+npx miaw-cli
+
+# Or use via npm script
+npm run cli
+
+# One-shot commands
+npx miaw-cli get groups
+npx miaw-cli send text 6281234567890 "Hello!"
+npx miaw-cli check 6281234567890
+```
+
+**CLI Features:**
+
+- Interactive REPL shell
+- List contacts, groups, chats
+- Send messages and media
+- Group management
+- Check phone numbers
+- Session management
+- JSON output support
+
+See [CLI Guide](./docs/CLI.md) for complete CLI documentation.
+
+## Quick Start: Programmatic
 
 ```typescript
 import { MiawClient } from "miaw-core";

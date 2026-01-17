@@ -3,12 +3,18 @@ import makeWASocket, {
   WASocket,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  Browsers,
   AnyMessageContent,
   downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { EventEmitter } from "node:events";
-import pino from "pino";
+import { MiawLogger } from "../types/logger.js";
+import { createFilteredLogger } from "../utils/filtered-logger.js";
+import {
+  enableConsoleFilter,
+  disableConsoleFilter,
+} from "../utils/console-filter.js";
 import {
   MiawClientOptions,
   ConnectionState,
@@ -65,8 +71,18 @@ import {
   ChatInfo,
 } from "../types/index.js";
 import * as path from "node:path";
+import * as fs from "node:fs";
 import { AuthHandler } from "../handlers/AuthHandler.js";
 import { MessageHandler } from "../handlers/MessageHandler.js";
+import { TIMEOUTS } from "../constants/timeouts.js";
+import { CACHE_CONFIG } from "../constants/cache.js";
+import {
+  validatePhoneNumber,
+  validateJID,
+  validateMessageText,
+  validateGroupName,
+  validatePhoneNumbers,
+} from "../utils/validation.js";
 
 /**
  * LRU Cache for LID to JID mappings
@@ -76,7 +92,7 @@ class LruCache {
   private cache: Map<string, string>;
   private maxSize: number;
 
-  constructor(maxSize = 1000) {
+  constructor(maxSize = CACHE_CONFIG.LID_MAP_MAX_SIZE) {
     this.cache = new Map();
     this.maxSize = maxSize;
   }
@@ -119,6 +135,38 @@ class LruCache {
   get size(): number {
     return this.cache.size;
   }
+
+  /**
+   * Get an iterator for all entries in the cache
+   * @returns Iterator of [key, value] tuples
+   */
+  entries(): IterableIterator<[string, string]> {
+    return this.cache.entries();
+  }
+
+  /**
+   * Get an iterator for all keys in the cache
+   * @returns Iterator of keys
+   */
+  keys(): IterableIterator<string> {
+    return this.cache.keys();
+  }
+
+  /**
+   * Get an iterator for all values in the cache
+   * @returns Iterator of values
+   */
+  values(): IterableIterator<string> {
+    return this.cache.values();
+  }
+
+  /**
+   * Execute a callback for each entry in the cache
+   * @param callback - Function to call for each entry
+   */
+  forEach(callback: (value: string, key: string) => void): void {
+    this.cache.forEach(callback);
+  }
 }
 
 /**
@@ -129,36 +177,55 @@ export class MiawClient extends EventEmitter {
   private socket: WASocket | null = null;
   private authHandler: AuthHandler;
   private connectionState: ConnectionState = "disconnected";
+  private connectionStateTimestamp: number = 0;
+  private connectionWatchdogTimer: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  private logger: any;
-  private lidToJidMap: LruCache = new LruCache(1000);
-  // In-memory stores for v0.9.0
+  private loggingOut = false;
+  private logger: MiawLogger;
+  private lidToJidMap: LruCache = new LruCache();
+  // Custom stores for contacts, chats, messages (Baileys v7 removed makeInMemoryStore)
   private contactsStore: Map<string, ContactInfo> = new Map();
+  private chatsStore: Map<string, ChatInfo> = new Map();
+  private messagesStore: Map<string, MiawMessage[]> = new Map();
   private labelsStore: Map<string, Label> = new Map();
-  private messagesStore: Map<string, MiawMessage[]> = new Map(); // JID -> messages
-  private chatsStore: Map<string, ChatInfo> = new Map(); // JID -> chat info
+  private labelEventCount = 0;
+  private lastLabelSyncTime?: Date;
+  // Track initial label sync to ensure fetchAllLabels waits for it
+  private initialLabelSyncPromise: Promise<void> | null = null;
+  private initialLabelSyncComplete = false;
+  // Store auth state for logout access (needed when disconnected)
+  private authState: { creds: any } | null = null;
 
   constructor(options: MiawClientOptions) {
     super();
+
+    // Initialize logger first (needed for options)
+    const logger = options.logger || createFilteredLogger(options.debug || false);
 
     // Set default options
     this.options = {
       instanceId: options.instanceId,
       sessionPath: options.sessionPath || "./sessions",
       debug: options.debug || false,
-      logger: options.logger,
+      logger: logger,
       autoReconnect: options.autoReconnect !== false,
       maxReconnectAttempts: options.maxReconnectAttempts || Infinity,
-      reconnectDelay: options.reconnectDelay || 3000,
+      reconnectDelay: options.reconnectDelay || TIMEOUTS.RECONNECT_DELAY,
+      stuckStateTimeout: options.stuckStateTimeout || TIMEOUTS.STUCK_STATE,
+      qrGracePeriod: options.qrGracePeriod || TIMEOUTS.QR_GRACE_PERIOD,
+      qrScanTimeout: options.qrScanTimeout || TIMEOUTS.QR_SCAN_TIMEOUT,
+      connectionTimeout: options.connectionTimeout || TIMEOUTS.CONNECTION_TIMEOUT,
     };
 
-    // Initialize logger
-    this.logger =
-      this.options.logger ||
-      pino({
-        level: this.options.debug ? "debug" : "silent",
-      });
+    // Use the initialized logger
+    this.logger = logger;
+
+    // Enable console filter to suppress libsignal logs when debug is off
+    // libsignal logs directly to console.info/warn, bypassing our logger
+    if (!this.options.debug) {
+      enableConsoleFilter();
+    }
 
     // Initialize handlers
     this.authHandler = new AuthHandler(
@@ -171,11 +238,36 @@ export class MiawClient extends EventEmitter {
    * Connect to WhatsApp
    */
   async connect(): Promise<void> {
+    // Check for stale "connecting" state (stuck for more than configured timeout)
+    if (this.connectionState === "connecting") {
+      const elapsed = Date.now() - this.connectionStateTimestamp;
+      if (elapsed < this.options.stuckStateTimeout) {
+        this.logger.info(`Already connecting (${elapsed}ms), skipping connect() call`);
+        return;
+      } else {
+        this.logger.warn(`Stuck in "connecting" state for ${elapsed}ms, forcing reconnect`);
+        this.updateConnectionState("disconnected");
+      }
+    }
+
+    // Don't reconnect if already connected
+    if (this.connectionState === "connected") {
+      this.logger.info("Already connected, skipping connect() call");
+      return;
+    }
+
     try {
       this.updateConnectionState("connecting");
 
+      // Load persisted labels from disk before connecting
+      // This ensures labels are available even if resyncAppState returns only patches
+      this.loadLabelsFromFile();
+
       // Load auth state
       const { state, saveCreds } = await this.authHandler.initialize();
+
+      // Store auth state for logout access (needed when disconnected)
+      this.authState = { creds: state.creds };
 
       // Get latest Baileys version
       const { version } = await fetchLatestBaileysVersion();
@@ -189,10 +281,10 @@ export class MiawClient extends EventEmitter {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, this.logger),
         },
-        browser: ["Miaw", "Chrome", "1.0.0"],
+        browser: Browsers.macOS("Desktop"),  // Desktop for more history
         generateHighQualityLinkPreview: true,
-        // Enable app state sync for labels and other features
-        syncFullHistory: false,
+        // Enable full history sync to populate stores
+        syncFullHistory: true,
         fireInitQueries: true,
       });
 
@@ -239,11 +331,18 @@ export class MiawClient extends EventEmitter {
         this.emit("ready");
         this.logger.info("Connected to WhatsApp");
 
-        // Sync app state to populate labels (WhatsApp Business)
-        // Labels are stored in the 'regular' app state collection
-        this.syncLabelsFromAppState().catch((error) => {
-          this.logger.warn("Failed to sync labels from app state:", error);
-        });
+        // Track the initial sync promise so fetchAllLabels can await it
+        // This ensures CLI commands that run immediately after connection
+        // will wait for the sync to complete before returning empty results
+        this.initialLabelSyncPromise = this.syncLabelsFromAppState()
+          .then(() => {
+            this.initialLabelSyncComplete = true;
+            this.logger.debug("Initial label sync completed");
+          })
+          .catch((error) => {
+            this.logger.warn("Failed to sync labels from app state:", error);
+            this.initialLabelSyncComplete = true; // Mark complete even on error
+          });
       }
     });
 
@@ -253,7 +352,14 @@ export class MiawClient extends EventEmitter {
       this.emit("session_saved");
     });
 
-    // Contact updates - build LID to JID mapping and populate contacts store
+    // LID mapping update - captures LID to PN (phone number) mappings
+    // This event is part of Baileys v7 LID privacy feature
+    // Note: This event is WIP and may not always fire
+    this.socket.ev.on("lid-mapping.update", (mapping: { lid: string; pn: string }) => {
+      this.addLidMapping(mapping.lid, mapping.pn, "BaileysEvent");
+    });
+
+    // Contact updates - build LID to JID mapping and update store
     this.socket.ev.on("contacts.upsert", (contacts) => {
       this.updateLidToJidMapping(contacts);
       this.updateContactsStore(contacts);
@@ -264,7 +370,7 @@ export class MiawClient extends EventEmitter {
       this.updateContactsStore(contacts);
     });
 
-    // Chat updates - extract LID mappings from chat data and populate chats store
+    // Chat updates - extract LID mappings and update store
     this.socket.ev.on("chats.upsert", (chats) => {
       this.updateLidFromChats(chats);
       this.updateChatsStore(chats);
@@ -275,6 +381,37 @@ export class MiawClient extends EventEmitter {
       this.updateChatsStore(chats);
     });
 
+    // History sync - populates contacts, chats, and messages from history
+    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest }) => {
+      if (this.options.debug) {
+        this.logger.debug("\n========== MESSAGING HISTORY SYNC ==========");
+        this.logger.debug(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}`);
+        this.logger.debug(`Is Latest: ${isLatest}`);
+        this.logger.debug("============================================\n");
+      }
+
+      // Update contacts from history
+      this.updateContactsStore(contacts);
+
+      // Update chats from history
+      this.updateChatsStore(chats);
+
+      // Update messages from history
+      // messages is an array of objects with messages property
+      for (const historyItem of messages) {
+        const msgs = (historyItem as any).messages;
+        if (Array.isArray(msgs)) {
+          for (const msg of msgs) {
+            this.addMessageToStore(msg);
+          }
+        }
+      }
+
+      if (this.options.debug && isLatest) {
+        this.logger.debug("✅ History sync complete");
+      }
+    });
+
     // Messages
     this.socket.ev.on("messages.upsert", async (m) => {
       if (m.type !== "notify") return;
@@ -282,9 +419,9 @@ export class MiawClient extends EventEmitter {
       for (const msg of m.messages) {
         // Debug: Log raw Baileys message structure
         if (this.options.debug) {
-          console.log("\n========== RAW BAILEYS MESSAGE ==========");
-          console.log(JSON.stringify(msg, null, 2));
-          console.log("=========================================\n");
+          this.logger.debug("\n========== RAW BAILEYS MESSAGE ==========");
+          this.logger.debug(JSON.stringify(msg, null, 2));
+          this.logger.debug("=========================================\n");
         }
 
         // Check for protocol messages (edits and deletes)
@@ -303,19 +440,12 @@ export class MiawClient extends EventEmitter {
           remoteJid?: string | null;
         };
         if (!msgKey.fromMe && msgKey.senderLid && msgKey.remoteJid) {
-          const lid = msgKey.senderLid.endsWith("@lid")
-            ? msgKey.senderLid
-            : `${msgKey.senderLid}@lid`;
-          this.lidToJidMap.set(lid, msgKey.remoteJid);
-
-          if (this.options.debug) {
-            console.log(`[LID Mapping] ${lid} -> ${msg.key.remoteJid}`);
-          }
+          this.addLidMapping(msgKey.senderLid, msgKey.remoteJid, "Message");
         }
 
-        const normalized = MessageHandler.normalize({ messages: [msg] });
+        const normalized = MessageHandler.normalize({ messages: [msg as any], type: "notify" }, this.logger);
         if (normalized) {
-          // Store message in messagesStore (v0.9.0)
+          // Store message in messagesStore
           const chatJid = normalized.from;
           if (!this.messagesStore.has(chatJid)) {
             this.messagesStore.set(chatJid, []);
@@ -340,9 +470,9 @@ export class MiawClient extends EventEmitter {
         };
 
         if (this.options.debug) {
-          console.log("\n========== REACTION ==========");
-          console.log(JSON.stringify(reactionData, null, 2));
-          console.log("==============================\n");
+          this.logger.debug("\n========== REACTION ==========");
+          this.logger.debug(JSON.stringify(reactionData, null, 2));
+          this.logger.debug("==============================\n");
         }
 
         this.emit("message_reaction", reactionData);
@@ -362,9 +492,9 @@ export class MiawClient extends EventEmitter {
         };
 
         if (this.options.debug) {
-          console.log("\n========== PRESENCE UPDATE ==========");
-          console.log(JSON.stringify(update, null, 2));
-          console.log("=====================================\n");
+          this.logger.debug("\n========== PRESENCE UPDATE ==========");
+          this.logger.debug(JSON.stringify(update, null, 2));
+          this.logger.debug("=====================================\n");
         }
 
         this.emit("presence", update);
@@ -373,10 +503,12 @@ export class MiawClient extends EventEmitter {
 
     // Label updates (WhatsApp Business)
     this.socket.ev.on("labels.edit", (label: any) => {
+      this.labelEventCount++;
+
       if (this.options.debug) {
-        console.log("\n========== LABEL UPDATE ==========");
-        console.log(JSON.stringify(label, null, 2));
-        console.log("==================================\n");
+        this.logger.debug("\n========== LABEL UPDATE ==========");
+        this.logger.debug(JSON.stringify(label, null, 2));
+        this.logger.debug("==================================\n");
       }
 
       // Update label in store
@@ -393,8 +525,45 @@ export class MiawClient extends EventEmitter {
           };
           this.labelsStore.set(label.id, labelData);
         }
+        // Persist labels to disk after every update
+        // This ensures labels survive reconnections where resyncAppState returns only patches
+        this.saveLabelsToFile();
       }
     });
+
+    // Debug listener for labels.association (chat/message label associations)
+    this.socket.ev.on("labels.association", (association: any) => {
+      if (this.options.debug) {
+        this.logger.debug("\n========== LABEL ASSOCIATION ==========");
+        this.logger.debug(JSON.stringify(association, null, 2));
+        this.logger.debug("=======================================\n");
+      }
+    });
+  }
+
+  /**
+   * Remove all socket event listeners
+   * Call this before closing socket to prevent stale event handlers
+   */
+  private removeSocketEvents(): void {
+    if (!this.socket) return;
+
+    this.logger.debug("Removing socket event listeners");
+
+    // Remove all event listeners
+    this.socket.ev.removeAllListeners("connection.update");
+    this.socket.ev.removeAllListeners("creds.update");
+    this.socket.ev.removeAllListeners("lid-mapping.update");
+    this.socket.ev.removeAllListeners("contacts.upsert");
+    this.socket.ev.removeAllListeners("contacts.update");
+    this.socket.ev.removeAllListeners("chats.upsert");
+    this.socket.ev.removeAllListeners("chats.update");
+    this.socket.ev.removeAllListeners("messaging-history.set");
+    this.socket.ev.removeAllListeners("messages.upsert");
+    this.socket.ev.removeAllListeners("messages.reaction");
+    this.socket.ev.removeAllListeners("presence.update");
+    this.socket.ev.removeAllListeners("labels.edit");
+    this.socket.ev.removeAllListeners("labels.association");
   }
 
   /**
@@ -415,9 +584,9 @@ export class MiawClient extends EventEmitter {
       };
 
       if (this.options.debug) {
-        console.log("\n========== MESSAGE DELETED ==========");
-        console.log(JSON.stringify(deletion, null, 2));
-        console.log("=====================================\n");
+        this.logger.debug("\n========== MESSAGE DELETED ==========");
+        this.logger.debug(JSON.stringify(deletion, null, 2));
+        this.logger.debug("=====================================\n");
       }
 
       this.emit("message_delete", deletion);
@@ -443,12 +612,36 @@ export class MiawClient extends EventEmitter {
       };
 
       if (this.options.debug) {
-        console.log("\n========== MESSAGE EDITED ==========");
-        console.log(JSON.stringify(edit, null, 2));
-        console.log("====================================\n");
+        this.logger.debug("\n========== MESSAGE EDITED ==========");
+        this.logger.debug(JSON.stringify(edit, null, 2));
+        this.logger.debug("====================================\n");
       }
 
       this.emit("message_edit", edit);
+    }
+  }
+
+  /**
+   * Add LID to JID mapping with normalized format and debug logging
+   * Centralized helper for all LID mapping operations
+   * @param lid - The LID (with or without @lid suffix)
+   * @param jid - The JID to map to (phone number)
+   * @param source - Source of the mapping for debug logs
+   */
+  private addLidMapping(lid: string, jid: string, source: "BaileysEvent" | "Contact" | "Chat" | "Message"): void {
+    if (!lid || !jid) {
+      return;
+    }
+
+    // Normalize LID format (ensure it ends with @lid)
+    const normalizedLid = lid.endsWith("@lid") ? lid : `${lid}@lid`;
+
+    // Store in our LRU cache
+    this.lidToJidMap.set(normalizedLid, jid);
+
+    if (this.options.debug) {
+      this.logger.debug(`[LID Mapping: ${source}] ${normalizedLid} -> ${jid}`);
+      this.logger.debug(`Total LID mappings: ${this.lidToJidMap.size}`);
     }
   }
 
@@ -459,78 +652,12 @@ export class MiawClient extends EventEmitter {
     for (const contact of contacts) {
       // Contact has both lid and jid - create mapping
       if (contact.lid && contact.id && !contact.id.endsWith("@lid")) {
-        this.lidToJidMap.set(contact.lid, contact.id);
-        if (this.options.debug) {
-          console.log(`[Contact LID Mapping] ${contact.lid} -> ${contact.id}`);
-        }
+        this.addLidMapping(contact.lid, contact.id, "Contact");
       }
       // Also check if id is the LID and jid field exists
       if (contact.id?.endsWith("@lid") && contact.jid) {
-        this.lidToJidMap.set(contact.id, contact.jid);
-        if (this.options.debug) {
-          console.log(`[Contact LID Mapping] ${contact.id} -> ${contact.jid}`);
-        }
+        this.addLidMapping(contact.id, contact.jid, "Contact");
       }
-    }
-  }
-
-  /**
-   * Update in-memory contacts store (v0.9.0)
-   * @param contacts - Array of contact objects from Baileys
-   */
-  private updateContactsStore(contacts: any[]): void {
-    for (const contact of contacts) {
-      // Extract the JID (prefer non-lid IDs)
-      const jid = contact.id?.endsWith("@lid")
-        ? contact.jid || contact.id
-        : contact.id;
-      if (!jid) continue;
-
-      // Extract phone number from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
-
-      // Build contact info
-      const contactInfo: ContactInfo = {
-        jid,
-        phone,
-        name: contact.name || contact.notify || undefined,
-      };
-
-      // Update store
-      this.contactsStore.set(jid, contactInfo);
-    }
-  }
-
-  /**
-   * Update in-memory chats store (v0.9.0)
-   * @param chats - Array of chat objects from Baileys
-   */
-  private updateChatsStore(chats: any[]): void {
-    for (const chat of chats) {
-      const jid = chat.id;
-      if (!jid) continue;
-
-      // Extract phone number from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
-
-      // Build chat info
-      const chatInfo: ChatInfo = {
-        jid,
-        phone,
-        name: chat.name || undefined,
-        isGroup: jid.endsWith("@g.us"),
-        lastMessageTimestamp: chat.timestamp || undefined,
-        unreadCount: chat.unreadCount || undefined,
-        isArchived: chat.archived || false,
-        isPinned: chat.pinned || false,
-      };
-
-      // Update store
-      this.chatsStore.set(jid, chatInfo);
     }
   }
 
@@ -541,20 +668,11 @@ export class MiawClient extends EventEmitter {
     for (const chat of chats) {
       // Chat may have both id (could be phone or LID) and lidJid
       if (chat.lidJid && chat.id && !chat.id.endsWith("@lid")) {
-        const lid = chat.lidJid.endsWith("@lid")
-          ? chat.lidJid
-          : `${chat.lidJid}@lid`;
-        this.lidToJidMap.set(lid, chat.id);
-        if (this.options.debug) {
-          console.log(`[Chat LID Mapping] ${lid} -> ${chat.id}`);
-        }
+        this.addLidMapping(chat.lidJid, chat.id, "Chat");
       }
       // Reverse: if id is LID and we have a phone JID
       if (chat.id?.endsWith("@lid") && chat.jid) {
-        this.lidToJidMap.set(chat.id, chat.jid);
-        if (this.options.debug) {
-          console.log(`[Chat LID Mapping] ${chat.id} -> ${chat.jid}`);
-        }
+        this.addLidMapping(chat.id, chat.jid, "Chat");
       }
     }
   }
@@ -602,12 +720,16 @@ export class MiawClient extends EventEmitter {
    * Get all registered LID mappings
    * Useful for persisting mappings to storage
    */
+  /**
+   * Get all LID to JID mappings (for debugging/monitoring)
+   * @returns Record of LID to JID mappings
+   */
   getLidMappings(): Record<string, string> {
     const result: Record<string, string> = {};
-    // Iterate through the cache
-    for (const [key, value] of (this.lidToJidMap as any).cache) {
+    // Use proper encapsulated iteration method
+    this.lidToJidMap.forEach((value, key) => {
       result[key] = value;
-    }
+    });
     return result;
   }
 
@@ -623,6 +745,81 @@ export class MiawClient extends EventEmitter {
    */
   clearLidCache(): void {
     this.lidToJidMap.clear();
+  }
+
+  /**
+   * Update in-memory contacts store
+   * @param contacts - Array of contact objects from Baileys
+   */
+  private updateContactsStore(contacts: any[]): void {
+    for (const contact of contacts) {
+      // Extract the JID (prefer non-lid IDs)
+      const jid = contact.id?.endsWith("@lid")
+        ? contact.jid || contact.id
+        : contact.id;
+      if (!jid) continue;
+
+      // Extract phone number from JID
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
+        : undefined;
+
+      // Build contact info
+      const contactInfo: ContactInfo = {
+        jid,
+        phone,
+        name: contact.name || contact.notify || undefined,
+      };
+
+      // Update store
+      this.contactsStore.set(jid, contactInfo);
+    }
+  }
+
+  /**
+   * Update in-memory chats store
+   * @param chats - Array of chat objects from Baileys
+   */
+  private updateChatsStore(chats: any[]): void {
+    for (const chat of chats) {
+      const jid = chat.id;
+      if (!jid) continue;
+
+      // Extract phone number from JID
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
+        : undefined;
+
+      // Build chat info
+      const chatInfo: ChatInfo = {
+        jid,
+        phone,
+        name: chat.name || undefined,
+        isGroup: jid.endsWith("@g.us"),
+        lastMessageTimestamp: chat.timestamp || undefined,
+        unreadCount: chat.unreadCount || undefined,
+        isArchived: chat.archived || false,
+        isPinned: chat.pinned || false,
+      };
+
+      // Update store
+      this.chatsStore.set(jid, chatInfo);
+    }
+  }
+
+  /**
+   * Add a message to the store
+   * @param msg - Baileys message object
+   */
+  private addMessageToStore(msg: any): void {
+    const normalized = MessageHandler.normalize({ messages: [msg], type: "notify" }, this.logger);
+    if (!normalized) return;
+
+    const chatJid = normalized.from;
+    if (!this.messagesStore.has(chatJid)) {
+      this.messagesStore.set(chatJid, []);
+    }
+    this.messagesStore.get(chatJid)!.push(normalized);
   }
 
   /**
@@ -645,6 +842,9 @@ export class MiawClient extends EventEmitter {
       this.reconnectTimer = null;
     }
 
+    // Reset logout flag
+    this.loggingOut = false;
+
     // Clear LID cache
     this.lidToJidMap.clear();
 
@@ -653,6 +853,7 @@ export class MiawClient extends EventEmitter {
 
     // Close socket if connected
     if (this.socket) {
+      this.removeSocketEvents();
       this.socket.end(undefined);
       this.socket = null;
     }
@@ -671,6 +872,17 @@ export class MiawClient extends EventEmitter {
     this.logger.info("Disconnected:", reason, "Code:", statusCode);
     this.updateConnectionState("disconnected");
     this.emit("disconnected", reason);
+
+    // Reset label sync state so next connection will trigger fresh sync
+    this.initialLabelSyncPromise = null;
+    this.initialLabelSyncComplete = false;
+
+    // Don't reconnect if logging out
+    if (this.loggingOut) {
+      this.logger.info("Logout in progress, skipping auto-reconnect");
+      this.loggingOut = false;  // Reset flag
+      return false;
+    }
 
     // Don't reconnect if logged out - clear session for fresh QR code on next connect
     if (statusCode === DisconnectReason.loggedOut) {
@@ -697,12 +909,12 @@ export class MiawClient extends EventEmitter {
     }
 
     this.reconnectAttempts++;
-    this.updateConnectionState("reconnecting");
+    // Emit event but don't set state - let connect() handle the state transition
     this.emit("reconnecting", this.reconnectAttempts);
 
     this.reconnectTimer = setTimeout(() => {
       this.logger.info(`Reconnecting... Attempt ${this.reconnectAttempts}`);
-      this.connect();
+      this.connect();  // This will set state to "connecting"
     }, this.options.reconnectDelay);
   }
 
@@ -711,7 +923,45 @@ export class MiawClient extends EventEmitter {
    */
   private updateConnectionState(state: ConnectionState): void {
     this.connectionState = state;
+    this.connectionStateTimestamp = Date.now();
     this.emit("connection", state);
+
+    // Start watchdog for potentially stuck states
+    if (state === "connecting" || state === "reconnecting") {
+      this.startConnectionWatchdog();
+    } else {
+      // Clear watchdog if we're no longer in a potentially stuck state
+      if (this.connectionWatchdogTimer) {
+        clearTimeout(this.connectionWatchdogTimer);
+        this.connectionWatchdogTimer = null;
+      }
+    }
+  }
+
+  /**
+   * Start watchdog timer to detect stuck connection states
+   */
+  private startConnectionWatchdog(): void {
+    // Clear any existing watchdog
+    if (this.connectionWatchdogTimer) {
+      clearTimeout(this.connectionWatchdogTimer);
+    }
+
+    this.connectionWatchdogTimer = setTimeout(() => {
+      const currentState = this.connectionState;
+      const elapsed = Date.now() - this.connectionStateTimestamp;
+
+      // If stuck in connecting/reconnecting for too long, reset to disconnected
+      if (
+        (currentState === "connecting" || currentState === "reconnecting") &&
+        elapsed >= this.options.stuckStateTimeout
+      ) {
+        this.logger.warn(
+          `Connection stuck in "${currentState}" state for ${elapsed}ms, resetting`
+        );
+        this.updateConnectionState("disconnected");
+      }
+    }, this.options.stuckStateTimeout);
   }
 
   /**
@@ -734,6 +984,26 @@ export class MiawClient extends EventEmitter {
         throw new Error(
           `Cannot send message. Connection state: ${this.connectionState}`
         );
+      }
+
+      // Validate recipient (phone or JID)
+      const isJID = to.includes("@");
+      if (isJID) {
+        const jidValidation = validateJID(to);
+        if (!jidValidation.valid) {
+          return { success: false, error: jidValidation.error };
+        }
+      } else {
+        const phoneValidation = validatePhoneNumber(to);
+        if (!phoneValidation.valid) {
+          return { success: false, error: phoneValidation.error };
+        }
+      }
+
+      // Validate message text
+      const textValidation = validateMessageText(text);
+      if (!textValidation.valid) {
+        return { success: false, error: textValidation.error };
       }
 
       const jid = MessageHandler.formatPhoneToJid(to);
@@ -1257,7 +1527,7 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Fetch all contacts from the in-memory store
-   * Note: Contacts are populated via history sync and contact events
+   * Note: Contacts are populated via Baileys store history sync
    * @returns FetchAllContactsResult with list of contacts
    */
   async fetchAllContacts(): Promise<FetchAllContactsResult> {
@@ -1399,7 +1669,7 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Sync labels from WhatsApp app state
-   * This triggers a resync of the 'regular' collection which contains labels
+   * This triggers a resync of ALL app state collections to ensure labels are synced
    * Labels will be emitted via labels.edit events and stored in labelsStore
    */
   private async syncLabelsFromAppState(): Promise<void> {
@@ -1409,9 +1679,14 @@ export class MiawClient extends EventEmitter {
 
     try {
       // resyncAppState is provided by Baileys to sync app state collections
-      // The 'regular' collection contains labels
+      // Sync ALL collections like Baileys does during initial sync
+      // Labels could be in any of: critical_block, critical_unblock_low, regular_high, regular_low, regular
       // The second parameter (false) means this is not an initial sync
-      await this.socket.resyncAppState(["regular"], false);
+      await this.socket.resyncAppState(
+        ["critical_block", "critical_unblock_low", "regular_high", "regular_low", "regular"],
+        false
+      );
+      this.lastLabelSyncTime = new Date();
       this.logger.info(
         "App state sync completed, labels should be populated via labels.edit events"
       );
@@ -1427,13 +1702,47 @@ export class MiawClient extends EventEmitter {
    * @param forceSync - If true, force a resync from WhatsApp before returning labels
    * @returns FetchAllLabelsResult with list of labels
    */
-  async fetchAllLabels(forceSync = false): Promise<FetchAllLabelsResult> {
+  async fetchAllLabels(
+    forceSync = false,
+    syncTimeout = 2000
+  ): Promise<FetchAllLabelsResult> {
     try {
-      // Force resync if requested or if store is empty (first call)
+      // If initial sync is still in progress, wait for it first
+      // This handles the case where fetchAllLabels is called immediately after connection
+      // (e.g., CLI "get labels" right after connect)
+      if (this.initialLabelSyncPromise && !this.initialLabelSyncComplete) {
+        this.logger.debug("Waiting for initial label sync to complete...");
+        try {
+          await Promise.race([
+            this.initialLabelSyncPromise,
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Initial sync timeout")),
+                10000
+              )
+            ),
+          ]);
+        } catch (error) {
+          this.logger.debug("Initial sync wait timed out or failed:", error);
+        }
+      }
+
+      // Force resync if explicitly requested OR if store is empty (first call)
+      // This ensures labels are always available even if automatic sync hasn't completed
       if (forceSync || this.labelsStore.size === 0) {
         await this.syncLabelsFromAppState();
-        // Give a brief moment for labels.edit events to be processed
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Wait for buffered events to process
+        // Baileys uses ev.createBufferedFunction which processes events async
+        await new Promise((resolve) => setTimeout(resolve, syncTimeout));
+      }
+
+      // If store is still empty after sync, try loading from disk as fallback
+      // This handles reconnection scenarios where resyncAppState returns only patches
+      if (this.labelsStore.size === 0) {
+        this.logger.debug(
+          "Labels store still empty after sync, attempting to load from disk"
+        );
+        this.loadLabelsFromFile();
       }
 
       const labels = Array.from(this.labelsStore.values());
@@ -1452,8 +1761,104 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Get the count of label events received
+   * Useful for debugging label sync issues
+   * @returns Number of labels.edit events received since connection
+   */
+  public getLabelEventCount(): number {
+    return this.labelEventCount;
+  }
+
+  /**
+   * Get detailed information about the labels store
+   * Useful for debugging label sync issues
+   * @returns Object with store size, event count, and last sync time
+   */
+  public getLabelsStoreInfo(): {
+    size: number;
+    eventCount: number;
+    lastSyncTime?: Date;
+  } {
+    return {
+      size: this.labelsStore.size,
+      eventCount: this.labelEventCount,
+      lastSyncTime: this.lastLabelSyncTime,
+    };
+  }
+
+  // =============================================================================
+  // Persistent Label Storage
+  // =============================================================================
+
+  /**
+   * Get the path to the labels storage file
+   */
+  private getLabelsFilePath(): string {
+    return path.join(
+      this.options.sessionPath,
+      this.options.instanceId,
+      "labels.json"
+    );
+  }
+
+  /**
+   * Save labels to disk for persistence across reconnections
+   * WhatsApp's resyncAppState only returns patches (not full snapshot) when version > 0,
+   * so we need to persist labels locally to survive reconnections
+   */
+  private saveLabelsToFile(): void {
+    try {
+      const labelsPath = this.getLabelsFilePath();
+      const labelsDir = path.dirname(labelsPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(labelsDir)) {
+        fs.mkdirSync(labelsDir, { recursive: true });
+      }
+
+      // Convert Map to array for JSON serialization
+      const labelsData = Array.from(this.labelsStore.values());
+
+      fs.writeFileSync(labelsPath, JSON.stringify(labelsData, null, 2), "utf8");
+      this.logger.debug(`Saved ${labelsData.length} labels to ${labelsPath}`);
+    } catch (error) {
+      this.logger.warn("Failed to save labels to file:", error);
+    }
+  }
+
+  /**
+   * Load labels from disk
+   * Called on connection to restore labels from previous session
+   */
+  private loadLabelsFromFile(): void {
+    try {
+      const labelsPath = this.getLabelsFilePath();
+
+      if (!fs.existsSync(labelsPath)) {
+        this.logger.debug("No labels file found, starting with empty store");
+        return;
+      }
+
+      const labelsData = JSON.parse(fs.readFileSync(labelsPath, "utf8"));
+
+      if (Array.isArray(labelsData)) {
+        // Clear existing store and populate from file
+        this.labelsStore.clear();
+        for (const label of labelsData) {
+          if (label.id) {
+            this.labelsStore.set(label.id, label as Label);
+          }
+        }
+        this.logger.info(`Loaded ${this.labelsStore.size} labels from disk`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load labels from file:", error);
+    }
+  }
+
+  /**
    * Get chat messages from the in-memory store
-   * Note: Messages are populated via messages.upsert events
+   * Note: Messages are populated via Baileys store history sync
    * @param jidOrPhone - Chat JID or phone number
    * @returns FetchChatMessagesResult with list of messages
    */
@@ -1477,7 +1882,7 @@ export class MiawClient extends EventEmitter {
 
   /**
    * Fetch all chats from the in-memory store
-   * Note: Chats are populated via history sync and chat events
+   * Note: Chats are populated via Baileys store history sync
    * @returns FetchAllChatsResult with list of chats
    */
   async fetchAllChats(): Promise<FetchAllChatsResult> {
@@ -2037,6 +2442,18 @@ export class MiawClient extends EventEmitter {
         throw new Error(
           `Cannot create group. Connection state: ${this.connectionState}`
         );
+      }
+
+      // Validate group name
+      const nameValidation = validateGroupName(name);
+      if (!nameValidation.valid) {
+        return { success: false, error: nameValidation.error };
+      }
+
+      // Validate participant phone numbers
+      const phonesValidation = validatePhoneNumbers(participants);
+      if (!phonesValidation.valid) {
+        return { success: false, error: phonesValidation.error };
       }
 
       // Format participant JIDs
@@ -4052,6 +4469,11 @@ export class MiawClient extends EventEmitter {
       this.socket = null;
     }
 
+    // Cleanup console filter if it was enabled (reference counted)
+    if (!this.options.debug) {
+      disableConsoleFilter();
+    }
+
     this.updateConnectionState("disconnected");
     this.logger.info("Disconnected (session preserved)");
   }
@@ -4059,16 +4481,119 @@ export class MiawClient extends EventEmitter {
   /**
    * Logout from WhatsApp and clear session.
    * After calling this, the next connect() will require scanning a new QR code.
+   *
+   * This method:
+   * 1. Attempts to reconnect if disconnected (max 10 seconds)
+   * 2. Sends a logout request to WhatsApp servers using socket.query() to wait for acknowledgment
+   * 3. Clears local session files
+   * 4. Closes the connection
+   *
+   * Note: The socket.query() method waits for WhatsApp's acknowledgment before proceeding.
+   * This is more reliable than Baileys' native socket.logout() which uses sendNode() (fire-and-forget).
    */
   async logout(): Promise<void> {
+    // Set flag to prevent auto-reconnect during logout
+    this.loggingOut = true;
+
+    // Clear any pending reconnection
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
 
+    // Get JID from auth state (if connected) or load from session file
+    let jid = this.authState?.creds?.me?.id;
+
+    // If not in memory, try loading from session file
+    if (!jid && this.authState) {
+      jid = this.authState.creds.me?.id;
+      this.logger.info(`Retrieved JID from auth state: ${jid ? 'JID found' : 'no JID'}`);
+    }
+
+    // If still not found, try initializing auth handler
+    if (!jid) {
+      try {
+        const { state } = await this.authHandler.initialize();
+        jid = state.creds.me?.id;
+        this.logger.info(`Loaded credentials from session file: ${jid ? 'JID found' : 'no JID'}`);
+      } catch (error) {
+        this.logger.warn(`Failed to load credentials from session file: ${error}`);
+      }
+    }
+
+    if (!jid) {
+      this.logger.warn("No credentials found - cannot send logout request to server");
+      this.updateConnectionState("disconnected");
+      return;
+    }
+
+    // If disconnected, try to reconnect temporarily (only if we have credentials)
+    if ((!this.socket || this.connectionState !== "connected") && jid) {
+      this.logger.info("Not connected - attempting quick reconnect for logout");
+      try {
+        // Race between connect+wait and timeout to prevent hanging
+        await Promise.race([
+          (async () => {
+            await this.connect();
+            await this.waitForState("connected", 5000);
+          })(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Reconnect timeout")), 5000)
+          )
+        ]);
+        this.logger.info("Reconnected successfully for logout");
+      } catch (error) {
+        this.logger.warn(`Quick reconnect failed: ${error instanceof Error ? error.message : error}`);
+        // Continue with local cleanup even if reconnect fails
+      }
+    }
+
+    // Send logout request using query() to wait for response
+    if (this.socket && this.connectionState === "connected") {
+      try {
+        this.logger.info("Sending logout request to WhatsApp server...");
+        // Use query() instead of sendNode() to wait for response
+        // This works around Baileys' socket.logout() using sendNode() which
+        // closes the connection before WhatsApp can process the request
+        // Note: socket.query() auto-generates the 'id' attribute if not provided
+        await this.socket.query({
+          tag: 'iq',
+          attrs: {
+            to: "s.whatsapp.net",
+            type: 'set',
+            xmlns: 'md'
+          },
+          content: [{
+            tag: 'remove-companion-device',
+            attrs: {
+              jid,
+              reason: 'user_initiated'
+            }
+          }]
+        });
+        this.logger.info("Logout request acknowledged by WhatsApp server");
+      } catch (error) {
+        this.logger.warn(`Logout request failed: ${error}`);
+        // Continue with cleanup even if logout request fails
+      }
+    }
+
+    // Clean up socket
     if (this.socket) {
-      await this.socket.logout();
+      this.removeSocketEvents();
+      this.socket.end(undefined);
       this.socket = null;
+    }
+
+    // Clear session files
+    this.authHandler.clearSession();
+
+    // Reset logout flag
+    this.loggingOut = false;
+
+    // Cleanup console filter if it was enabled (reference counted)
+    if (!this.options.debug) {
+      disableConsoleFilter();
     }
 
     this.updateConnectionState("disconnected");
@@ -4083,6 +4608,39 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Wait for connection state to change to desired state
+   * @param desiredState - The state to wait for
+   * @param timeoutMs - Maximum time to wait in milliseconds
+   */
+  private async waitForState(
+    desiredState: ConnectionState,
+    timeoutMs: number = 10000
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Check if already in desired state
+      if (this.connectionState === desiredState) {
+        resolve();
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        this.off("connection", handler);
+        reject(new Error(`Timeout waiting for connection state: ${desiredState}`));
+      }, timeoutMs);
+
+      const handler = (state: ConnectionState) => {
+        if (state === desiredState) {
+          clearTimeout(timer);
+          this.off("connection", handler);
+          resolve();
+        }
+      };
+
+      this.on("connection", handler);
+    });
+  }
+
+  /**
    * Get instance ID
    */
   getInstanceId(): string {
@@ -4094,6 +4652,67 @@ export class MiawClient extends EventEmitter {
    */
   isConnected(): boolean {
     return this.connectionState === "connected";
+  }
+
+  /**
+   * Enable debug mode at runtime
+   * Enables verbose logging for debugging (includes libsignal session logs)
+   */
+  enableDebug(): void {
+    this.options.debug = true;
+    // Recreate logger with debug enabled
+    this.logger = createFilteredLogger(true);
+    this.options.logger = this.logger;
+
+    // Update socket logger if connected
+    if (this.socket) {
+      (this.socket as any).logger = this.logger;
+    }
+
+    // Disable console filter to show libsignal logs in debug mode
+    disableConsoleFilter();
+
+    this.logger.info("Debug mode enabled");
+  }
+
+  /**
+   * Disable debug mode at runtime
+   * Disables verbose logging and suppresses libsignal session logs
+   */
+  disableDebug(): void {
+    this.logger.info("Debug mode disabled");
+    this.options.debug = false;
+
+    // Recreate logger with debug disabled
+    this.logger = createFilteredLogger(false);
+    this.options.logger = this.logger;
+
+    // Update socket logger if connected
+    if (this.socket) {
+      (this.socket as any).logger = this.logger;
+    }
+
+    // Enable console filter to suppress libsignal session logs
+    enableConsoleFilter();
+  }
+
+  /**
+   * Check if debug mode is enabled
+   */
+  isDebugEnabled(): boolean {
+    return this.options.debug;
+  }
+
+  /**
+   * Set debug mode
+   * @param enabled - Whether to enable debug mode
+   */
+  setDebug(enabled: boolean): void {
+    if (enabled) {
+      this.enableDebug();
+    } else {
+      this.disableDebug();
+    }
   }
 
   // TypeScript event emitter type safety

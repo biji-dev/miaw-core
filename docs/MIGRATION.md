@@ -4,11 +4,183 @@ This guide helps you migrate between versions of Miaw Core.
 
 ## Table of Contents
 
+- [v1.1.x to v1.2.0](#v11x-to-v120)
 - [v1.0.x to v1.1.0](#v10x-to-v110)
 - [v0.9.x to v1.0.0](#v09x-to-v100)
 - [v0.8.x to v0.9.0](#v08x-to-v090)
 - [v0.7.x to v0.8.0](#v07x-to-v080)
 - [Breaking Changes Summary](#breaking-changes-summary)
+
+---
+
+## v1.1.x to v1.2.0
+
+**Status:** Code Quality Release (TBD)
+**Breaking Changes:** None ✅
+
+v1.2.0 is a non-breaking release focused on code quality, type safety, and developer experience improvements. All existing code continues to work without modifications.
+
+### New Features
+
+#### 1. Configurable Timeouts
+
+Customize timeout values for your specific deployment environment:
+
+```typescript
+import { MiawClient } from "miaw-core";
+
+const client = new MiawClient({
+  instanceId: "my-bot",
+  sessionPath: "./sessions",
+  // All optional with sensible defaults
+  stuckStateTimeout: 30000,      // Default: 30s - stuck connection state timeout
+  qrGracePeriod: 30000,           // Default: 30s - grace period for QR scan connection
+  qrScanTimeout: 60000,           // Default: 60s - timeout for QR code scanning
+  connectionTimeout: 120000,      // Default: 120s - overall connection timeout
+});
+```
+
+#### 2. Validation Utilities
+
+Prevent errors before sending requests:
+
+```typescript
+import {
+  validatePhoneNumber,
+  validateJID,
+  validateMessageText,
+  validateGroupName,
+  validatePhoneNumbers,
+} from "miaw-core";
+
+const phoneCheck = validatePhoneNumber("6281234567890");
+if (!phoneCheck.valid) {
+  console.error(phoneCheck.error); // Descriptive error message
+}
+```
+
+**Auto-validation:** `sendText()` and `createGroup()` now automatically validate inputs.
+
+#### 3. Custom Logger Support
+
+Implement your own logger or use the built-in filtered logger:
+
+```typescript
+import { MiawClient, createFilteredLogger } from "miaw-core";
+import type { MiawLogger } from "miaw-core";
+
+// Option 1: Built-in filtered logger
+const logger = createFilteredLogger(true); // debug mode
+
+// Option 2: Custom logger
+const customLogger: MiawLogger = {
+  info: (...msg) => myLogger.info(...msg),
+  error: (...msg) => myLogger.error(...msg),
+  warn: (...msg) => myLogger.warn(...msg),
+  debug: (...msg) => myLogger.debug(...msg),
+  fatal: (...msg) => myLogger.fatal(...msg),
+  trace: (...msg) => myLogger.trace(...msg),
+  child: (bindings) => customLogger,
+  level: "info",
+};
+
+const client = new MiawClient({
+  instanceId: "my-bot",
+  sessionPath: "./sessions",
+  logger: customLogger,
+});
+```
+
+**Important:** miaw-core no longer overrides global `console.log/error/warn`.
+
+#### 4. Type Safety Improvements
+
+- Replaced `any` types with proper TypeScript interfaces
+- New Baileys type exports for advanced users:
+
+```typescript
+import type {
+  BaileysMessage,
+  BaileysMessageUpsert,
+  BaileysConnectionUpdate,
+  Long,
+} from "miaw-core";
+```
+
+- Type guard utilities:
+
+```typescript
+import { isError, getErrorMessage } from "miaw-core";
+
+try {
+  // ... code
+} catch (error: unknown) {
+  console.error(getErrorMessage(error)); // Safe error handling
+}
+```
+
+#### 5. Exported Constants
+
+Access internal constants for consistency:
+
+```typescript
+import { TIMEOUTS, THRESHOLDS, CACHE_CONFIG, getLabelColorName } from "miaw-core";
+
+console.log(TIMEOUTS.CONNECTION_TIMEOUT); // 120000
+console.log(getLabelColorName(0));         // "Color 1 (Dark Blue)"
+```
+
+### Internal Improvements
+
+- Removed global state pollution (console override, signal handlers)
+- Better error handling throughout
+- Improved code organization and maintainability
+- Fixed circular dependencies in CLI
+- Enhanced encapsulation (LRU cache, prompt utility)
+
+### Migration Steps
+
+```bash
+npm install miaw-core@^1.2.0
+```
+
+**No code changes required.** Optionally leverage new features:
+
+1. **Add validation** to prevent errors:
+
+   ```typescript
+   const check = validatePhoneNumber(phone);
+   if (!check.valid) return { error: check.error };
+   ```
+
+2. **Customize timeouts** for slow networks:
+
+   ```typescript
+   const client = new MiawClient({
+     // ... other options
+     connectionTimeout: 180000, // 3 minutes
+   });
+   ```
+
+3. **Implement custom logger** for your logging infrastructure
+
+### For Library Consumers
+
+**Before v1.2.0:**
+
+- Global console was overridden
+- Signal handlers registered automatically
+- Limited type safety
+
+**After v1.2.0:**
+
+- ✅ Global console untouched
+- ✅ Signal handlers only in CLI mode
+- ✅ Full type safety
+- ✅ Optional validation utilities
+- ✅ Configurable timeouts
+
+**Action Required:** None - improvements work automatically!
 
 ---
 

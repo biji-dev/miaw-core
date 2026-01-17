@@ -2,49 +2,69 @@
 
 ## Project Overview
 
-Miaw Core is a TypeScript wrapper for [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys) that simplifies WhatsApp bot development. It abstracts Baileys complexity (session management, QR codes, reconnection, message parsing) into a clean event-driven API.
+Miaw Core is a TypeScript wrapper for [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys) that simplifies WhatsApp bot development. It abstracts Baileys complexity into a clean event-driven API.
 
-**Important:** This is an ESM-only package (Node.js >= 18.0.0). All imports must use `.js` extensions for relative paths.
+**Critical:** ESM-only package (Node.js >= 18.0.0). All relative imports **must** include `.js` extensions.
 
 ## Architecture
 
 ```
 src/
 ├── index.ts              # Public exports - add new types/classes here
-├── client/MiawClient.ts  # Main client class (~3500 lines) - all WhatsApp operations
+├── client/MiawClient.ts  # Main client (~4100 lines) - all WhatsApp operations
 ├── handlers/
-│   ├── AuthHandler.ts    # Session persistence via Baileys' useMultiFileAuthState
-│   └── MessageHandler.ts # Message normalization & JID formatting utilities
+│   ├── AuthHandler.ts    # Session persistence via useMultiFileAuthState
+│   └── MessageHandler.ts # Message normalization & JID formatting
 └── types/index.ts        # All TypeScript interfaces (~900 lines)
 ```
 
-**Key Design Decisions:**
+**Key Design:**
 
-- `MiawClient` extends `EventEmitter` - all state changes emit events (`qr`, `ready`, `message`, `message_edit`, `message_delete`, `message_reaction`, `presence`)
-- `MiawMessage` is the normalized message format - always return this instead of raw Baileys structures
-- JID formats: `@s.whatsapp.net` (phone), `@lid` (privacy-enhanced), `@g.us` (groups) - use `MessageHandler.formatPhoneToJid()` for conversion
-- LID-to-JID mapping uses an LRU cache (1000 entries) in `MiawClient` for privacy-enhanced contacts
+- `MiawClient` extends `EventEmitter` - emits: `qr`, `ready`, `message`, `message_edit`, `message_delete`, `message_reaction`, `presence`
+- `MiawMessage` is the normalized format - always use instead of raw Baileys structures
+- JID formats: `@s.whatsapp.net` (phone), `@lid` (privacy-enhanced), `@g.us` (groups)
 
 ## Code Patterns
 
-### Adding New Send Methods
+### Adding Send Methods
 
-Follow the pattern in `MiawClient.sendText()`:
+Follow the established pattern (see `sendText()` at line ~723 in MiawClient.ts):
 
-1. Check `this.socket` and `this.connectionState === 'connected'`
-2. Format recipient with `MessageHandler.formatPhoneToJid(to)`
-3. Build content payload matching Baileys' `AnyMessageContent`
-4. Return `SendMessageResult` with `{ success, messageId?, error? }`
+```typescript
+async sendNewType(to: string, data: any, options?: Options): Promise<SendMessageResult> {
+  try {
+    // 1. Connection guards (required)
+    if (!this.socket) throw new Error("Not connected. Call connect() first.");
+    if (this.connectionState !== "connected")
+      throw new Error(`Cannot send. State: ${this.connectionState}`);
 
-### Adding New Types
+    // 2. Format recipient
+    const jid = MessageHandler.formatPhoneToJid(to);
+
+    // 3. Handle quoting/replies
+    const sendOptions = options?.quoted?.raw ? { quoted: options.quoted.raw } : undefined;
+
+    // 4. Build Baileys payload and send
+    const result = await this.socket.sendMessage(jid, { /* AnyMessageContent */ }, sendOptions);
+
+    // 5. Return standardized result
+    return { success: true, messageId: result?.key?.id || undefined };
+  } catch (error) {
+    this.logger.error("Failed to send:", error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+```
+
+### Adding Types
 
 1. Define interface in `src/types/index.ts`
-2. Export from `src/index.ts`
-3. Import in `MiawClient.ts` if needed
+2. Export with `export type` from `src/index.ts` (required for ESM compatibility)
+3. Import in `MiawClient.ts` using grouped imports by version
 
-### Message Normalization
+### Adding Message Type Handlers
 
-When handling new message types, add extraction logic in `MessageHandler.normalize()`:
+In `MessageHandler.normalize()`, add extraction in the `if/else` chain:
 
 ```typescript
 } else if (actualMessage?.newMessageType) {
@@ -53,61 +73,49 @@ When handling new message types, add extraction logic in `MessageHandler.normali
 }
 ```
 
+Then add private static extractor method following existing patterns (e.g., `extractImageMetadata`).
+
 ## Development Commands
 
 ```bash
-npm run build        # TypeScript compilation to dist/
-npm run dev          # Watch mode compilation
-npm test             # Jest unit tests
-npm run test:watch   # Jest watch mode
-npm run test:manual  # Interactive testing with live WhatsApp connection
+npm run build        # TypeScript → dist/
+npm run dev          # Watch mode
+npm test             # Jest (requires NODE_OPTIONS='--experimental-vm-modules')
+npm run test:manual  # Interactive CLI with live WhatsApp - 92 tests
 ```
 
-## Testing Approach
+## Testing
 
-- **Unit tests** (`tests/unit/`): Test `MessageHandler` transformations, JID formatting, message parsing
-- **Integration tests** (`tests/integration/`): Require live WhatsApp session - configure via `.env.test`:
-  ```
-  TEST_CONTACT_PHONE_A=628123456789
-  TEST_GROUP_JID=123456789@g.us
-  ```
-- **Manual testing** (`npm run test:manual`): Interactive CLI for 80+ feature verification
+- **Unit** (`tests/unit/`): MessageHandler transformations, JID formatting
+- **Integration** (`tests/integration/`): Requires live session - configure `.env.test`
+- **Manual** (`npm run test:manual`): Interactive verification of all 92 methods
 
-## WhatsApp-Specific Conventions
-
-- **JID handling**: Always use `MessageHandler.formatPhoneToJid()` - accepts raw numbers, existing JIDs, or @lid formats
-- **Media sources**: Accept `string` (file path/URL) or `Buffer` - see `MediaSource` type
-- **Quoting/replying**: Pass `quoted: MiawMessage` in options - extract raw via `options.quoted.raw`
-- **Connection guards**: All send methods must check socket existence and connection state before operations
-
-## File Conventions
-
-- Sessions stored in `{sessionPath}/{instanceId}/` directory
-- Test assets in `tests/test-assets/`
-- Examples in `examples/` - numbered by complexity (01-basic to 09-business-social)
-
-## Dependencies
-
-- `@whiskeysockets/baileys` v7.0.0-rc.9 - Core WhatsApp Web API (ESM-only)
-- `pino` - Logging (silent by default, verbose with `debug: true`)
-- `@hapi/boom` - Error handling for Baileys disconnection reasons
+First-time setup: Run tests, scan QR code, session saves to `test-sessions/`.
 
 ## ESM Import Rules
 
-All relative imports must include `.js` extensions:
-
 ```typescript
-// ✅ Correct
+// ✅ Correct - .js extension required
 import { MessageHandler } from "./handlers/MessageHandler.js";
 import { MiawMessage } from "../types/index.js";
 
-// ❌ Wrong (will fail at runtime)
+// ✅ Correct - node: prefix for built-ins
+import { join } from "node:path";
+import { EventEmitter } from "node:events";
+
+// ❌ Wrong - will fail at runtime
 import { MessageHandler } from "./handlers/MessageHandler";
 ```
 
-Node.js built-ins should use `node:` prefix:
+## WhatsApp-Specific Conventions
 
-```typescript
-import { join } from "node:path";
-import { existsSync } from "node:fs";
-```
+- **JID handling**: Always use `MessageHandler.formatPhoneToJid()` - handles numbers, JIDs, @lid formats
+- **Media sources**: Accept `string` (file path/URL) or `Buffer` - typed as `MediaSource`
+- **Quoting**: Pass `quoted: MiawMessage` in options, extract raw via `options.quoted.raw`
+- **LID cache**: Privacy-enhanced contacts use LRU cache (1000 entries) in MiawClient
+
+## File Conventions
+
+- Sessions: `{sessionPath}/{instanceId}/` (e.g., `sessions/my-bot/creds.json`)
+- Examples: Numbered `01-basic` through `09-business-social`
+- Test assets: `tests/test-assets/`
