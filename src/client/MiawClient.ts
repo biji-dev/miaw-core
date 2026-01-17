@@ -271,6 +271,7 @@ export class MiawClient extends EventEmitter {
       // (Known Baileys v7 issue: history sync notification may be received but never processed)
       this.loadLabelsFromFile();
       this.loadContactsFromFile();
+      this.loadLidMappingsFromFile();  // Load LID mappings BEFORE chats for resolution
       this.loadChatsFromFile();
       this.loadMessagesFromFile();
 
@@ -702,12 +703,21 @@ export class MiawClient extends EventEmitter {
     // Normalize LID format (ensure it ends with @lid)
     const normalizedLid = lid.endsWith("@lid") ? lid : `${lid}@lid`;
 
+    // Check if this is a new mapping
+    const existingJid = this.lidToJidMap.get(normalizedLid);
+    const isNew = existingJid !== jid;
+
     // Store in our LRU cache
     this.lidToJidMap.set(normalizedLid, jid);
 
     if (this.options.debug) {
       this.logger.debug(`[LID Mapping: ${source}] ${normalizedLid} -> ${jid}`);
       this.logger.debug(`Total LID mappings: ${this.lidToJidMap.size}`);
+    }
+
+    // Persist to disk if this is a new mapping
+    if (isNew) {
+      this.saveLidMappingsToFile();
     }
   }
 
@@ -2146,6 +2156,75 @@ export class MiawClient extends EventEmitter {
   }
 
   // ============================================
+  // LID MAPPINGS PERSISTENCE
+  // ============================================
+
+  private getLidMappingsFilePath(): string {
+    return path.join(
+      this.options.sessionPath,
+      this.options.instanceId,
+      "lid-mappings.json"
+    );
+  }
+
+  /**
+   * Save LID-to-JID mappings to disk for persistence across reconnections
+   * This ensures @lid JIDs can be resolved to phone numbers even after restart
+   */
+  private saveLidMappingsToFile(): void {
+    try {
+      const mappingsPath = this.getLidMappingsFilePath();
+      const mappingsDir = path.dirname(mappingsPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(mappingsDir)) {
+        fs.mkdirSync(mappingsDir, { recursive: true });
+      }
+
+      // Get all mappings from the LRU cache
+      const mappings = this.getLidMappings();
+      const count = Object.keys(mappings).length;
+
+      if (count > 0) {
+        fs.writeFileSync(mappingsPath, JSON.stringify(mappings, null, 2), "utf8");
+        this.logger.debug(`Saved ${count} LID mappings to ${mappingsPath}`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to save LID mappings to file:", error);
+    }
+  }
+
+  /**
+   * Load LID-to-JID mappings from disk
+   * Called on connection BEFORE loading chats to ensure resolution works
+   */
+  private loadLidMappingsFromFile(): void {
+    try {
+      const mappingsPath = this.getLidMappingsFilePath();
+
+      if (!fs.existsSync(mappingsPath)) {
+        this.logger.debug("No LID mappings file found, starting with empty cache");
+        return;
+      }
+
+      const mappingsData = JSON.parse(fs.readFileSync(mappingsPath, "utf8"));
+
+      if (typeof mappingsData === "object" && mappingsData !== null) {
+        let count = 0;
+        for (const [lid, jid] of Object.entries(mappingsData)) {
+          if (typeof lid === "string" && typeof jid === "string") {
+            this.lidToJidMap.set(lid, jid);
+            count++;
+          }
+        }
+        this.logger.info(`Loaded ${count} LID mappings from disk`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load LID mappings from file:", error);
+    }
+  }
+
+  // ============================================
   // CHATS PERSISTENCE
   // ============================================
 
@@ -2437,7 +2516,21 @@ export class MiawClient extends EventEmitter {
    */
   async fetchAllChats(): Promise<FetchAllChatsResult> {
     try {
-      const chats = Array.from(this.chatsStore.values());
+      // Map chats and resolve any @lid JIDs that weren't resolved earlier
+      const chats = Array.from(this.chatsStore.values()).map(chat => {
+        // If jid is @lid and phone is missing, try to resolve using LID cache
+        if (chat.jid.endsWith("@lid") && !chat.phone) {
+          const resolved = this.resolveLidToJid(chat.jid);
+          if (resolved !== chat.jid && resolved.endsWith("@s.whatsapp.net")) {
+            return {
+              ...chat,
+              jid: resolved,
+              phone: resolved.replace("@s.whatsapp.net", ""),
+            };
+          }
+        }
+        return chat;
+      });
 
       return {
         success: true,
