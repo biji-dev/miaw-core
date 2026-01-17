@@ -519,7 +519,7 @@ INSTANCE MANAGEMENT:
   instance logout <id>           Logout and clear session
 
 GET OPERATIONS:
-  get profile                    Get your profile
+  get profile [jid]              Get profile (own or contact)
   get contacts [--limit N]       List all contacts
   get groups [--limit N]         List all groups
   get chats [--limit N]          List all chats
@@ -547,6 +547,7 @@ UTILITY:
 EXAMPLES:
   get groups --limit 5
   get contacts --json
+  get profile 6281234567890
   send text 6281234567890 "Hello"
   load messages 6281234567890@s.whatsapp.net
   check 6281234567890

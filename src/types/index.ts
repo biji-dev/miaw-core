@@ -392,6 +392,17 @@ export interface BusinessProfile {
 }
 
 /**
+ * Full contact profile information (extends ContactInfo with additional data)
+ */
+export interface ContactProfile extends ContactInfo {
+  /** Profile picture URL */
+  pictureUrl?: string;
+
+  /** Business profile details (if business account) */
+  business?: BusinessProfile;
+}
+
+/**
  * Group participant information
  */
 export interface GroupParticipant {

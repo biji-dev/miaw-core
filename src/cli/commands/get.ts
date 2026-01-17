@@ -10,10 +10,14 @@ import { formatTable, formatKeyValue, formatJson } from "../utils/formatter.js";
 import { getLabelColorName } from "../../constants/colors.js";
 
 /**
- * Get own profile
+ * Get profile (own or contact)
+ * @param client - MiawClient instance
+ * @param args - Optional arguments including jid for contact profile
+ * @param jsonOutput - Whether to output as JSON
  */
 export async function cmdGetProfile(
   client: MiawClient,
+  args: { jid?: string },
   jsonOutput: boolean
 ): Promise<boolean> {
   const result = await ensureConnected(client);
@@ -22,20 +26,73 @@ export async function cmdGetProfile(
     return false;
   }
 
+  // If JID provided, get contact profile; otherwise get own profile
+  if (args.jid) {
+    // Get contact profile
+    const profile = await client.getContactProfile(args.jid);
+    if (!profile) {
+      console.log(`❌ Failed to get profile for ${args.jid}`);
+      return false;
+    }
+
+    if (jsonOutput) {
+      console.log(formatJson(profile));
+      return true;
+    }
+
+    // Display contact profile
+    const displayData = {
+      jid: profile.jid,
+      phone: profile.phone,
+      name: profile.name,
+      status: profile.status,
+      pictureUrl: profile.pictureUrl,
+      isBusiness: profile.isBusiness,
+    };
+
+    console.log(
+      formatKeyValue(displayData, "👤 Contact Profile")
+    );
+
+    // Display business profile if available
+    if (profile.business) {
+      console.log(
+        formatKeyValue(profile.business, "🏢 Business Profile")
+      );
+    }
+
+    return true;
+  }
+
+  // Get own profile
   const profile = await client.getOwnProfile();
   if (!profile) {
     console.log("❌ Failed to get profile");
     return false;
   }
 
+  // Fetch business profile if this is a business account
+  let businessProfile = null;
+  if (profile.isBusiness) {
+    businessProfile = await client.getBusinessProfile(profile.jid);
+  }
+
   if (jsonOutput) {
-    console.log(formatJson(profile));
+    console.log(formatJson({ ...profile, business: businessProfile }));
     return true;
   }
 
   console.log(
     formatKeyValue(profile, "👤 Your Profile")
   );
+
+  // Display business profile if available
+  if (businessProfile) {
+    console.log(
+      formatKeyValue(businessProfile, "🏢 Business Profile")
+    );
+  }
+
   return true;
 }
 

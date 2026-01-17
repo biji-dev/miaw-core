@@ -94,7 +94,7 @@ INSTANCE MANAGEMENT:
   instance logout <id>           Logout and clear session
 
 GET OPERATIONS:
-  get profile                    Get your profile
+  get profile [jid]              Get profile (own or contact)
   get contacts [--limit N]       List all contacts
   get groups [--limit N]         List all groups
   get chats [--limit N]          List all chats
@@ -132,6 +132,7 @@ REPL COMMANDS (interactive mode):
 EXAMPLES:
   miaw-cli get groups --limit 10
   miaw-cli get contacts --json
+  miaw-cli get profile 6281234567890
   miaw-cli send text 6281234567890 "Hello"
   miaw-cli load messages 6281234567890@s.whatsapp.net
   miaw-cli check 6281234567890

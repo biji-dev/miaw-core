@@ -32,6 +32,7 @@ import {
   MessageReaction,
   CheckNumberResult,
   ContactInfo,
+  ContactProfile,
   BusinessProfile,
   GroupParticipant,
   GroupInfo,
@@ -1570,6 +1571,93 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Get full contact profile including name, status, picture, and business info
+   * @param jidOrPhone - Contact's JID or phone number
+   * @returns ContactProfile or null if not found
+   */
+  async getContactProfile(jidOrPhone: string): Promise<ContactProfile | null> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get contact profile. Connection state: ${this.connectionState}`
+        );
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+
+      // Extract phone from JID
+      const phone = jid.endsWith("@s.whatsapp.net")
+        ? jid.replace("@s.whatsapp.net", "")
+        : undefined;
+
+      // Get name from contactsStore
+      let name: string | undefined;
+      const storedContact = this.contactsStore.get(jid);
+      if (storedContact?.name) {
+        name = storedContact.name;
+      }
+
+      // Fetch status
+      let status: string | undefined;
+      try {
+        const statusResult = await this.socket.fetchStatus(jid);
+        const firstResult = Array.isArray(statusResult)
+          ? statusResult[0]
+          : statusResult;
+        status = (firstResult as any)?.status?.status || undefined;
+      } catch {
+        // Status might not be available
+      }
+
+      // Fetch profile picture URL
+      let pictureUrl: string | undefined;
+      try {
+        pictureUrl = (await this.socket.profilePictureUrl(jid)) || undefined;
+      } catch {
+        // Profile picture might not be available (privacy settings)
+      }
+
+      // Check if business account and get business profile
+      let isBusiness = false;
+      let business: BusinessProfile | undefined;
+      try {
+        const businessProfile = await this.socket.getBusinessProfile(jid);
+        if (businessProfile) {
+          isBusiness = true;
+          business = {
+            description: businessProfile.description || undefined,
+            category: businessProfile.category || undefined,
+            website: Array.isArray(businessProfile.website)
+              ? businessProfile.website[0]
+              : businessProfile.website,
+            email: businessProfile.email || undefined,
+            address: businessProfile.address || undefined,
+          };
+        }
+      } catch {
+        // Not a business account or not available
+      }
+
+      return {
+        jid,
+        phone,
+        name,
+        status,
+        pictureUrl,
+        isBusiness,
+        business,
+      };
+    } catch (error) {
+      this.logger.error("Failed to get contact profile:", error);
+      return null;
+    }
+  }
+
+  /**
    * Get business profile information
    * @param jidOrPhone - Contact's JID or phone number
    * @returns BusinessProfile or null if not a business account
@@ -1749,6 +1837,9 @@ export class MiawClient extends EventEmitter {
         ? jid.replace("@s.whatsapp.net", "")
         : undefined;
 
+      // Get display name from socket user
+      const name = this.socket.user?.name;
+
       // Fetch status
       let status: string | undefined;
       try {
@@ -1781,6 +1872,7 @@ export class MiawClient extends EventEmitter {
       return {
         jid,
         phone,
+        name,
         status,
         pictureUrl,
         isBusiness,

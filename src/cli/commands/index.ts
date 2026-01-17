@@ -126,7 +126,7 @@ export async function runCommand(
 
     switch (subCommand) {
       case "profile":
-        return await cmdGetProfile(client, jsonOutput);
+        return await cmdGetProfile(client, { jid: parsedArgs._[1] }, jsonOutput);
       case "contacts":
         return await cmdGetContacts(client, { limit: parsedArgs.limit }, jsonOutput);
       case "groups":
