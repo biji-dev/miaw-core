@@ -128,19 +128,19 @@ export async function runCommand(
       case "profile":
         return await cmdGetProfile(client, { jid: parsedArgs._[1] }, jsonOutput);
       case "contacts":
-        return await cmdGetContacts(client, { limit: parsedArgs.limit }, jsonOutput);
+        return await cmdGetContacts(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
       case "groups":
         return await cmdGetGroups(client, { limit: parsedArgs.limit }, jsonOutput);
       case "chats":
-        return await cmdGetChats(client, { limit: parsedArgs.limit }, jsonOutput);
+        return await cmdGetChats(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
       case "messages":
         if (!parsedArgs._[1]) {
-          console.log("❌ Usage: miaw-cli get messages <jid> [--limit N]");
+          console.log("❌ Usage: miaw-cli get messages <jid> [--limit N] [--filter TEXT]");
           return false;
         }
         return await cmdGetMessages(
           client,
-          { jid: parsedArgs._[1], limit: parsedArgs.limit },
+          { jid: parsedArgs._[1], limit: parsedArgs.limit, filter: parsedArgs.filter },
           jsonOutput
         );
       case "labels":

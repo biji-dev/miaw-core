@@ -48,7 +48,7 @@ const commandTree: Record<string, CommandNode> = {
   },
   get: {
     subcommands: ["profile", "contacts", "groups", "chats", "messages", "labels"],
-    flags: ["--limit", "--json"],
+    flags: ["--limit", "--json", "--filter"],
   },
   send: {
     subcommands: ["text", "image", "document"],
@@ -520,11 +520,13 @@ INSTANCE MANAGEMENT:
 
 GET OPERATIONS:
   get profile [jid]              Get profile (own or contact)
-  get contacts [--limit N]       List all contacts
+  get contacts [options]         List all contacts
   get groups [--limit N]         List all groups
-  get chats [--limit N]          List all chats
-  get messages <jid> [--limit N] Get chat messages
+  get chats [options]            List all chats
+  get messages <jid> [options]   Get chat messages
   get labels                     List labels/lists
+
+  Options: --limit N, --filter TEXT (case-insensitive search)
 
 LOAD OPERATIONS:
   load messages <jid> [--count N] Load older messages (default: 50)
@@ -546,7 +548,8 @@ UTILITY:
 
 EXAMPLES:
   get groups --limit 5
-  get contacts --json
+  get contacts --filter john
+  get chats --filter 628
   get profile 6281234567890
   send text 6281234567890 "Hello"
   load messages 6281234567890@s.whatsapp.net

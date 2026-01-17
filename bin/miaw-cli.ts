@@ -95,11 +95,13 @@ INSTANCE MANAGEMENT:
 
 GET OPERATIONS:
   get profile [jid]              Get profile (own or contact)
-  get contacts [--limit N]       List all contacts
+  get contacts [options]         List all contacts
   get groups [--limit N]         List all groups
-  get chats [--limit N]          List all chats
-  get messages <jid> [--limit N] Get chat messages
+  get chats [options]            List all chats
+  get messages <jid> [options]   Get chat messages
   get labels                     List labels/lists
+
+  Options: --limit N, --filter TEXT (case-insensitive search)
 
 LOAD OPERATIONS:
   load messages <jid> [--count N] Load older messages (default: 50)
@@ -131,7 +133,8 @@ REPL COMMANDS (interactive mode):
 
 EXAMPLES:
   miaw-cli get groups --limit 10
-  miaw-cli get contacts --json
+  miaw-cli get contacts --filter john
+  miaw-cli get chats --filter 628
   miaw-cli get profile 6281234567890
   miaw-cli send text 6281234567890 "Hello"
   miaw-cli load messages 6281234567890@s.whatsapp.net
