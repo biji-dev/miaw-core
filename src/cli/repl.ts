@@ -5,6 +5,8 @@
  */
 
 import * as readline from "readline";
+import * as fs from "fs";
+import * as path from "path";
 import { listInstances } from "./utils/session.js";
 import { disconnectAll, disconnectClient, getOrCreateClient } from "./utils/client-cache.js";
 import { runCommand } from "./commands/index.js";
@@ -149,6 +151,68 @@ function createCompleter(sessionPath: string): readline.Completer {
   };
 }
 
+// =============================================================================
+// Command History Management
+// =============================================================================
+
+const MAX_HISTORY_SIZE = 1000;
+
+/**
+ * Get the path to the history file
+ */
+function getHistoryFilePath(sessionPath: string): string {
+  return path.join(sessionPath, ".cli_history");
+}
+
+/**
+ * Load command history from file
+ */
+function loadHistory(sessionPath: string): string[] {
+  try {
+    const historyPath = getHistoryFilePath(sessionPath);
+    if (fs.existsSync(historyPath)) {
+      const content = fs.readFileSync(historyPath, "utf8");
+      const lines = content.split("\n").filter(line => line.trim() !== "");
+      // Return in reverse order (readline expects newest first)
+      return lines.slice(-MAX_HISTORY_SIZE);
+    }
+  } catch (error) {
+    // Silently ignore history load errors
+  }
+  return [];
+}
+
+/**
+ * Save command history to file
+ */
+function saveHistory(sessionPath: string, history: string[]): void {
+  try {
+    const historyPath = getHistoryFilePath(sessionPath);
+
+    // Ensure directory exists
+    const dir = path.dirname(historyPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Keep only the last MAX_HISTORY_SIZE entries
+    const trimmedHistory = history.slice(-MAX_HISTORY_SIZE);
+    fs.writeFileSync(historyPath, trimmedHistory.join("\n") + "\n", "utf8");
+  } catch (error) {
+    // Silently ignore history save errors
+  }
+}
+
+/**
+ * Add a command to history (avoiding duplicates of the last command)
+ */
+function addToHistory(history: string[], command: string): void {
+  const trimmed = command.trim();
+  if (trimmed && trimmed !== history[history.length - 1]) {
+    history.push(trimmed);
+  }
+}
+
 export interface ClientConfig {
   instanceId: string;
   sessionPath: string;
@@ -176,12 +240,17 @@ export async function runRepl(config: ClientConfig): Promise<void> {
     console.log("✅ Connected to WhatsApp!");
   }
 
-  // Create readline interface with autocomplete
+  // Load command history from previous sessions
+  const commandHistory = loadHistory(config.sessionPath);
+
+  // Create readline interface with autocomplete and history
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: getPrompt(config.instanceId, state),
     completer: createCompleter(config.sessionPath),
+    history: commandHistory,
+    historySize: MAX_HISTORY_SIZE,
   });
 
   // Register with prompt utility (to avoid double-character echo)
@@ -199,9 +268,13 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       return;
     }
 
+    // Add to history (for persistence)
+    addToHistory(commandHistory, input);
+
     // Handle REPL-specific commands
     if (input === "exit" || input === "quit") {
       console.log("\n👋 Goodbye!");
+      saveHistory(config.sessionPath, commandHistory);
       rl.close();
       return;
     }
@@ -384,6 +457,9 @@ export async function runRepl(config: ClientConfig): Promise<void> {
   rl.on("line", safeLineHandler);
 
   rl.on("close", async () => {
+    // Save command history before exiting
+    saveHistory(config.sessionPath, commandHistory);
+
     // Clear REPL readline reference
     clearReplReadline();
 
