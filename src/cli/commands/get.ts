@@ -168,7 +168,7 @@ export async function cmdGetContacts(
  */
 export async function cmdGetGroups(
   client: MiawClient,
-  args: { limit?: number },
+  args: { limit?: number; filter?: string },
   jsonOutput: boolean
 ): Promise<boolean> {
   const result = await ensureConnected(client);
@@ -184,6 +184,17 @@ export async function cmdGetGroups(
   }
 
   let groups = fetchResult.groups || [];
+  const totalCount = groups.length;
+
+  // Apply filter (case-insensitive substring match)
+  if (args.filter) {
+    const filterLower = args.filter.toLowerCase();
+    groups = groups.filter((g) =>
+      g.jid?.toLowerCase().includes(filterLower) ||
+      g.name?.toLowerCase().includes(filterLower) ||
+      g.description?.toLowerCase().includes(filterLower)
+    );
+  }
 
   // Apply limit
   if (args.limit && args.limit < groups.length) {
@@ -195,7 +206,8 @@ export async function cmdGetGroups(
     return true;
   }
 
-  console.log(`\n👥 Groups (${groups.length}):\n`);
+  const filterInfo = args.filter ? ` matching "${args.filter}"` : "";
+  console.log(`\n👥 Groups (${groups.length}${filterInfo}):\n`);
 
   const tableData = groups.map((g) => ({
     jid: g.jid,
@@ -213,8 +225,8 @@ export async function cmdGetGroups(
     ])
   );
 
-  if (args.limit && fetchResult.groups && fetchResult.groups.length > args.limit) {
-    console.log(`\nShowing ${args.limit} of ${fetchResult.groups.length} groups`);
+  if (args.limit && groups.length >= args.limit) {
+    console.log(`\nShowing ${args.limit} of ${totalCount} groups`);
   }
 
   return true;

@@ -130,7 +130,7 @@ export async function runCommand(
       case "contacts":
         return await cmdGetContacts(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
       case "groups":
-        return await cmdGetGroups(client, { limit: parsedArgs.limit }, jsonOutput);
+        return await cmdGetGroups(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
       case "chats":
         return await cmdGetChats(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
       case "messages":

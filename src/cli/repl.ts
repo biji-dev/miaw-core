@@ -521,7 +521,7 @@ INSTANCE MANAGEMENT:
 GET OPERATIONS:
   get profile [jid]              Get profile (own or contact)
   get contacts [options]         List all contacts
-  get groups [--limit N]         List all groups
+  get groups [options]           List all groups
   get chats [options]            List all chats
   get messages <jid> [options]   Get chat messages
   get labels                     List labels/lists
