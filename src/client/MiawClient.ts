@@ -1754,7 +1754,21 @@ export class MiawClient extends EventEmitter {
    */
   async fetchAllContacts(): Promise<FetchAllContactsResult> {
     try {
-      const contacts = Array.from(this.contactsStore.values());
+      // Map contacts and resolve any @lid JIDs that weren't resolved earlier
+      const contacts = Array.from(this.contactsStore.values()).map(contact => {
+        // If jid is @lid and phone is missing, try to resolve using LID cache
+        if (contact.jid.endsWith("@lid") && !contact.phone) {
+          const resolved = this.resolveLidToJid(contact.jid);
+          if (resolved !== contact.jid && resolved.endsWith("@s.whatsapp.net")) {
+            return {
+              ...contact,
+              jid: resolved,
+              phone: resolved.replace("@s.whatsapp.net", ""),
+            };
+          }
+        }
+        return contact;
+      });
 
       return {
         success: true,
