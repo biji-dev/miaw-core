@@ -28,6 +28,7 @@ import {
 interface CommandNode {
   aliases?: string[];
   subcommands?: string[];
+  nestedSubcommands?: Record<string, string[]>;
   flags?: string[];
 }
 
@@ -54,7 +55,18 @@ const commandTree: Record<string, CommandNode> = {
     subcommands: ["text", "image", "document"],
   },
   group: {
-    subcommands: ["info", "participants", "invite-link", "create"],
+    subcommands: [
+      "list", "ls", "info", "participants", "invite-link", "invite", "create", "leave",
+      "name", "description", "picture"
+    ],
+    nestedSubcommands: {
+      participants: ["add", "remove", "promote", "demote"],
+      invite: ["accept", "revoke", "info"],
+      name: ["set"],
+      description: ["set"],
+      picture: ["set"],
+    },
+    flags: ["--limit", "--filter", "--json"],
   },
   load: {
     subcommands: ["messages"],
@@ -95,13 +107,13 @@ function createCompleter(sessionPath: string): readline.Completer {
       return [hits, currentPart];
     }
 
-    // Level 2: Subcommands (second word onwards)
-    if (parts.length >= 2) {
+    // Level 2: Subcommands (second word)
+    if (parts.length === 2) {
       const category = parts[0];
       const categoryData = commandTree[category];
 
       // Commands that accept instance ID as second argument
-      if (["use", "connect", "disconnect"].includes(category) && parts.length === 2) {
+      if (["use", "connect", "disconnect"].includes(category)) {
         const instances = listInstances(sessionPath);
         for (const inst of instances) {
           if (inst.startsWith(currentPart)) {
@@ -117,17 +129,26 @@ function createCompleter(sessionPath: string): readline.Completer {
             hits.push(sub);
           }
         }
-        // Only return subcommands if we found matches or currentPart is empty
-        if (hits.length > 0 || currentPart === "") {
-          return [hits, currentPart];
-        }
+        return [hits, currentPart];
       }
     }
 
-    // Level 3: Flags and instance IDs (third word onwards)
-    if (parts.length >= 3) {
+    // Level 3: Nested subcommands or flags (third word)
+    if (parts.length === 3) {
       const category = parts[0];
+      const subCommand = parts[1];
       const categoryData = commandTree[category];
+
+      // Check for nested subcommands
+      if (categoryData?.nestedSubcommands?.[subCommand]) {
+        const nestedSubs = categoryData.nestedSubcommands[subCommand];
+        for (const sub of nestedSubs) {
+          if (sub.startsWith(currentPart)) {
+            hits.push(sub);
+          }
+        }
+        return [hits, currentPart];
+      }
 
       // Flag completion for commands with flags
       if (categoryData?.flags && currentPart.startsWith("-")) {
@@ -139,12 +160,28 @@ function createCompleter(sessionPath: string): readline.Completer {
         return [hits, currentPart];
       }
 
-      // Instance ID completion (for 'use', 'instance delete', 'instance connect', etc.)
-      if (["use", "instance", "connect"].includes(category)) {
+      // Instance ID completion (for 'instance delete', 'instance connect', etc.)
+      if (category === "instance") {
         const instances = listInstances(sessionPath);
         for (const inst of instances) {
           if (inst.startsWith(currentPart)) {
             hits.push(inst);
+          }
+        }
+        return [hits, currentPart];
+      }
+    }
+
+    // Level 4+: Flags (fourth word onwards)
+    if (parts.length >= 4) {
+      const category = parts[0];
+      const categoryData = commandTree[category];
+
+      // Flag completion for commands with flags
+      if (categoryData?.flags && currentPart.startsWith("-")) {
+        for (const flag of categoryData.flags) {
+          if (flag.startsWith(currentPart)) {
+            hits.push(flag);
           }
         }
         return [hits, currentPart];
@@ -495,56 +532,70 @@ Type 'help' for available commands, 'exit' to quit.
  */
 function showReplHelp(): void {
   console.log(`
-╔════════════════════════════════════════════════════════════╗
-║                      REPL Commands                        ║
-╚════════════════════════════════════════════════════════════╝
+╔════════════════════════════════════════════════════════════════════════╗
+║                           REPL Commands                                ║
+╚════════════════════════════════════════════════════════════════════════╝
 
 REPL-SPECIFIC:
-  help                           Show this help message
-  status                         Show connection status
-  use <instance-id>              Switch active instance
-  connect [id]                   Connect to WhatsApp
-  disconnect [id]                Disconnect from WhatsApp
-  debug [on|off]                 Toggle debug mode
-  instances, ls                  List all instances
-  exit, quit                     Exit REPL
+  help                                        Show this help message
+  status                                      Show connection status
+  use <instance-id>                           Switch active instance
+  connect [id]                                Connect to WhatsApp
+  disconnect [id]                             Disconnect from WhatsApp
+  debug [on|off]                              Toggle debug mode
+  instances, ls                               List all instances
+  exit, quit                                  Exit REPL
 
 INSTANCE MANAGEMENT:
-  instance ls                    List all instances
-  instance status [id]           Show connection status
-  instance create <id>           Create new instance
-  instance delete <id>           Delete instance
-  instance connect <id>          Connect instance
-  instance disconnect <id>       Disconnect instance
-  instance logout <id>           Logout and clear session
+  instance ls                                 List all instances
+  instance status [id]                        Show connection status
+  instance create <id>                        Create new instance
+  instance delete <id>                        Delete instance
+  instance connect <id>                       Connect instance
+  instance disconnect <id>                    Disconnect instance
+  instance logout <id>                        Logout and clear session
 
 GET OPERATIONS:
-  get profile [jid]              Get profile (own or contact)
-  get contacts [options]         List all contacts
-  get groups [options]           List all groups
-  get chats [options]            List all chats
-  get messages <jid> [options]   Get chat messages
-  get labels                     List labels/lists
+  get profile [jid]                           Get profile (own or contact)
+  get contacts [options]                      List all contacts
+  get groups [options]                        List all groups
+  get chats [options]                         List all chats
+  get messages <jid> [options]                Get chat messages
+  get labels                                  List labels/lists
 
   Options: --limit N, --filter TEXT (case-insensitive search)
 
 LOAD OPERATIONS:
-  load messages <jid> [--count N] Load older messages (default: 50)
+  load messages <jid> [--count N]             Load older messages (default: 50)
 
 SEND OPERATIONS:
-  send text <phone> <message>    Send text message
-  send image <phone> <path>      Send image
-  send document <phone> <path>   Send document
+  send text <phone> <message>                 Send text message
+  send image <phone> <path>                   Send image
+  send document <phone> <path>                Send document
 
 GROUP OPERATIONS:
-  group info <jid>               Get group details
-  group participants <jid>       List group members
-  group invite-link <jid>        Get invite link
-  group create <name> <phones..> Create new group
+  group list [options]                        List all groups
+  group info <jid>                            Get group details
+  group participants <jid> [options]          List members (with phone/name)
+  group participants add <jid> <phones>       Add members to group
+  group participants remove <jid> <phones>    Remove members from group
+  group participants promote <jid> <phones>   Promote members to admin
+  group participants demote <jid> <phones>    Demote admins to member
+  group invite-link <jid>                     Get invite link
+  group invite accept <code>                  Join group via invite code
+  group invite revoke <jid>                   Revoke and get new invite link
+  group invite info <code>                    Get group info from invite code
+  group create <name> <phones..>              Create new group
+  group leave <jid>                           Leave a group
+  group name set <jid> <name>                 Update group name
+  group description set <jid> [desc]          Update group description
+  group picture set <jid> <path>              Update group picture
+
+  Options: --limit N, --filter TEXT (case-insensitive search)
 
 UTILITY:
-  check <phone>                  Check if number on WhatsApp
-  check <phone1> <phone2>        Batch check numbers
+  check <phone>                               Check if number on WhatsApp
+  check <phone1> <phone2>                     Batch check numbers
 
 EXAMPLES:
   get groups --limit 5
@@ -554,6 +605,8 @@ EXAMPLES:
   send text 6281234567890 "Hello"
   load messages 6281234567890@s.whatsapp.net
   check 6281234567890
+  group list --filter family
+  group participants 120363039902323086@g.us --limit 10
 `);
 }
 
