@@ -32,6 +32,7 @@ import {
   MessageReaction,
   CheckNumberResult,
   ContactInfo,
+  ContactProfile,
   BusinessProfile,
   GroupParticipant,
   GroupInfo,
@@ -189,6 +190,12 @@ export class MiawClient extends EventEmitter {
   private chatsStore: Map<string, ChatInfo> = new Map();
   private messagesStore: Map<string, MiawMessage[]> = new Map();
   private labelsStore: Map<string, Label> = new Map();
+  // Track pending history fetch requests for loadMoreMessages
+  private pendingHistoryRequests: Map<string, {
+    jid: string;
+    resolve: (result: { success: boolean; messagesLoaded: number; hasMore: boolean }) => void;
+    initialCount: number;
+  }> = new Map();
   private labelEventCount = 0;
   private lastLabelSyncTime?: Date;
   // Track initial label sync to ensure fetchAllLabels waits for it
@@ -259,9 +266,14 @@ export class MiawClient extends EventEmitter {
     try {
       this.updateConnectionState("connecting");
 
-      // Load persisted labels from disk before connecting
-      // This ensures labels are available even if resyncAppState returns only patches
+      // Load persisted stores from disk before connecting
+      // This ensures data is available even if Baileys history sync doesn't fire
+      // (Known Baileys v7 issue: history sync notification may be received but never processed)
       this.loadLabelsFromFile();
+      this.loadContactsFromFile();
+      this.loadLidMappingsFromFile();  // Load LID mappings BEFORE chats for resolution
+      this.loadChatsFromFile();
+      this.loadMessagesFromFile();
 
       // Load auth state
       const { state, saveCreds } = await this.authHandler.initialize();
@@ -273,6 +285,8 @@ export class MiawClient extends EventEmitter {
       const { version } = await fetchLatestBaileysVersion();
 
       // Create socket
+      const debugMode = this.options.debug;
+      const logger = this.logger;
       this.socket = makeWASocket({
         version,
         logger: this.logger,
@@ -286,6 +300,13 @@ export class MiawClient extends EventEmitter {
         // Enable full history sync to populate stores
         syncFullHistory: true,
         fireInitQueries: true,
+        // Debug callback to see if history sync notifications are received
+        shouldSyncHistoryMessage: (msg: any) => {
+          if (debugMode) {
+            logger.debug(`[shouldSyncHistoryMessage] syncType: ${msg.syncType}`);
+          }
+          return true; // Always sync
+        },
       });
 
       // Register event handlers
@@ -331,6 +352,15 @@ export class MiawClient extends EventEmitter {
         this.emit("ready");
         this.logger.info("Connected to WhatsApp");
 
+        // Log store sizes after connection
+        if (this.options.debug) {
+          this.logger.debug(`[ready] Stores: contacts=${this.contactsStore.size}, chats=${this.chatsStore.size}, messages=${this.messagesStore.size}`);
+          // Also log after a delay to catch async updates
+          setTimeout(() => {
+            this.logger.debug(`[ready+5s] Stores: contacts=${this.contactsStore.size}, chats=${this.chatsStore.size}, messages=${this.messagesStore.size}`);
+          }, 5000);
+        }
+
         // Track the initial sync promise so fetchAllLabels can await it
         // This ensures CLI commands that run immediately after connection
         // will wait for the sync to complete before returning empty results
@@ -361,34 +391,59 @@ export class MiawClient extends EventEmitter {
 
     // Contact updates - build LID to JID mapping and update store
     this.socket.ev.on("contacts.upsert", (contacts) => {
+      if (this.options.debug) {
+        this.logger.debug(`[contacts.upsert] Received ${contacts.length} contacts`);
+        if (contacts.length > 0) {
+          this.logger.debug(`[contacts.upsert] Sample: ${JSON.stringify(contacts[0])}`);
+        }
+      }
       this.updateLidToJidMapping(contacts);
       this.updateContactsStore(contacts);
     });
 
     this.socket.ev.on("contacts.update", (contacts) => {
+      if (this.options.debug) {
+        this.logger.debug(`[contacts.update] Received ${contacts.length} contact updates`);
+        if (contacts.length > 0) {
+          this.logger.debug(`[contacts.update] Sample: ${JSON.stringify(contacts[0])}`);
+        }
+      }
       this.updateLidToJidMapping(contacts);
       this.updateContactsStore(contacts);
     });
 
     // Chat updates - extract LID mappings and update store
     this.socket.ev.on("chats.upsert", (chats) => {
+      if (this.options.debug) {
+        this.logger.debug(`[chats.upsert] Received ${chats.length} chats`);
+        if (chats.length > 0) {
+          this.logger.debug(`[chats.upsert] Sample: ${JSON.stringify(chats[0])}`);
+        }
+      }
       this.updateLidFromChats(chats);
       this.updateChatsStore(chats);
     });
 
     this.socket.ev.on("chats.update", (chats) => {
+      if (this.options.debug) {
+        this.logger.debug(`[chats.update] Received ${chats.length} chat updates`);
+      }
       this.updateLidFromChats(chats);
       this.updateChatsStore(chats);
     });
 
     // History sync - populates contacts, chats, and messages from history
-    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest }) => {
+    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest, peerDataRequestSessionId }) => {
       if (this.options.debug) {
         this.logger.debug("\n========== MESSAGING HISTORY SYNC ==========");
         this.logger.debug(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}`);
-        this.logger.debug(`Is Latest: ${isLatest}`);
+        this.logger.debug(`Is Latest: ${isLatest}, SessionId: ${peerDataRequestSessionId || 'none'}`);
         this.logger.debug("============================================\n");
       }
+
+      // Build LID mappings FIRST (before store population)
+      this.updateLidToJidMapping(contacts);
+      this.updateLidFromChats(chats);
 
       // Update contacts from history
       this.updateContactsStore(contacts);
@@ -397,18 +452,29 @@ export class MiawClient extends EventEmitter {
       this.updateChatsStore(chats);
 
       // Update messages from history
-      // messages is an array of objects with messages property
-      for (const historyItem of messages) {
-        const msgs = (historyItem as any).messages;
-        if (Array.isArray(msgs)) {
-          for (const msg of msgs) {
-            this.addMessageToStore(msg);
-          }
-        }
+      // Baileys v7: messages is a flat WAMessage[] array (not nested)
+      for (const msg of messages) {
+        this.addMessageToStore(msg);
+      }
+
+      // Check for pending loadMoreMessages requests
+      if (peerDataRequestSessionId && this.pendingHistoryRequests.has(peerDataRequestSessionId)) {
+        const request = this.pendingHistoryRequests.get(peerDataRequestSessionId)!;
+        const newCount = (this.messagesStore.get(request.jid) || []).length;
+        const messagesLoaded = newCount - request.initialCount;
+
+        this.pendingHistoryRequests.delete(peerDataRequestSessionId);
+        request.resolve({
+          success: true,
+          messagesLoaded,
+          hasMore: !isLatest,
+        });
+
+        this.logger.debug(`History request ${peerDataRequestSessionId} completed: ${messagesLoaded} messages loaded`);
       }
 
       if (this.options.debug && isLatest) {
-        this.logger.debug("✅ History sync complete");
+        this.logger.debug(`✅ History sync complete. Stores: ${this.contactsStore.size} contacts, ${this.chatsStore.size} chats`);
       }
     });
 
@@ -451,6 +517,7 @@ export class MiawClient extends EventEmitter {
             this.messagesStore.set(chatJid, []);
           }
           this.messagesStore.get(chatJid)!.push(normalized);
+          this.saveMessagesToFile();
 
           this.emit("message", normalized);
         }
@@ -636,12 +703,21 @@ export class MiawClient extends EventEmitter {
     // Normalize LID format (ensure it ends with @lid)
     const normalizedLid = lid.endsWith("@lid") ? lid : `${lid}@lid`;
 
+    // Check if this is a new mapping
+    const existingJid = this.lidToJidMap.get(normalizedLid);
+    const isNew = existingJid !== jid;
+
     // Store in our LRU cache
     this.lidToJidMap.set(normalizedLid, jid);
 
     if (this.options.debug) {
       this.logger.debug(`[LID Mapping: ${source}] ${normalizedLid} -> ${jid}`);
       this.logger.debug(`Total LID mappings: ${this.lidToJidMap.size}`);
+    }
+
+    // Persist to disk if this is a new mapping
+    if (isNew) {
+      this.saveLidMappingsToFile();
     }
   }
 
@@ -750,17 +826,31 @@ export class MiawClient extends EventEmitter {
   /**
    * Update in-memory contacts store
    * @param contacts - Array of contact objects from Baileys
+   *
+   * Baileys v7 Contact structure:
+   * - id: primary identifier (could be @lid or @s.whatsapp.net)
+   * - phoneNumber: phone JID (@s.whatsapp.net) when available
+   * - lid: LID JID (@lid) when available
+   * - name: contact name saved by user
+   * - notify: contact's own display name (push name)
+   * - verifiedName: verified business name
    */
   private updateContactsStore(contacts: any[]): void {
     for (const contact of contacts) {
-      // Extract the JID (prefer non-lid IDs)
-      const jid = contact.id?.endsWith("@lid")
-        ? contact.jid || contact.id
-        : contact.id;
+      let jid = contact.id;
+      let phone: string | undefined;
+
+      // Baileys v7: Use phoneNumber when id is LID
+      if (jid?.endsWith("@lid") && contact.phoneNumber) {
+        // Register LID mapping for future resolution
+        this.addLidMapping(contact.id, contact.phoneNumber, "Contact");
+        jid = contact.phoneNumber;
+      }
+
       if (!jid) continue;
 
       // Extract phone number from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
+      phone = jid.endsWith("@s.whatsapp.net")
         ? jid.replace("@s.whatsapp.net", "")
         : undefined;
 
@@ -768,42 +858,86 @@ export class MiawClient extends EventEmitter {
       const contactInfo: ContactInfo = {
         jid,
         phone,
-        name: contact.name || contact.notify || undefined,
+        name: contact.name || contact.notify || contact.verifiedName || undefined,
       };
 
-      // Update store
+      // Update store with phone JID as primary key
       this.contactsStore.set(jid, contactInfo);
+
+      // Also store by LID for lookup if available
+      if (contact.lid && contact.lid !== jid) {
+        this.contactsStore.set(contact.lid, contactInfo);
+      }
+      // Also store by original id if different (for LID contacts)
+      if (contact.id && contact.id !== jid) {
+        this.contactsStore.set(contact.id, contactInfo);
+      }
+    }
+
+    // Persist contacts to disk after every update
+    // This ensures contacts survive reconnections where history sync may not fire
+    if (contacts.length > 0) {
+      this.saveContactsToFile();
     }
   }
 
   /**
    * Update in-memory chats store
    * @param chats - Array of chat objects from Baileys
+   *
+   * Baileys v7 Chat structure (proto.IConversation):
+   * - id: chat JID (can be @lid or @s.whatsapp.net or @g.us)
+   * - pnJid: phone number JID when id is LID
+   * - lidJid: LID JID when id is phone
+   * - name/displayName: chat display name
+   * - conversationTimestamp: last message timestamp
+   * - unreadCount, archived, pinned: chat state
    */
   private updateChatsStore(chats: any[]): void {
     for (const chat of chats) {
-      const jid = chat.id;
+      let jid = chat.id;
       if (!jid) continue;
+
+      const originalId = jid;
+
+      // Handle LID chats - use pnJid (phone JID) when available
+      if (jid.endsWith("@lid") && chat.pnJid) {
+        this.addLidMapping(jid, chat.pnJid, "Chat");
+        jid = chat.pnJid;
+      }
 
       // Extract phone number from JID
       const phone = jid.endsWith("@s.whatsapp.net")
         ? jid.replace("@s.whatsapp.net", "")
         : undefined;
 
-      // Build chat info
+      // Build chat info with proper field mapping for proto.IConversation
       const chatInfo: ChatInfo = {
         jid,
         phone,
-        name: chat.name || undefined,
+        name: chat.name || chat.displayName || undefined,
         isGroup: jid.endsWith("@g.us"),
-        lastMessageTimestamp: chat.timestamp || undefined,
+        lastMessageTimestamp: chat.conversationTimestamp
+          ? Number(chat.conversationTimestamp)
+          : (chat.timestamp ? Number(chat.timestamp) : undefined),
         unreadCount: chat.unreadCount || undefined,
         isArchived: chat.archived || false,
-        isPinned: chat.pinned || false,
+        isPinned: !!chat.pinned,
       };
 
-      // Update store
+      // Update store with resolved JID as primary key
       this.chatsStore.set(jid, chatInfo);
+
+      // Also store by original LID if different (for lookup)
+      if (originalId !== jid) {
+        this.chatsStore.set(originalId, chatInfo);
+      }
+    }
+
+    // Persist chats to disk after every update
+    // This ensures chats survive reconnections where history sync may not fire
+    if (chats.length > 0) {
+      this.saveChatsToFile();
     }
   }
 
@@ -820,6 +954,7 @@ export class MiawClient extends EventEmitter {
       this.messagesStore.set(chatJid, []);
     }
     this.messagesStore.get(chatJid)!.push(normalized);
+    this.saveMessagesToFile();
   }
 
   /**
@@ -1446,6 +1581,95 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Get full contact profile including name, status, picture, and business info
+   * @param jidOrPhone - Contact's JID or phone number
+   * @returns ContactProfile or null if not found
+   */
+  async getContactProfile(jidOrPhone: string): Promise<ContactProfile | null> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get contact profile. Connection state: ${this.connectionState}`
+        );
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+
+      // Try to resolve LID JID to phone JID
+      const resolvedJid = this.resolveLidToJid(jid);
+
+      // Extract phone from resolved JID (or use getPhoneFromJid which handles LID resolution)
+      const phone = this.getPhoneFromJid(jid);
+
+      // Get name from contactsStore - try both original and resolved JID
+      let name: string | undefined;
+      const storedContact =
+        this.contactsStore.get(jid) || this.contactsStore.get(resolvedJid);
+      if (storedContact?.name) {
+        name = storedContact.name;
+      }
+
+      // Fetch status
+      let status: string | undefined;
+      try {
+        const statusResult = await this.socket.fetchStatus(jid);
+        const firstResult = Array.isArray(statusResult)
+          ? statusResult[0]
+          : statusResult;
+        status = (firstResult as any)?.status?.status || undefined;
+      } catch {
+        // Status might not be available
+      }
+
+      // Fetch profile picture URL
+      let pictureUrl: string | undefined;
+      try {
+        pictureUrl = (await this.socket.profilePictureUrl(jid)) || undefined;
+      } catch {
+        // Profile picture might not be available (privacy settings)
+      }
+
+      // Check if business account and get business profile
+      let isBusiness = false;
+      let business: BusinessProfile | undefined;
+      try {
+        const businessProfile = await this.socket.getBusinessProfile(jid);
+        if (businessProfile) {
+          isBusiness = true;
+          business = {
+            description: businessProfile.description || undefined,
+            category: businessProfile.category || undefined,
+            website: Array.isArray(businessProfile.website)
+              ? businessProfile.website[0]
+              : businessProfile.website,
+            email: businessProfile.email || undefined,
+            address: businessProfile.address || undefined,
+          };
+        }
+      } catch {
+        // Not a business account or not available
+      }
+
+      return {
+        jid,
+        phone,
+        name,
+        status,
+        pictureUrl,
+        isBusiness,
+        business,
+      };
+    } catch (error) {
+      this.logger.error("Failed to get contact profile:", error);
+      return null;
+    }
+  }
+
+  /**
    * Get business profile information
    * @param jidOrPhone - Contact's JID or phone number
    * @returns BusinessProfile or null if not a business account
@@ -1532,7 +1756,21 @@ export class MiawClient extends EventEmitter {
    */
   async fetchAllContacts(): Promise<FetchAllContactsResult> {
     try {
-      const contacts = Array.from(this.contactsStore.values());
+      // Map contacts and resolve any @lid JIDs that weren't resolved earlier
+      const contacts = Array.from(this.contactsStore.values()).map(contact => {
+        // If jid is @lid and phone is missing, try to resolve using LID cache
+        if (contact.jid.endsWith("@lid") && !contact.phone) {
+          const resolved = this.resolveLidToJid(contact.jid);
+          if (resolved !== contact.jid && resolved.endsWith("@s.whatsapp.net")) {
+            return {
+              ...contact,
+              jid: resolved,
+              phone: resolved.replace("@s.whatsapp.net", ""),
+            };
+          }
+        }
+        return contact;
+      });
 
       return {
         success: true,
@@ -1625,6 +1863,9 @@ export class MiawClient extends EventEmitter {
         ? jid.replace("@s.whatsapp.net", "")
         : undefined;
 
+      // Get display name from socket user
+      const name = this.socket.user?.name;
+
       // Fetch status
       let status: string | undefined;
       try {
@@ -1657,6 +1898,7 @@ export class MiawClient extends EventEmitter {
       return {
         jid,
         phone,
+        name,
         status,
         pictureUrl,
         isBusiness,
@@ -1856,6 +2098,311 @@ export class MiawClient extends EventEmitter {
     }
   }
 
+  // ============================================
+  // CONTACTS PERSISTENCE
+  // ============================================
+
+  private getContactsFilePath(): string {
+    return path.join(
+      this.options.sessionPath,
+      this.options.instanceId,
+      "contacts.json"
+    );
+  }
+
+  /**
+   * Save contacts to disk for persistence across reconnections
+   * Baileys v7 history sync doesn't always fire, so we persist contacts locally
+   */
+  private saveContactsToFile(): void {
+    try {
+      const contactsPath = this.getContactsFilePath();
+      const contactsDir = path.dirname(contactsPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(contactsDir)) {
+        fs.mkdirSync(contactsDir, { recursive: true });
+      }
+
+      // Convert Map to array for JSON serialization
+      // Deduplicate by jid (Map may have same contact under multiple keys)
+      const uniqueContacts = new Map<string, ContactInfo>();
+      for (const contact of this.contactsStore.values()) {
+        if (contact.jid && !uniqueContacts.has(contact.jid)) {
+          uniqueContacts.set(contact.jid, contact);
+        }
+      }
+      const contactsData = Array.from(uniqueContacts.values());
+
+      fs.writeFileSync(contactsPath, JSON.stringify(contactsData, null, 2), "utf8");
+      this.logger.debug(`Saved ${contactsData.length} contacts to ${contactsPath}`);
+    } catch (error) {
+      this.logger.warn("Failed to save contacts to file:", error);
+    }
+  }
+
+  /**
+   * Load contacts from disk
+   * Called on connection to restore contacts from previous session
+   */
+  private loadContactsFromFile(): void {
+    try {
+      const contactsPath = this.getContactsFilePath();
+
+      if (!fs.existsSync(contactsPath)) {
+        this.logger.debug("No contacts file found, starting with empty store");
+        return;
+      }
+
+      const contactsData = JSON.parse(fs.readFileSync(contactsPath, "utf8"));
+
+      if (Array.isArray(contactsData)) {
+        // Clear existing store and populate from file
+        this.contactsStore.clear();
+        for (const contact of contactsData) {
+          if (contact.jid) {
+            this.contactsStore.set(contact.jid, contact as ContactInfo);
+          }
+        }
+        this.logger.info(`Loaded ${this.contactsStore.size} contacts from disk`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load contacts from file:", error);
+    }
+  }
+
+  // ============================================
+  // LID MAPPINGS PERSISTENCE
+  // ============================================
+
+  private getLidMappingsFilePath(): string {
+    return path.join(
+      this.options.sessionPath,
+      this.options.instanceId,
+      "lid-mappings.json"
+    );
+  }
+
+  /**
+   * Save LID-to-JID mappings to disk for persistence across reconnections
+   * This ensures @lid JIDs can be resolved to phone numbers even after restart
+   */
+  private saveLidMappingsToFile(): void {
+    try {
+      const mappingsPath = this.getLidMappingsFilePath();
+      const mappingsDir = path.dirname(mappingsPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(mappingsDir)) {
+        fs.mkdirSync(mappingsDir, { recursive: true });
+      }
+
+      // Get all mappings from the LRU cache
+      const mappings = this.getLidMappings();
+      const count = Object.keys(mappings).length;
+
+      if (count > 0) {
+        fs.writeFileSync(mappingsPath, JSON.stringify(mappings, null, 2), "utf8");
+        this.logger.debug(`Saved ${count} LID mappings to ${mappingsPath}`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to save LID mappings to file:", error);
+    }
+  }
+
+  /**
+   * Load LID-to-JID mappings from disk
+   * Called on connection BEFORE loading chats to ensure resolution works
+   */
+  private loadLidMappingsFromFile(): void {
+    try {
+      const mappingsPath = this.getLidMappingsFilePath();
+
+      if (!fs.existsSync(mappingsPath)) {
+        this.logger.debug("No LID mappings file found, starting with empty cache");
+        return;
+      }
+
+      const mappingsData = JSON.parse(fs.readFileSync(mappingsPath, "utf8"));
+
+      if (typeof mappingsData === "object" && mappingsData !== null) {
+        let count = 0;
+        for (const [lid, jid] of Object.entries(mappingsData)) {
+          if (typeof lid === "string" && typeof jid === "string") {
+            this.lidToJidMap.set(lid, jid);
+            count++;
+          }
+        }
+        this.logger.info(`Loaded ${count} LID mappings from disk`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load LID mappings from file:", error);
+    }
+  }
+
+  // ============================================
+  // CHATS PERSISTENCE
+  // ============================================
+
+  private getChatsFilePath(): string {
+    return path.join(
+      this.options.sessionPath,
+      this.options.instanceId,
+      "chats.json"
+    );
+  }
+
+  /**
+   * Save chats to disk for persistence across reconnections
+   * Baileys v7 history sync doesn't always fire, so we persist chats locally
+   */
+  private saveChatsToFile(): void {
+    try {
+      const chatsPath = this.getChatsFilePath();
+      const chatsDir = path.dirname(chatsPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(chatsDir)) {
+        fs.mkdirSync(chatsDir, { recursive: true });
+      }
+
+      // Convert Map to array for JSON serialization
+      // Deduplicate by jid (Map may have same chat under multiple keys)
+      const uniqueChats = new Map<string, ChatInfo>();
+      for (const chat of this.chatsStore.values()) {
+        if (chat.jid && !uniqueChats.has(chat.jid)) {
+          uniqueChats.set(chat.jid, chat);
+        }
+      }
+      const chatsData = Array.from(uniqueChats.values());
+
+      fs.writeFileSync(chatsPath, JSON.stringify(chatsData, null, 2), "utf8");
+      this.logger.debug(`Saved ${chatsData.length} chats to ${chatsPath}`);
+    } catch (error) {
+      this.logger.warn("Failed to save chats to file:", error);
+    }
+  }
+
+  /**
+   * Load chats from disk
+   * Called on connection to restore chats from previous session
+   */
+  private loadChatsFromFile(): void {
+    try {
+      const chatsPath = this.getChatsFilePath();
+
+      if (!fs.existsSync(chatsPath)) {
+        this.logger.debug("No chats file found, starting with empty store");
+        return;
+      }
+
+      const chatsData = JSON.parse(fs.readFileSync(chatsPath, "utf8"));
+
+      if (Array.isArray(chatsData)) {
+        // Clear existing store and populate from file
+        this.chatsStore.clear();
+        for (const chat of chatsData) {
+          if (chat.jid) {
+            this.chatsStore.set(chat.jid, chat as ChatInfo);
+          }
+        }
+        this.logger.info(`Loaded ${this.chatsStore.size} chats from disk`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load chats from file:", error);
+    }
+  }
+
+  // ============================================
+  // MESSAGES PERSISTENCE
+  // ============================================
+
+  private getMessagesFilePath(): string {
+    return path.join(
+      this.options.sessionPath,
+      this.options.instanceId,
+      "messages.json"
+    );
+  }
+
+  /**
+   * Save messages to disk for persistence across reconnections
+   * Baileys v7 history sync doesn't always fire, so we persist messages locally
+   */
+  private saveMessagesToFile(): void {
+    try {
+      const messagesPath = this.getMessagesFilePath();
+      const messagesDir = path.dirname(messagesPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(messagesDir)) {
+        fs.mkdirSync(messagesDir, { recursive: true });
+      }
+
+      // Convert Map to object for JSON serialization
+      // Structure: { "jid1": [msg1, msg2], "jid2": [msg3] }
+      const messagesData: Record<string, MiawMessage[]> = {};
+      for (const [jid, messages] of this.messagesStore.entries()) {
+        messagesData[jid] = messages;
+      }
+
+      // Count total messages
+      const totalMessages = Array.from(this.messagesStore.values()).reduce(
+        (sum, msgs) => sum + msgs.length,
+        0
+      );
+
+      fs.writeFileSync(messagesPath, JSON.stringify(messagesData, null, 2), "utf8");
+      this.logger.debug(`Saved ${totalMessages} messages across ${this.messagesStore.size} chats to ${messagesPath}`);
+    } catch (error) {
+      this.logger.warn("Failed to save messages to file:", error);
+    }
+  }
+
+  /**
+   * Load messages from disk
+   * Called on connection to restore messages from previous session
+   */
+  private loadMessagesFromFile(): void {
+    try {
+      const messagesPath = this.getMessagesFilePath();
+
+      if (!fs.existsSync(messagesPath)) {
+        this.logger.debug("No messages file found, starting with empty store");
+        return;
+      }
+
+      const messagesData = JSON.parse(fs.readFileSync(messagesPath, "utf8"));
+
+      if (messagesData && typeof messagesData === "object") {
+        // Clear existing store and populate from file
+        this.messagesStore.clear();
+        let totalMessages = 0;
+        for (const [jid, messages] of Object.entries(messagesData)) {
+          if (Array.isArray(messages)) {
+            this.messagesStore.set(jid, messages as MiawMessage[]);
+            totalMessages += messages.length;
+          }
+        }
+        this.logger.info(`Loaded ${totalMessages} messages across ${this.messagesStore.size} chats from disk`);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load messages from file:", error);
+    }
+  }
+
+  /**
+   * Get message counts for all chats
+   * @returns Map of JID to message count
+   */
+  getMessageCounts(): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const [jid, messages] of this.messagesStore.entries()) {
+      counts.set(jid, messages.length);
+    }
+    return counts;
+  }
+
   /**
    * Get chat messages from the in-memory store
    * Note: Messages are populated via Baileys store history sync
@@ -1881,13 +2428,125 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Load more (older) messages for a specific chat
+   * Uses Baileys fetchMessageHistory to fetch earlier messages
+   * @param jidOrPhone - Chat JID or phone number
+   * @param count - Number of messages to fetch (max 50)
+   * @param timeoutMs - Timeout in milliseconds (default 30000)
+   * @returns Result with number of messages loaded and whether more are available
+   */
+  async loadMoreMessages(
+    jidOrPhone: string,
+    count: number = 50,
+    timeoutMs: number = 30000
+  ): Promise<{ success: boolean; messagesLoaded?: number; hasMore?: boolean; error?: string }> {
+    try {
+      if (!this.socket) {
+        return { success: false, error: "Not connected. Call connect() first." };
+      }
+
+      if (this.connectionState !== "connected") {
+        return { success: false, error: `Cannot load messages. Connection state: ${this.connectionState}` };
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      const messages = this.messagesStore.get(jid) || [];
+
+      if (messages.length === 0) {
+        return { success: false, error: "No messages in store to paginate from. Send or receive a message first." };
+      }
+
+      // Find the oldest message (messages are stored newest first after history sync)
+      // We need the raw Baileys message for the key and timestamp
+      let oldestMessage: MiawMessage | null = null;
+      let oldestTimestamp = Infinity;
+
+      for (const msg of messages) {
+        if (msg.timestamp < oldestTimestamp) {
+          oldestTimestamp = msg.timestamp;
+          oldestMessage = msg;
+        }
+      }
+
+      if (!oldestMessage || !oldestMessage.raw) {
+        return { success: false, error: "Cannot find message with raw data for pagination cursor." };
+      }
+
+      const rawMsg = oldestMessage.raw;
+      const msgKey = rawMsg.key;
+      const msgTimestamp = rawMsg.messageTimestamp;
+
+      if (!msgKey || !msgTimestamp) {
+        return { success: false, error: "Message missing key or timestamp for pagination." };
+      }
+
+      // Clamp count to max 50
+      const fetchCount = Math.min(count, 50);
+      const initialCount = messages.length;
+
+      this.logger.debug(`Fetching ${fetchCount} older messages for ${jid} (current: ${initialCount})`);
+
+      // Call Baileys fetchMessageHistory
+      const sessionId = await this.socket.fetchMessageHistory(
+        fetchCount,
+        msgKey,
+        typeof msgTimestamp === 'number' ? msgTimestamp * 1000 : Number(msgTimestamp) * 1000
+      );
+
+      this.logger.debug(`History fetch initiated with sessionId: ${sessionId}`);
+
+      // Create a Promise that will be resolved when the history arrives
+      return new Promise((resolve) => {
+        // Set up timeout
+        const timeout = setTimeout(() => {
+          this.pendingHistoryRequests.delete(sessionId);
+          resolve({
+            success: false,
+            error: `Timeout waiting for history (${timeoutMs}ms)`,
+          });
+        }, timeoutMs);
+
+        // Store the pending request
+        this.pendingHistoryRequests.set(sessionId, {
+          jid,
+          initialCount,
+          resolve: (result) => {
+            clearTimeout(timeout);
+            resolve(result);
+          },
+        });
+      });
+    } catch (error) {
+      this.logger.error("Failed to load more messages:", error);
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
    * Fetch all chats from the in-memory store
    * Note: Chats are populated via Baileys store history sync
    * @returns FetchAllChatsResult with list of chats
    */
   async fetchAllChats(): Promise<FetchAllChatsResult> {
     try {
-      const chats = Array.from(this.chatsStore.values());
+      // Map chats and resolve any @lid JIDs that weren't resolved earlier
+      const chats = Array.from(this.chatsStore.values()).map(chat => {
+        // If jid is @lid and phone is missing, try to resolve using LID cache
+        if (chat.jid.endsWith("@lid") && !chat.phone) {
+          const resolved = this.resolveLidToJid(chat.jid);
+          if (resolved !== chat.jid && resolved.endsWith("@s.whatsapp.net")) {
+            return {
+              ...chat,
+              jid: resolved,
+              phone: resolved.replace("@s.whatsapp.net", ""),
+            };
+          }
+        }
+        return chat;
+      });
 
       return {
         success: true,

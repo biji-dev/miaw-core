@@ -10,10 +10,14 @@ import { formatTable, formatKeyValue, formatJson } from "../utils/formatter.js";
 import { getLabelColorName } from "../../constants/colors.js";
 
 /**
- * Get own profile
+ * Get profile (own or contact)
+ * @param client - MiawClient instance
+ * @param args - Optional arguments including jid for contact profile
+ * @param jsonOutput - Whether to output as JSON
  */
 export async function cmdGetProfile(
   client: MiawClient,
+  args: { jid?: string },
   jsonOutput: boolean
 ): Promise<boolean> {
   const result = await ensureConnected(client);
@@ -22,20 +26,73 @@ export async function cmdGetProfile(
     return false;
   }
 
+  // If JID provided, get contact profile; otherwise get own profile
+  if (args.jid) {
+    // Get contact profile
+    const profile = await client.getContactProfile(args.jid);
+    if (!profile) {
+      console.log(`❌ Failed to get profile for ${args.jid}`);
+      return false;
+    }
+
+    if (jsonOutput) {
+      console.log(formatJson(profile));
+      return true;
+    }
+
+    // Display contact profile
+    const displayData = {
+      jid: profile.jid,
+      phone: profile.phone,
+      name: profile.name,
+      status: profile.status,
+      pictureUrl: profile.pictureUrl,
+      isBusiness: profile.isBusiness,
+    };
+
+    console.log(
+      formatKeyValue(displayData, "👤 Contact Profile")
+    );
+
+    // Display business profile if available
+    if (profile.business) {
+      console.log(
+        formatKeyValue(profile.business, "🏢 Business Profile")
+      );
+    }
+
+    return true;
+  }
+
+  // Get own profile
   const profile = await client.getOwnProfile();
   if (!profile) {
     console.log("❌ Failed to get profile");
     return false;
   }
 
+  // Fetch business profile if this is a business account
+  let businessProfile = null;
+  if (profile.isBusiness) {
+    businessProfile = await client.getBusinessProfile(profile.jid);
+  }
+
   if (jsonOutput) {
-    console.log(formatJson(profile));
+    console.log(formatJson({ ...profile, business: businessProfile }));
     return true;
   }
 
   console.log(
     formatKeyValue(profile, "👤 Your Profile")
   );
+
+  // Display business profile if available
+  if (businessProfile) {
+    console.log(
+      formatKeyValue(businessProfile, "🏢 Business Profile")
+    );
+  }
+
   return true;
 }
 
@@ -44,7 +101,7 @@ export async function cmdGetProfile(
  */
 export async function cmdGetContacts(
   client: MiawClient,
-  args: { limit?: number },
+  args: { limit?: number; filter?: string },
   jsonOutput: boolean
 ): Promise<boolean> {
   const result = await ensureConnected(client);
@@ -60,6 +117,17 @@ export async function cmdGetContacts(
   }
 
   let contacts = fetchResult.contacts || [];
+  const totalCount = contacts.length;
+
+  // Apply filter (case-insensitive substring match)
+  if (args.filter) {
+    const filterLower = args.filter.toLowerCase();
+    contacts = contacts.filter((c) =>
+      c.jid?.toLowerCase().includes(filterLower) ||
+      c.phone?.toLowerCase().includes(filterLower) ||
+      c.name?.toLowerCase().includes(filterLower)
+    );
+  }
 
   // Apply limit
   if (args.limit && args.limit < contacts.length) {
@@ -71,7 +139,8 @@ export async function cmdGetContacts(
     return true;
   }
 
-  console.log(`\n📇 Contacts (${contacts.length}):\n`);
+  const filterInfo = args.filter ? ` matching "${args.filter}"` : "";
+  console.log(`\n📇 Contacts (${contacts.length}${filterInfo}):\n`);
 
   const tableData = contacts.map((c) => ({
     jid: c.jid,
@@ -87,8 +156,8 @@ export async function cmdGetContacts(
     ])
   );
 
-  if (args.limit && fetchResult.contacts && fetchResult.contacts.length > args.limit) {
-    console.log(`\nShowing ${args.limit} of ${fetchResult.contacts.length} contacts`);
+  if (args.limit && contacts.length >= args.limit) {
+    console.log(`\nShowing ${args.limit} of ${totalCount} contacts`);
   }
 
   return true;
@@ -99,7 +168,7 @@ export async function cmdGetContacts(
  */
 export async function cmdGetGroups(
   client: MiawClient,
-  args: { limit?: number },
+  args: { limit?: number; filter?: string },
   jsonOutput: boolean
 ): Promise<boolean> {
   const result = await ensureConnected(client);
@@ -115,6 +184,17 @@ export async function cmdGetGroups(
   }
 
   let groups = fetchResult.groups || [];
+  const totalCount = groups.length;
+
+  // Apply filter (case-insensitive substring match)
+  if (args.filter) {
+    const filterLower = args.filter.toLowerCase();
+    groups = groups.filter((g) =>
+      g.jid?.toLowerCase().includes(filterLower) ||
+      g.name?.toLowerCase().includes(filterLower) ||
+      g.description?.toLowerCase().includes(filterLower)
+    );
+  }
 
   // Apply limit
   if (args.limit && args.limit < groups.length) {
@@ -126,7 +206,8 @@ export async function cmdGetGroups(
     return true;
   }
 
-  console.log(`\n👥 Groups (${groups.length}):\n`);
+  const filterInfo = args.filter ? ` matching "${args.filter}"` : "";
+  console.log(`\n👥 Groups (${groups.length}${filterInfo}):\n`);
 
   const tableData = groups.map((g) => ({
     jid: g.jid,
@@ -144,8 +225,8 @@ export async function cmdGetGroups(
     ])
   );
 
-  if (args.limit && fetchResult.groups && fetchResult.groups.length > args.limit) {
-    console.log(`\nShowing ${args.limit} of ${fetchResult.groups.length} groups`);
+  if (args.limit && groups.length >= args.limit) {
+    console.log(`\nShowing ${args.limit} of ${totalCount} groups`);
   }
 
   return true;
@@ -156,7 +237,7 @@ export async function cmdGetGroups(
  */
 export async function cmdGetChats(
   client: MiawClient,
-  args: { limit?: number },
+  args: { limit?: number; filter?: string },
   jsonOutput: boolean
 ): Promise<boolean> {
   const result = await ensureConnected(client);
@@ -172,6 +253,17 @@ export async function cmdGetChats(
   }
 
   let chats = fetchResult.chats || [];
+  const totalCount = chats.length;
+
+  // Apply filter (case-insensitive substring match)
+  if (args.filter) {
+    const filterLower = args.filter.toLowerCase();
+    chats = chats.filter((c) =>
+      c.jid?.toLowerCase().includes(filterLower) ||
+      c.phone?.toLowerCase().includes(filterLower) ||
+      c.name?.toLowerCase().includes(filterLower)
+    );
+  }
 
   // Apply limit
   if (args.limit && args.limit < chats.length) {
@@ -183,28 +275,34 @@ export async function cmdGetChats(
     return true;
   }
 
-  console.log(`\n💬 Chats (${chats.length}):\n`);
+  // Get message counts for all chats
+  const messageCounts = client.getMessageCounts();
+
+  const filterInfo = args.filter ? ` matching "${args.filter}"` : "";
+  console.log(`\n💬 Chats (${chats.length}${filterInfo}):\n`);
 
   const tableData = chats.map((c) => ({
     jid: c.jid,
+    phone: c.phone || "-",
     name: c.name || "-",
     type: c.isGroup ? "Group" : "Individual",
+    messages: messageCounts.get(c.jid) || 0,
     unread: c.unreadCount || 0,
-    archived: c.isArchived ? "Yes" : "No",
   }));
 
   console.log(
     formatTable(tableData, [
-      { key: "jid", label: "JID", width: 40 },
-      { key: "name", label: "Name", width: 25 },
-      { key: "type", label: "Type", width: 12 },
-      { key: "unread", label: "Unread", width: 8 },
-      { key: "archived", label: "Archived", width: 10 },
+      { key: "jid", label: "JID", width: 35 },
+      { key: "phone", label: "Phone", width: 15 },
+      { key: "name", label: "Name", width: 20 },
+      { key: "type", label: "Type", width: 10 },
+      { key: "messages", label: "Msgs", width: 6 },
+      { key: "unread", label: "Unread", width: 7 },
     ])
   );
 
-  if (args.limit && fetchResult.chats && fetchResult.chats.length > args.limit) {
-    console.log(`\nShowing ${args.limit} of ${fetchResult.chats.length} chats`);
+  if (args.limit && chats.length >= args.limit) {
+    console.log(`\nShowing ${args.limit} of ${totalCount} chats`);
   }
 
   return true;
@@ -215,7 +313,7 @@ export async function cmdGetChats(
  */
 export async function cmdGetMessages(
   client: MiawClient,
-  args: { jid: string; limit?: number },
+  args: { jid: string; limit?: number; filter?: string },
   jsonOutput: boolean
 ): Promise<boolean> {
   const result = await ensureConnected(client);
@@ -231,6 +329,19 @@ export async function cmdGetMessages(
   }
 
   let messages = fetchResult.messages || [];
+  const totalCount = messages.length;
+
+  // Apply filter (case-insensitive substring match on sender or text)
+  if (args.filter) {
+    const filterLower = args.filter.toLowerCase();
+    messages = messages.filter((m) =>
+      m.text?.toLowerCase().includes(filterLower) ||
+      m.senderName?.toLowerCase().includes(filterLower) ||
+      m.senderPhone?.toLowerCase().includes(filterLower) ||
+      m.from?.toLowerCase().includes(filterLower) ||
+      m.type?.toLowerCase().includes(filterLower)
+    );
+  }
 
   // Apply limit
   if (args.limit && args.limit < messages.length) {
@@ -242,7 +353,8 @@ export async function cmdGetMessages(
     return true;
   }
 
-  console.log(`\n💬 Messages from ${args.jid} (${messages.length}):\n`);
+  const filterInfo = args.filter ? ` matching "${args.filter}"` : "";
+  console.log(`\n💬 Messages from ${args.jid} (${messages.length}${filterInfo}):\n`);
 
   const tableData = messages.map((m) => ({
     id: m.id.substring(0, 12) + "...",
@@ -262,8 +374,49 @@ export async function cmdGetMessages(
     ])
   );
 
-  if (args.limit && fetchResult.messages && fetchResult.messages.length > args.limit) {
-    console.log(`\nShowing ${args.limit} of ${fetchResult.messages.length} messages`);
+  if (args.limit && messages.length >= args.limit) {
+    console.log(`\nShowing ${args.limit} of ${totalCount} messages`);
+  }
+
+  return true;
+}
+
+/**
+ * Load more (older) messages for a chat
+ */
+export async function cmdLoadMoreMessages(
+  client: MiawClient,
+  args: { jid: string; count?: number },
+  jsonOutput: boolean
+): Promise<boolean> {
+  const result = await ensureConnected(client);
+  if (!result.success) {
+    console.log(`❌ Not connected: ${result.reason}`);
+    return false;
+  }
+
+  const count = args.count || 50;
+  console.log(`\n⏳ Loading ${count} older messages for ${args.jid}...`);
+
+  const loadResult = await client.loadMoreMessages(args.jid, count);
+
+  if (!loadResult.success) {
+    console.log(`❌ Failed to load messages: ${loadResult.error}`);
+    return false;
+  }
+
+  if (jsonOutput) {
+    console.log(formatJson(loadResult));
+    return true;
+  }
+
+  console.log(`✅ Loaded ${loadResult.messagesLoaded} messages`);
+  console.log(`   Has more: ${loadResult.hasMore ? "Yes" : "No"}`);
+
+  // Show updated message count
+  const fetchResult = await client.getChatMessages(args.jid);
+  if (fetchResult.success) {
+    console.log(`   Total messages in store: ${fetchResult.messages?.length || 0}`);
   }
 
   return true;

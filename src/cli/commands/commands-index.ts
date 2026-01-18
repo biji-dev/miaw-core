@@ -20,6 +20,7 @@ export {
   cmdGetGroups,
   cmdGetChats,
   cmdGetMessages,
+  cmdLoadMoreMessages,
   cmdGetLabels,
 } from "./get.js";
 
@@ -30,10 +31,22 @@ export {
 } from "./send.js";
 
 export {
+  cmdGroupList,
   cmdGroupInfo,
   cmdGroupParticipants,
   cmdGroupInviteLink,
   cmdGroupCreate,
+  cmdGroupLeave,
+  cmdGroupInviteAccept,
+  cmdGroupInviteRevoke,
+  cmdGroupInviteInfo,
+  cmdGroupParticipantsAdd,
+  cmdGroupParticipantsRemove,
+  cmdGroupParticipantsPromote,
+  cmdGroupParticipantsDemote,
+  cmdGroupNameSet,
+  cmdGroupDescriptionSet,
+  cmdGroupPictureSet,
 } from "./group.js";
 
 export {

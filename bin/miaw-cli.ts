@@ -67,67 +67,94 @@ function parseArgs(args: string[]): {
  */
 function showHelp() {
   console.log(`
-╔════════════════════════════════════════════════════════════╗
-║              miaw-cli - WhatsApp CLI Tool                  ║
-╚════════════════════════════════════════════════════════════╝
+╔════════════════════════════════════════════════════════════════════════╗
+║                     miaw-cli - WhatsApp CLI Tool                       ║
+╚════════════════════════════════════════════════════════════════════════╝
 
 USAGE:
-  miaw-cli                    Start interactive REPL mode
-  miaw-cli <command> [args]   Run one-shot command
+  miaw-cli                                    Start interactive REPL mode
+  miaw-cli <command> [args]                   Run one-shot command
 
 GLOBAL FLAGS:
-  --instance-id <id>      Instance ID (default: "default")
-  --session-path <path>   Session directory (default: "./sessions-cli")
-  --json                  Output as JSON
-  --debug                 Enable verbose logging
-  --help                  Show this help message
+  --instance-id <id>                          Instance ID (default: "default")
+  --session-path <path>                       Session directory (default: "./sessions-cli")
+  --json                                      Output as JSON
+  --debug                                     Enable verbose logging
+  --help                                      Show this help message
 
 COMMANDS:
 
 INSTANCE MANAGEMENT:
-  instance ls                    List all instances
-  instance status [id]           Show connection status
-  instance create <id>           Create new instance (triggers QR)
-  instance delete <id>           Delete instance session
-  instance connect <id>          Connect instance
-  instance disconnect <id>       Disconnect instance
-  instance logout <id>           Logout and clear session
+  instance ls                                 List all instances
+  instance status [id]                        Show connection status
+  instance create <id>                        Create new instance
+  instance delete <id>                        Delete instance
+  instance connect <id>                       Connect instance
+  instance disconnect <id>                    Disconnect instance
+  instance logout <id>                        Logout and clear session
 
 GET OPERATIONS:
-  get profile                    Get your profile
-  get contacts [--limit N]       List all contacts
-  get groups [--limit N]         List all groups
-  get chats [--limit N]          List all chats
-  get messages <jid> [--limit N] Get chat messages
-  get labels                     List labels (Business only)
+  get profile [jid]                           Get profile (own or contact)
+  get contacts [options]                      List all contacts
+  get groups [options]                        List all groups
+  get chats [options]                         List all chats
+  get messages <jid> [options]                Get chat messages
+  get labels                                  List labels/lists
+
+  Options: --limit N, --filter TEXT (case-insensitive search)
+
+LOAD OPERATIONS:
+  load messages <jid> [--count N]             Load older messages (default: 50)
 
 SEND OPERATIONS:
-  send text <phone> <message>    Send text message
-  send image <phone> <path>      Send image
-  send document <phone> <path>   Send document
+  send text <phone> <message>                 Send text message
+  send image <phone> <path>                   Send image
+  send document <phone> <path>                Send document
 
 GROUP OPERATIONS:
-  group info <jid>               Get group details
-  group participants <jid>       List group members
-  group invite-link <jid>        Get invite link
-  group create <name> <phones..> Create new group
+  group list [options]                        List all groups
+  group info <jid>                            Get group details
+  group participants <jid> [options]          List members (with phone/name)
+  group participants add <jid> <phones>       Add members to group
+  group participants remove <jid> <phones>    Remove members from group
+  group participants promote <jid> <phones>   Promote members to admin
+  group participants demote <jid> <phones>    Demote admins to member
+  group invite-link <jid>                     Get invite link
+  group invite accept <code>                  Join group via invite code
+  group invite revoke <jid>                   Revoke and get new invite link
+  group invite info <code>                    Get group info from invite code
+  group create <name> <phones..>              Create new group
+  group leave <jid>                           Leave a group
+  group name set <jid> <name>                 Update group name
+  group description set <jid> [desc]          Update group description
+  group picture set <jid> <path>              Update group picture
+
+  Options: --limit N, --filter TEXT (case-insensitive search)
 
 UTILITY:
-  check <phone>                  Check if number on WhatsApp
-  check <phone1> <phone2>        Batch check numbers
+  check <phone>                               Check if number on WhatsApp
+  check <phone1> <phone2>                     Batch check numbers
 
-REPL COMMANDS (when in interactive mode):
-  help                           Show all commands
-  status                         Show connection status
-  use <instance-id>              Switch active instance
-  exit, quit                     Exit REPL
+REPL COMMANDS (interactive mode):
+  help                                        Show all commands
+  status                                      Show connection status
+  use <instance-id>                           Switch active instance
+  connect [id]                                Connect to WhatsApp
+  disconnect [id]                             Disconnect from WhatsApp
+  debug [on|off]                              Toggle debug mode
+  instances, ls                               List all instances
+  exit, quit                                  Exit REPL
 
 EXAMPLES:
   miaw-cli get groups --limit 10
-  miaw-cli get contacts --json
+  miaw-cli get contacts --filter john
+  miaw-cli get chats --filter 628
+  miaw-cli get profile 6281234567890
   miaw-cli send text 6281234567890 "Hello"
+  miaw-cli load messages 6281234567890@s.whatsapp.net
   miaw-cli check 6281234567890
-  miaw-cli instance status
+  miaw-cli group list --filter family
+  miaw-cli group participants 120363039902323086@g.us
 
 For more information: https://github.com/biji-dev/miaw-core
 `);

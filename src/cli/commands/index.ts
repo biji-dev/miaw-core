@@ -21,16 +21,29 @@ import {
   cmdGetGroups,
   cmdGetChats,
   cmdGetMessages,
+  cmdLoadMoreMessages,
   cmdGetLabels,
   // Send commands
   cmdSendText,
   cmdSendImage,
   cmdSendDocument,
   // Group commands
+  cmdGroupList,
   cmdGroupInfo,
   cmdGroupParticipants,
   cmdGroupInviteLink,
   cmdGroupCreate,
+  cmdGroupLeave,
+  cmdGroupInviteAccept,
+  cmdGroupInviteRevoke,
+  cmdGroupInviteInfo,
+  cmdGroupParticipantsAdd,
+  cmdGroupParticipantsRemove,
+  cmdGroupParticipantsPromote,
+  cmdGroupParticipantsDemote,
+  cmdGroupNameSet,
+  cmdGroupDescriptionSet,
+  cmdGroupPictureSet,
   // Misc commands
   cmdCheck,
 } from "./commands-index.js";
@@ -125,21 +138,21 @@ export async function runCommand(
 
     switch (subCommand) {
       case "profile":
-        return await cmdGetProfile(client, jsonOutput);
+        return await cmdGetProfile(client, { jid: parsedArgs._[1] }, jsonOutput);
       case "contacts":
-        return await cmdGetContacts(client, { limit: parsedArgs.limit }, jsonOutput);
+        return await cmdGetContacts(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
       case "groups":
-        return await cmdGetGroups(client, { limit: parsedArgs.limit }, jsonOutput);
+        return await cmdGetGroups(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
       case "chats":
-        return await cmdGetChats(client, { limit: parsedArgs.limit }, jsonOutput);
+        return await cmdGetChats(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
       case "messages":
         if (!parsedArgs._[1]) {
-          console.log("❌ Usage: miaw-cli get messages <jid> [--limit N]");
+          console.log("❌ Usage: miaw-cli get messages <jid> [--limit N] [--filter TEXT]");
           return false;
         }
         return await cmdGetMessages(
           client,
-          { jid: parsedArgs._[1], limit: parsedArgs.limit },
+          { jid: parsedArgs._[1], limit: parsedArgs.limit, filter: parsedArgs.filter },
           jsonOutput
         );
       case "labels":
@@ -193,26 +206,20 @@ export async function runCommand(
   // Group commands
   if (command === "group") {
     const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
 
     switch (subCommand) {
+      case "list":
+      case "ls":
+        return await cmdGroupList(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
+
       case "info":
         if (!parsedArgs._[1]) {
           console.log("❌ Usage: miaw-cli group info <jid>");
           return false;
         }
         return await cmdGroupInfo(client, { jid: parsedArgs._[1] }, jsonOutput);
-      case "participants":
-        if (!parsedArgs._[1]) {
-          console.log("❌ Usage: miaw-cli group participants <jid>");
-          return false;
-        }
-        return await cmdGroupParticipants(client, { jid: parsedArgs._[1] }, jsonOutput);
-      case "invite-link":
-        if (!parsedArgs._[1]) {
-          console.log("❌ Usage: miaw-cli group invite-link <jid>");
-          return false;
-        }
-        return await cmdGroupInviteLink(client, { jid: parsedArgs._[1] });
+
       case "create":
         if (parsedArgs._.length < 3) {
           console.log("❌ Usage: miaw-cli group create <name> <phone1> <phone2> ...");
@@ -222,6 +229,149 @@ export async function runCommand(
           name: parsedArgs._[1],
           phones: parsedArgs._.slice(2),
         });
+
+      case "leave":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli group leave <jid>");
+          return false;
+        }
+        return await cmdGroupLeave(client, { jid: parsedArgs._[1] });
+
+      // Nested invite commands
+      case "invite":
+        switch (subSubCommand) {
+          case "accept":
+            if (!parsedArgs._[2]) {
+              console.log("❌ Usage: miaw-cli group invite accept <code>");
+              return false;
+            }
+            return await cmdGroupInviteAccept(client, { code: parsedArgs._[2] });
+          case "revoke":
+            if (!parsedArgs._[2]) {
+              console.log("❌ Usage: miaw-cli group invite revoke <jid>");
+              return false;
+            }
+            return await cmdGroupInviteRevoke(client, { jid: parsedArgs._[2] });
+          case "info":
+            if (!parsedArgs._[2]) {
+              console.log("❌ Usage: miaw-cli group invite info <code>");
+              return false;
+            }
+            return await cmdGroupInviteInfo(client, { code: parsedArgs._[2] }, jsonOutput);
+          default:
+            console.log("❌ Unknown invite command. Usage:");
+            console.log("   group invite accept <code>   Join group via invite code");
+            console.log("   group invite revoke <jid>    Revoke and get new invite link");
+            console.log("   group invite info <code>     Get group info from invite code");
+            return false;
+        }
+
+      // Backward compatibility: invite-link
+      case "invite-link":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli group invite-link <jid>");
+          return false;
+        }
+        return await cmdGroupInviteLink(client, { jid: parsedArgs._[1] });
+
+      // Nested participants commands
+      case "participants":
+        switch (subSubCommand) {
+          case "add":
+            if (parsedArgs._.length < 4) {
+              console.log("❌ Usage: miaw-cli group participants add <jid> <phone1> [phone2] ...");
+              return false;
+            }
+            return await cmdGroupParticipantsAdd(client, {
+              jid: parsedArgs._[2],
+              phones: parsedArgs._.slice(3),
+            });
+          case "remove":
+            if (parsedArgs._.length < 4) {
+              console.log("❌ Usage: miaw-cli group participants remove <jid> <phone1> [phone2] ...");
+              return false;
+            }
+            return await cmdGroupParticipantsRemove(client, {
+              jid: parsedArgs._[2],
+              phones: parsedArgs._.slice(3),
+            });
+          case "promote":
+            if (parsedArgs._.length < 4) {
+              console.log("❌ Usage: miaw-cli group participants promote <jid> <phone1> [phone2] ...");
+              return false;
+            }
+            return await cmdGroupParticipantsPromote(client, {
+              jid: parsedArgs._[2],
+              phones: parsedArgs._.slice(3),
+            });
+          case "demote":
+            if (parsedArgs._.length < 4) {
+              console.log("❌ Usage: miaw-cli group participants demote <jid> <phone1> [phone2] ...");
+              return false;
+            }
+            return await cmdGroupParticipantsDemote(client, {
+              jid: parsedArgs._[2],
+              phones: parsedArgs._.slice(3),
+            });
+          default:
+            // List participants (original behavior)
+            if (!subSubCommand) {
+              console.log("❌ Usage: miaw-cli group participants <jid> [--limit N] [--filter TEXT]");
+              return false;
+            }
+            // subSubCommand is actually the JID in this case
+            return await cmdGroupParticipants(
+              client,
+              { jid: subSubCommand, limit: parsedArgs.limit, filter: parsedArgs.filter },
+              jsonOutput
+            );
+        }
+
+      // Nested name command
+      case "name":
+        if (subSubCommand === "set") {
+          if (parsedArgs._.length < 4) {
+            console.log("❌ Usage: miaw-cli group name set <jid> <name>");
+            return false;
+          }
+          return await cmdGroupNameSet(client, {
+            jid: parsedArgs._[2],
+            name: parsedArgs._.slice(3).join(" "),
+          });
+        }
+        console.log("❌ Usage: miaw-cli group name set <jid> <name>");
+        return false;
+
+      // Nested description command
+      case "description":
+        if (subSubCommand === "set") {
+          if (!parsedArgs._[2]) {
+            console.log("❌ Usage: miaw-cli group description set <jid> [description]");
+            return false;
+          }
+          return await cmdGroupDescriptionSet(client, {
+            jid: parsedArgs._[2],
+            description: parsedArgs._.slice(3).join(" ") || undefined,
+          });
+        }
+        console.log("❌ Usage: miaw-cli group description set <jid> [description]");
+        return false;
+
+      // Nested picture command
+      case "picture":
+        if (subSubCommand === "set") {
+          if (parsedArgs._.length < 4) {
+            console.log("❌ Usage: miaw-cli group picture set <jid> <path>");
+            return false;
+          }
+          return await cmdGroupPictureSet(client, {
+            jid: parsedArgs._[2],
+            path: parsedArgs._[3],
+          });
+        }
+        console.log("❌ Usage: miaw-cli group picture set <jid> <path>");
+        return false;
+
       default:
         console.log(`❌ Unknown group command: ${subCommand}`);
         return false;
@@ -235,6 +385,27 @@ export async function runCommand(
       return false;
     }
     return await cmdCheck(client, { phones: parsedArgs._ }, jsonOutput);
+  }
+
+  // Load commands
+  if (command === "load") {
+    const subCommand = parsedArgs._[0] || "";
+
+    switch (subCommand) {
+      case "messages":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli load messages <jid> [--count N]");
+          return false;
+        }
+        return await cmdLoadMoreMessages(
+          client,
+          { jid: parsedArgs._[1], count: parsedArgs.count },
+          jsonOutput
+        );
+      default:
+        console.log(`❌ Unknown load command: ${subCommand}`);
+        return false;
+    }
   }
 
   console.log(`❌ Unknown command: ${command}`);
