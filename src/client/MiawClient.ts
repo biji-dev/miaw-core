@@ -1599,14 +1599,16 @@ export class MiawClient extends EventEmitter {
 
       const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
 
-      // Extract phone from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
+      // Try to resolve LID JID to phone JID
+      const resolvedJid = this.resolveLidToJid(jid);
 
-      // Get name from contactsStore
+      // Extract phone from resolved JID (or use getPhoneFromJid which handles LID resolution)
+      const phone = this.getPhoneFromJid(jid);
+
+      // Get name from contactsStore - try both original and resolved JID
       let name: string | undefined;
-      const storedContact = this.contactsStore.get(jid);
+      const storedContact =
+        this.contactsStore.get(jid) || this.contactsStore.get(resolvedJid);
       if (storedContact?.name) {
         name = storedContact.name;
       }
