@@ -46,6 +46,16 @@ import {
   cmdGroupPictureSet,
   // Misc commands
   cmdCheck,
+  // Label commands (Business)
+  cmdLabelAdd,
+  cmdLabelChatAdd,
+  cmdLabelChatRemove,
+  // Catalog commands (Business)
+  cmdCatalogList,
+  cmdCatalogCollections,
+  cmdCatalogProductCreate,
+  cmdCatalogProductUpdate,
+  cmdCatalogProductDelete,
 } from "./commands-index.js";
 
 export interface CommandContext {
@@ -55,6 +65,7 @@ export interface CommandContext {
     debug?: boolean;
   };
   jsonOutput?: boolean;
+  flags?: { [key: string]: string | boolean };
 }
 
 /**
@@ -385,6 +396,162 @@ export async function runCommand(
       return false;
     }
     return await cmdCheck(client, { phones: parsedArgs._ }, jsonOutput);
+  }
+
+  // Label commands (Business)
+  if (command === "label") {
+    const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
+
+    switch (subCommand) {
+      case "list":
+      case "ls":
+        return await cmdGetLabels(client, jsonOutput);
+
+      case "add":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli label add <name> <color>");
+          console.log("   Color: 0-19 or name (salmon, gold, yellow, mint, teal, cyan, sky, blue, purple, pink, etc.)");
+          return false;
+        }
+        return await cmdLabelAdd(
+          client,
+          { name: parsedArgs._[1], color: parsedArgs._[2] },
+          jsonOutput
+        );
+
+      case "chat":
+        switch (subSubCommand) {
+          case "add":
+            if (parsedArgs._.length < 4) {
+              console.log("❌ Usage: miaw-cli label chat add <jid> <labelId>");
+              return false;
+            }
+            return await cmdLabelChatAdd(
+              client,
+              { jid: parsedArgs._[2], labelId: parsedArgs._[3] },
+              jsonOutput
+            );
+          case "remove":
+            if (parsedArgs._.length < 4) {
+              console.log("❌ Usage: miaw-cli label chat remove <jid> <labelId>");
+              return false;
+            }
+            return await cmdLabelChatRemove(
+              client,
+              { jid: parsedArgs._[2], labelId: parsedArgs._[3] },
+              jsonOutput
+            );
+          default:
+            console.log("❌ Unknown label chat command. Usage:");
+            console.log("   label chat add <jid> <labelId>      Add label to chat");
+            console.log("   label chat remove <jid> <labelId>   Remove label from chat");
+            return false;
+        }
+
+      default:
+        console.log(`❌ Unknown label command: ${subCommand}`);
+        console.log("Available commands:");
+        console.log("   label list                          List all labels");
+        console.log("   label add <name> <color>            Create a new label");
+        console.log("   label chat add <jid> <labelId>      Add label to chat");
+        console.log("   label chat remove <jid> <labelId>   Remove label from chat");
+        return false;
+    }
+  }
+
+  // Catalog commands (Business)
+  if (command === "catalog") {
+    const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
+
+    switch (subCommand) {
+      case "list":
+        return await cmdCatalogList(
+          client,
+          { phone: parsedArgs.phone, limit: parsedArgs.limit, cursor: parsedArgs.cursor },
+          jsonOutput
+        );
+
+      case "collections":
+        return await cmdCatalogCollections(
+          client,
+          { phone: parsedArgs.phone, limit: parsedArgs.limit },
+          jsonOutput
+        );
+
+      case "product":
+        switch (subSubCommand) {
+          case "create":
+            if (parsedArgs._.length < 6) {
+              console.log("❌ Usage: miaw-cli catalog product create <name> <description> <price> <currency>");
+              console.log("   Options: --image <path>, --url <url>, --retailerId <id>, --hidden");
+              return false;
+            }
+            return await cmdCatalogProductCreate(
+              client,
+              {
+                name: parsedArgs._[2],
+                description: parsedArgs._[3],
+                price: parseFloat(parsedArgs._[4]),
+                currency: parsedArgs._[5],
+                image: parsedArgs.image,
+                url: parsedArgs.url,
+                retailerId: parsedArgs.retailerId,
+                hidden: parsedArgs.hidden,
+              },
+              jsonOutput
+            );
+          case "update":
+            if (!parsedArgs._[2]) {
+              console.log("❌ Usage: miaw-cli catalog product update <productId> [options]");
+              console.log("   Options: --name <name>, --description <desc>, --price <price>, --currency <currency>");
+              console.log("            --image <path>, --url <url>, --retailerId <id>, --hidden");
+              return false;
+            }
+            return await cmdCatalogProductUpdate(
+              client,
+              {
+                productId: parsedArgs._[2],
+                name: parsedArgs.name,
+                description: parsedArgs.description,
+                price: parsedArgs.price,
+                currency: parsedArgs.currency,
+                image: parsedArgs.image,
+                url: parsedArgs.url,
+                retailerId: parsedArgs.retailerId,
+                hidden: parsedArgs.hidden,
+              },
+              jsonOutput
+            );
+          case "delete":
+            if (parsedArgs._.length < 3) {
+              console.log("❌ Usage: miaw-cli catalog product delete <productId> [productId...]");
+              return false;
+            }
+            return await cmdCatalogProductDelete(
+              client,
+              { productIds: parsedArgs._.slice(2) },
+              jsonOutput
+            );
+          default:
+            console.log("❌ Unknown catalog product command. Usage:");
+            console.log("   catalog product create <name> <desc> <price> <currency>   Create product");
+            console.log("   catalog product update <productId> [options]              Update product");
+            console.log("   catalog product delete <productId> [productId...]         Delete products");
+            return false;
+        }
+
+      default:
+        console.log(`❌ Unknown catalog command: ${subCommand}`);
+        console.log("Available commands:");
+        console.log("   catalog list [--phone <phone>] [--limit <n>]              List products");
+        console.log("   catalog collections [--phone <phone>] [--limit <n>]       List collections");
+        console.log("   catalog product create <name> <desc> <price> <currency>   Create product");
+        console.log("   catalog product update <productId> [options]              Update product");
+        console.log("   catalog product delete <productId> [productId...]         Delete products");
+        return false;
+    }
   }
 
   // Load commands

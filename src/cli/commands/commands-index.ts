@@ -52,3 +52,17 @@ export {
 export {
   cmdCheck,
 } from "./misc.js";
+
+export {
+  cmdLabelAdd,
+  cmdLabelChatAdd,
+  cmdLabelChatRemove,
+} from "./label.js";
+
+export {
+  cmdCatalogList,
+  cmdCatalogCollections,
+  cmdCatalogProductCreate,
+  cmdCatalogProductUpdate,
+  cmdCatalogProductDelete,
+} from "./catalog.js";
