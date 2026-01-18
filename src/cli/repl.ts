@@ -73,6 +73,19 @@ const commandTree: Record<string, CommandNode> = {
     flags: ["--count"],
   },
   check: {},
+  label: {
+    subcommands: ["list", "add", "chat"],
+    nestedSubcommands: {
+      chat: ["add", "remove"],
+    },
+  },
+  catalog: {
+    subcommands: ["list", "collections", "product"],
+    nestedSubcommands: {
+      product: ["create", "update", "delete"],
+    },
+    flags: ["--phone", "--limit", "--cursor", "--image", "--url", "--retailerId", "--hidden", "--json"],
+  },
 };
 
 // =============================================================================
@@ -597,6 +610,24 @@ UTILITY:
   check <phone>                               Check if number on WhatsApp
   check <phone1> <phone2>                     Batch check numbers
 
+LABEL OPERATIONS (WhatsApp Business):
+  label list                                  List all labels
+  label add <name> <color>                    Create a new label
+  label chat add <jid> <labelId>              Add label to chat
+  label chat remove <jid> <labelId>           Remove label from chat
+
+  Color: 0-19 or name (salmon, gold, yellow, mint, teal, cyan, sky, blue, etc.)
+
+CATALOG OPERATIONS (WhatsApp Business):
+  catalog list [options]                      List catalog products
+  catalog collections [options]               List product collections
+  catalog product create <name> <desc> <price> <currency>   Create product
+  catalog product update <productId> [opts]   Update product
+  catalog product delete <ids...>             Delete products
+
+  Options: --phone <phone>, --limit N, --cursor <cursor>
+  Product options: --image <path>, --url <url>, --retailerId <id>, --hidden
+
 EXAMPLES:
   get groups --limit 5
   get contacts --filter john
@@ -607,6 +638,10 @@ EXAMPLES:
   check 6281234567890
   group list --filter family
   group participants 120363039902323086@g.us --limit 10
+  label list
+  label add "VIP" blue
+  catalog list --limit 20
+  catalog product create "T-Shirt" "Cotton shirt" 50000 IDR
 `);
 }
 

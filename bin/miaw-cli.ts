@@ -135,6 +135,24 @@ UTILITY:
   check <phone>                               Check if number on WhatsApp
   check <phone1> <phone2>                     Batch check numbers
 
+LABEL OPERATIONS (WhatsApp Business):
+  label list                                  List all labels
+  label add <name> <color>                    Create a new label
+  label chat add <jid> <labelId>              Add label to chat
+  label chat remove <jid> <labelId>           Remove label from chat
+
+  Color: 0-19 or name (salmon, gold, yellow, mint, teal, cyan, sky, blue, etc.)
+
+CATALOG OPERATIONS (WhatsApp Business):
+  catalog list [options]                      List catalog products
+  catalog collections [options]               List product collections
+  catalog product create <name> <desc> <price> <currency>   Create product
+  catalog product update <productId> [opts]   Update product
+  catalog product delete <ids...>             Delete products
+
+  Options: --phone <phone>, --limit N, --cursor <cursor>
+  Product options: --image <path>, --url <url>, --retailerId <id>, --hidden
+
 REPL COMMANDS (interactive mode):
   help                                        Show all commands
   status                                      Show connection status
@@ -155,6 +173,10 @@ EXAMPLES:
   miaw-cli check 6281234567890
   miaw-cli group list --filter family
   miaw-cli group participants 120363039902323086@g.us
+  miaw-cli label list
+  miaw-cli label add "VIP" blue
+  miaw-cli catalog list --limit 20
+  miaw-cli catalog product create "T-Shirt" "Cotton shirt" 50000 IDR
 
 For more information: https://github.com/biji-dev/miaw-core
 `);
