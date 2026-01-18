@@ -529,6 +529,214 @@ npx miaw-cli check 6281234567890 --json
 ✅ 2/3 numbers are on WhatsApp
 ```
 
+### Label Commands (WhatsApp Business Only)
+
+Manage labels for organizing chats.
+
+#### Create Label
+
+```bash
+npx miaw-cli label add <name> <color>
+```
+
+**Parameters:**
+- `name`: Label name
+- `color`: Color number (0-19) or name (salmon, gold, yellow, mint, teal, cyan, sky, blue, purple, pink, rose, orange, lime, green, emerald, indigo, violet, magenta, red, gray)
+
+**Examples:**
+```bash
+# Create with color number
+npx miaw-cli label add "VIP Customer" 3
+
+# Create with color name
+npx miaw-cli label add "New Lead" blue
+```
+
+**Output:**
+```
+✅ Label created successfully
+   Name: VIP Customer
+   Color: 3 (mint)
+   ID: 12345678901
+```
+
+#### Add Label to Chat
+
+```bash
+npx miaw-cli label chat add <jid> <labelId>
+```
+
+**Example:**
+```bash
+npx miaw-cli label chat add 6281234567890 12345678901
+```
+
+#### Remove Label from Chat
+
+```bash
+npx miaw-cli label chat remove <jid> <labelId>
+```
+
+**Example:**
+```bash
+npx miaw-cli label chat remove 6281234567890 12345678901
+```
+
+### Catalog Commands (WhatsApp Business Only)
+
+Manage product catalog.
+
+#### List Products
+
+```bash
+npx miaw-cli catalog list [--phone <phone>] [--limit <n>] [--cursor <cursor>]
+```
+
+**Parameters:**
+- `--phone`: Business phone number (optional, defaults to your own catalog)
+- `--limit`: Max products to fetch (default: 10)
+- `--cursor`: Pagination cursor for next page
+
+**Examples:**
+```bash
+# List your products
+npx miaw-cli catalog list
+
+# List with limit
+npx miaw-cli catalog list --limit 20
+
+# View another business's catalog
+npx miaw-cli catalog list --phone 6281234567890
+
+# JSON output
+npx miaw-cli catalog list --json
+```
+
+**Output:**
+```
+📦 Catalog Products (5):
+
+┌──────────────────────┬────────────────────────┬─────────────┬────────┐
+│ ID                   │ Name                   │ Price       │ Hidden │
+├──────────────────────┼────────────────────────┼─────────────┼────────┤
+│ 1234567890           │ Product A              │ 50000 IDR   │ No     │
+│ 1234567891           │ Product B              │ 75000 IDR   │ No     │
+└──────────────────────┴────────────────────────┴─────────────┴────────┘
+
+📄 More products available. Use --cursor abc123...
+```
+
+#### List Collections
+
+```bash
+npx miaw-cli catalog collections [--phone <phone>] [--limit <n>]
+```
+
+**Examples:**
+```bash
+npx miaw-cli catalog collections
+npx miaw-cli catalog collections --limit 10
+```
+
+**Output:**
+```
+📁 Collections (3):
+
+┌──────────────────────┬────────────────────────┬──────────┐
+│ ID                   │ Name                   │ Products │
+├──────────────────────┼────────────────────────┼──────────┤
+│ 1234567890           │ New Arrivals           │ 5        │
+│ 1234567891           │ Best Sellers           │ 10       │
+└──────────────────────┴────────────────────────┴──────────┘
+```
+
+#### Create Product
+
+```bash
+npx miaw-cli catalog product create <name> <description> <price> <currency> [options]
+```
+
+**Required Parameters:**
+- `name`: Product name
+- `description`: Product description
+- `price`: Product price (number)
+- `currency`: Currency code (e.g., IDR, USD, EUR)
+
+**Options:**
+- `--image <path>`: Path to product image
+- `--url <url>`: Product landing page URL
+- `--retailerId <id>`: Your internal SKU/product ID
+- `--hidden`: Mark product as hidden
+
+**Examples:**
+```bash
+# Basic product
+npx miaw-cli catalog product create "T-Shirt" "Cotton t-shirt, size M" 50000 IDR
+
+# With image
+npx miaw-cli catalog product create "T-Shirt" "Cotton t-shirt" 50000 IDR --image ./tshirt.jpg
+
+# With all options
+npx miaw-cli catalog product create "T-Shirt" "Cotton t-shirt" 50000 IDR \
+  --image ./tshirt.jpg \
+  --url https://mystore.com/tshirt \
+  --retailerId SKU-001
+```
+
+**Output:**
+```
+✅ Product created successfully
+   ID: 1234567890
+   Name: T-Shirt
+   Price: 50000 IDR
+```
+
+#### Update Product
+
+```bash
+npx miaw-cli catalog product update <productId> [options]
+```
+
+**Options:**
+- `--name <name>`: New product name
+- `--description <desc>`: New description
+- `--price <price>`: New price
+- `--currency <currency>`: New currency
+- `--image <path>`: New product image
+- `--url <url>`: New URL
+- `--retailerId <id>`: New retailer ID
+- `--hidden`: Mark as hidden
+
+**Examples:**
+```bash
+# Update price
+npx miaw-cli catalog product update 1234567890 --price 60000
+
+# Update multiple fields
+npx miaw-cli catalog product update 1234567890 --name "New T-Shirt" --price 55000
+```
+
+#### Delete Products
+
+```bash
+npx miaw-cli catalog product delete <productId> [productId...]
+```
+
+**Examples:**
+```bash
+# Delete single product
+npx miaw-cli catalog product delete 1234567890
+
+# Delete multiple products
+npx miaw-cli catalog product delete 1234567890 1234567891 1234567892
+```
+
+**Output:**
+```
+✅ Products deleted successfully
+   Deleted: 3 product(s)
+```
+
 ## Phone Number Format
 
 Use international format without `+` or leading zeros:

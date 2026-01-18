@@ -115,19 +115,19 @@ The current miaw-cli implements **42 commands** covering basic WhatsApp operatio
 |
 | **Business - Labels (WhatsApp Business Only)** |
 |---|---------|------------------|------------------|-------------|----------|----------|
-| 61 | Add/create label | `addLabel()` | ✅ Test | ❌ | Label | **P0** |
-| 62 | Add label to chat | `addChatLabel()` | ✅ Test | ❌ | Label | **P0** |
-| 63 | Remove label from chat | `removeChatLabel()` | ✅ Test | ❌ | Label | **P0** |
+| 61 | Add/create label | `addLabel()` | ✅ Test | ✅ `label add <name> <color>` | Label | - |
+| 62 | Add label to chat | `addChatLabel()` | ✅ Test | ✅ `label chat add <jid> <labelId>` | Label | - |
+| 63 | Remove label from chat | `removeChatLabel()` | ✅ Test | ✅ `label chat remove <jid> <labelId>` | Label | - |
 | 64 | Add label to message | `addMessageLabel()` | ✅ Test | ❌ | Label | **P1** |
 | 65 | Remove label from message | `removeMessageLabel()` | ✅ Test | ❌ | Label | **P1** |
 |
 | **Business - Catalog (WhatsApp Business Only)** |
 |---|---------|------------------|------------------|-------------|----------|----------|
-| 66 | Get catalog | `getCatalog()` | ✅ Test | ❌ | Catalog | **P0** |
-| 67 | Get collections | `getCollections()` | ✅ Test | ❌ | Catalog | **P0** |
-| 68 | Create product | `createProduct()` | ✅ Test | ❌ | Catalog | **P0** |
-| 69 | Update product | `updateProduct()` | ✅ Test | ❌ | Catalog | **P0** |
-| 70 | Delete products | `deleteProducts()` | ✅ Test | ❌ | Catalog | **P0** |
+| 66 | Get catalog | `getCatalog()` | ✅ Test | ✅ `catalog list [options]` | Catalog | - |
+| 67 | Get collections | `getCollections()` | ✅ Test | ✅ `catalog collections [options]` | Catalog | - |
+| 68 | Create product | `createProduct()` | ✅ Test | ✅ `catalog product create <...>` | Catalog | - |
+| 69 | Update product | `updateProduct()` | ✅ Test | ✅ `catalog product update <id>` | Catalog | - |
+| 70 | Delete products | `deleteProducts()` | ✅ Test | ✅ `catalog product delete <ids>` | Catalog | - |
 |
 | **Newsletter/Channel Operations** |
 |---|---------|------------------|------------------|-------------|----------|----------|
@@ -191,13 +191,13 @@ The current miaw-cli implements **42 commands** covering basic WhatsApp operatio
 | **Group Management** | 16 | 16 | 0 | **100%** ✅ |
 | **Profile Management** | 4 | 0 | 4 | **0%** ❌ |
 | **Presence & UX** | 6 | 0 | 6 | **0%** ❌ |
-| **Business - Labels** | 5 | 0 | 5 | **0%** ❌ |
-| **Business - Catalog** | 5 | 0 | 5 | **0%** ❌ |
+| **Business - Labels** | 5 | 3 | 2 | 60% |
+| **Business - Catalog** | 5 | 5 | 0 | **100%** ✅ |
 | **Newsletter/Channel** | 21 | 0 | 21 | **0%** ❌ |
 | **LID/Privacy** | 6 | 0 | 6 | **0%** ❌ |
 | **Debug Mode** | 4 | 4 (REPL) | 0 | **100%** ✅ |
 | **REPL Features** | 5 | 5 (REPL) | 0 | **100%** ✅ |
-| **TOTAL** | **107** | **43** | **64** | **40%** |
+| **TOTAL** | **107** | **51** | **56** | **48%** |
 
 ---
 
@@ -413,31 +413,31 @@ src/cli/commands/
 
 ## Conclusion
 
-The current miaw-cli provides a solid foundation with **43 commands** (including REPL-only features). There is a **60% coverage gap** with **64 missing CLI commands** out of 107 total features.
+The current miaw-cli provides a solid foundation with **51 commands** (including REPL-only features). There is a **52% coverage gap** with **56 missing CLI commands** out of 107 total features.
 
 **Key Findings:**
 
 1. **Basic GET Operations** are 100% complete ✅
 2. **Group Management** is 100% complete ✅ (16/16 commands)
 3. **Debug & REPL features** are 100% complete ✅
-4. **Advanced Messaging** has 0% coverage ❌ (6 missing - P1)
-5. **Profile Management** has 0% coverage ❌ (4 missing - P0)
-6. **Presence & UX** has 0% coverage ❌ (6 missing - P1)
-7. **Contact Operations** has 29% coverage ⚠️ (5 missing - P0)
-8. **Business Labels (Chat)** has 0% coverage ❌ (3 missing - P0)
-9. **Business Catalog** has 0% coverage ❌ (5 missing - P0)
+4. **Business Catalog** is 100% complete ✅ (5/5 commands)
+5. **Business Labels (Chat)** has 60% coverage (3/5 commands - message labels pending)
+6. **Advanced Messaging** has 0% coverage ❌ (6 missing - P1)
+7. **Profile Management** has 0% coverage ❌ (4 missing - P0)
+8. **Presence & UX** has 0% coverage ❌ (6 missing - P1)
+9. **Contact Operations** has 29% coverage ⚠️ (5 missing - P0)
 10. **Newsletter** has 0% coverage ❌ (21 missing - P2)
 
 **Recommended Action Plan:**
 
-1. **Phase 1 (Immediate):** Implement 15 P0 essential commands including contact operations, profile management, business labels, and catalog
-2. **Phase 2 (Short-term):** Add 13 P1 common use case commands (advanced messaging, presence)
+1. **Phase 1 (Immediate):** Implement remaining P0 essential commands (contact operations, profile management)
+2. **Phase 2 (Short-term):** Add P1 common use case commands (advanced messaging, presence, message labels)
 3. **Phase 3 (Medium-term):** Complete newsletter features with 21 P2 commands
-4. **Phase 4 (Long-term):** Add 6 P3 advanced power-user features (LID/privacy, instance utilities)
+4. **Phase 4 (Long-term):** Add P3 advanced power-user features (LID/privacy, instance utilities)
 
 This phased approach ensures the CLI evolves to match miaw-core's comprehensive capabilities while maintaining code quality and user experience.
 
 ---
 
-**Document Status:** ✅ Complete (Updated v4.0.0 - Group Management 100% complete)
-**Next Steps:** Review with team, begin Phase 1 implementation with focus on contact operations, profile management, business labels, and catalog
+**Document Status:** ✅ Complete (Updated v4.1.0 - Business Features added)
+**Next Steps:** Review with team, continue Phase 1 with contact operations and profile management
