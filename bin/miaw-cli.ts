@@ -137,6 +137,7 @@ UTILITY:
 
 LABEL OPERATIONS (WhatsApp Business):
   label list                                  List all labels
+  label chats <labelId>                       List chats with this label
   label add <name> <color>                    Create a new label
   label chat add <jid> <labelId>              Add label to chat
   label chat remove <jid> <labelId>           Remove label from chat
@@ -174,6 +175,7 @@ EXAMPLES:
   miaw-cli group list --filter family
   miaw-cli group participants 120363039902323086@g.us
   miaw-cli label list
+  miaw-cli label chats 12345678901
   miaw-cli label add "VIP" blue
   miaw-cli catalog list --limit 20
   miaw-cli catalog product create "T-Shirt" "Cotton shirt" 50000 IDR

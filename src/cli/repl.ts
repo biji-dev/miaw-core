@@ -74,7 +74,7 @@ const commandTree: Record<string, CommandNode> = {
   },
   check: {},
   label: {
-    subcommands: ["list", "add", "chat"],
+    subcommands: ["list", "chats", "add", "chat"],
     nestedSubcommands: {
       chat: ["add", "remove"],
     },
@@ -612,6 +612,7 @@ UTILITY:
 
 LABEL OPERATIONS (WhatsApp Business):
   label list                                  List all labels
+  label chats <labelId>                       List chats with this label
   label add <name> <color>                    Create a new label
   label chat add <jid> <labelId>              Add label to chat
   label chat remove <jid> <labelId>           Remove label from chat
