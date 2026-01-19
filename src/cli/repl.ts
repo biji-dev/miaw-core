@@ -345,8 +345,10 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       return;
     }
 
-    if (input === "help") {
-      showReplHelp();
+    if (input === "help" || input.startsWith("help ")) {
+      const parts = input.split(/\s+/);
+      const helpTopic = parts[1] || "";
+      showReplHelp(helpTopic);
       rl.prompt();
       return;
     }
@@ -553,16 +555,61 @@ Type 'help' for available commands, 'exit' to quit.
 }
 
 /**
- * Show REPL help
+ * Show REPL help - full or topic-specific
  */
-function showReplHelp(): void {
+function showReplHelp(topic: string = ""): void {
+  const topicLower = topic.toLowerCase();
+
+  // Topic-specific help
+  switch (topicLower) {
+    case "instance":
+      showHelpInstance();
+      return;
+    case "get":
+      showHelpGet();
+      return;
+    case "load":
+      showHelpLoad();
+      return;
+    case "send":
+      showHelpSend();
+      return;
+    case "group":
+      showHelpGroup();
+      return;
+    case "check":
+      showHelpCheck();
+      return;
+    case "contact":
+      showHelpContact();
+      return;
+    case "profile":
+      showHelpProfile();
+      return;
+    case "label":
+      showHelpLabel();
+      return;
+    case "catalog":
+      showHelpCatalog();
+      return;
+    case "":
+      // Show full help
+      break;
+    default:
+      console.log(`❌ Unknown help topic: ${topic}`);
+      console.log(`Available topics: instance, get, load, send, group, check, contact, profile, label, catalog`);
+      console.log(`Usage: help [topic]`);
+      return;
+  }
+
+  // Full help
   console.log(`
 ╔════════════════════════════════════════════════════════════════════════╗
 ║                           REPL Commands                                ║
 ╚════════════════════════════════════════════════════════════════════════╝
 
 REPL-SPECIFIC:
-  help                                        Show this help message
+  help [topic]                                Show help (topics: instance, get, send, group, contact, profile, label, catalog)
   status                                      Show connection status
   use <instance-id>                           Switch active instance
   connect [id]                                Connect to WhatsApp
@@ -571,7 +618,38 @@ REPL-SPECIFIC:
   instances, ls                               List all instances
   exit, quit                                  Exit REPL
 
-INSTANCE MANAGEMENT:
+COMMANDS (use "help <command>" for details):
+  instance    Manage WhatsApp instances (create, connect, disconnect, etc.)
+  get         Fetch data (profile, contacts, groups, chats, messages, labels)
+  load        Load older messages from chat history
+  send        Send messages (text, image, document)
+  group       Group management (info, participants, invites, settings)
+  check       Check if phone numbers are on WhatsApp
+  contact     Contact management (list, info, add, remove)
+  profile     Profile management (picture, name, status)
+  label       Label management (WhatsApp Business)
+  catalog     Catalog management (WhatsApp Business)
+
+QUICK EXAMPLES:
+  get groups --limit 5                        List first 5 groups
+  send text 6281234567890 "Hello"             Send a text message
+  contact list --filter john                  Find contacts named john
+  group info 120363039902323086@g.us          Get group details
+
+Type "help <command>" for detailed help on each command.
+`);
+}
+
+/**
+ * Show help for instance commands
+ */
+function showHelpInstance(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                       Instance Commands                                ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
   instance ls                                 List all instances
   instance status [id]                        Show connection status
   instance create <id>                        Create new instance
@@ -580,102 +658,355 @@ INSTANCE MANAGEMENT:
   instance disconnect <id>                    Disconnect instance
   instance logout <id>                        Logout and clear session
 
-GET OPERATIONS:
+EXAMPLES:
+  instance ls                                 List all instances
+  instance status                             Show current instance status
+  instance status my-bot                      Show status of 'my-bot' instance
+  instance create my-bot                      Create a new instance 'my-bot'
+  instance connect my-bot                     Connect 'my-bot' to WhatsApp
+  instance disconnect my-bot                  Disconnect 'my-bot'
+  instance logout my-bot                      Logout and require new QR scan
+
+NOTES:
+  - Each instance maintains its own WhatsApp session
+  - Creating an instance will prompt for QR code scan
+  - Logout clears the session, requiring re-authentication
+`);
+}
+
+/**
+ * Show help for get commands
+ */
+function showHelpGet(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                          Get Commands                                  ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
   get profile [jid]                           Get profile (own or contact)
   get contacts [options]                      List all contacts
   get groups [options]                        List all groups
   get chats [options]                         List all chats
   get messages <jid> [options]                Get chat messages
-  get labels                                  List labels/lists
+  get labels                                  List labels (Business only)
 
-  Options: --limit N, --filter TEXT (case-insensitive search)
+OPTIONS:
+  --limit N                                   Limit number of results
+  --filter TEXT                               Filter by name/phone (case-insensitive)
+  --json                                      Output as JSON
 
-LOAD OPERATIONS:
-  load messages <jid> [--count N]             Load older messages (default: 50)
+EXAMPLES:
+  get profile                                 Get your own profile
+  get profile 6281234567890                   Get contact's profile
+  get contacts                                List all contacts
+  get contacts --limit 10                     List first 10 contacts
+  get contacts --filter john                  Find contacts matching 'john'
+  get groups --limit 5                        List first 5 groups
+  get groups --filter family                  Find groups matching 'family'
+  get chats --limit 20                        List recent 20 chats
+  get messages 6281234567890@s.whatsapp.net   Get messages from chat
+  get messages 6281234567890@s.whatsapp.net --limit 50
+  get labels                                  List all labels
 
-SEND OPERATIONS:
+NOTES:
+  - JID format: phone@s.whatsapp.net (individual), groupid@g.us (group)
+  - Filter searches in name, phone, and JID fields
+`);
+}
+
+/**
+ * Show help for load commands
+ */
+function showHelpLoad(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                         Load Commands                                  ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
+  load messages <jid> [--count N]             Load older messages from history
+
+OPTIONS:
+  --count N                                   Number of messages to load (default: 50)
+
+EXAMPLES:
+  load messages 6281234567890@s.whatsapp.net  Load 50 older messages
+  load messages 6281234567890@s.whatsapp.net --count 100
+  load messages 120363039902323086@g.us       Load group messages
+
+NOTES:
+  - JID format: phone@s.whatsapp.net (individual), groupid@g.us (group)
+  - Messages are loaded from WhatsApp's server history
+  - Use 'get messages' to view loaded messages
+`);
+}
+
+/**
+ * Show help for send commands
+ */
+function showHelpSend(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                         Send Commands                                  ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
   send text <phone> <message>                 Send text message
-  send image <phone> <path>                   Send image
-  send document <phone> <path>                Send document
+  send image <phone> <path> [caption]         Send image
+  send document <phone> <path> [caption]      Send document
 
-GROUP OPERATIONS:
+EXAMPLES:
+  send text 6281234567890 "Hello World"       Send text to number
+  send text 6281234567890 "Hello, how are you?"
+  send image 6281234567890 ./photo.jpg        Send image
+  send image 6281234567890 ./photo.jpg "Check this out!"
+  send document 6281234567890 ./report.pdf    Send document
+  send document 6281234567890 ./report.pdf "Monthly Report"
+
+NOTES:
+  - Phone number format: international without + (e.g., 6281234567890)
+  - Supported image formats: JPEG, PNG, GIF, WebP
+  - Documents can be any file type (PDF, DOC, ZIP, etc.)
+  - Caption is optional for images and documents
+`);
+}
+
+/**
+ * Show help for group commands
+ */
+function showHelpGroup(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                         Group Commands                                 ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
   group list [options]                        List all groups
   group info <jid>                            Get group details
-  group participants <jid> [options]          List members (with phone/name)
-  group participants add <jid> <phones>       Add members to group
-  group participants remove <jid> <phones>    Remove members from group
-  group participants promote <jid> <phones>   Promote members to admin
-  group participants demote <jid> <phones>    Demote admins to member
-  group invite-link <jid>                     Get invite link
-  group invite accept <code>                  Join group via invite code
-  group invite revoke <jid>                   Revoke and get new invite link
-  group invite info <code>                    Get group info from invite code
   group create <name> <phones..>              Create new group
   group leave <jid>                           Leave a group
+
+PARTICIPANT MANAGEMENT:
+  group participants <jid> [options]          List group members
+  group participants add <jid> <phones>       Add members to group
+  group participants remove <jid> <phones>    Remove members from group
+  group participants promote <jid> <phones>   Promote to admin
+  group participants demote <jid> <phones>    Demote from admin
+
+INVITE MANAGEMENT:
+  group invite-link <jid>                     Get invite link
+  group invite accept <code>                  Join via invite code
+  group invite revoke <jid>                   Revoke and get new link
+  group invite info <code>                    Get info from invite code
+
+GROUP SETTINGS:
   group name set <jid> <name>                 Update group name
   group description set <jid> [desc]          Update group description
   group picture set <jid> <path>              Update group picture
 
-  Options: --limit N, --filter TEXT (case-insensitive search)
+OPTIONS:
+  --limit N                                   Limit number of results
+  --filter TEXT                               Filter by name (case-insensitive)
 
-UTILITY:
-  check <phone>                               Check if number on WhatsApp
-  check <phone1> <phone2>                     Batch check numbers
+EXAMPLES:
+  group list                                  List all groups
+  group list --filter family                  Find groups with 'family'
+  group info 120363039902323086@g.us          Get group details
+  group participants 120363039902323086@g.us  List members
+  group participants add 120363039902323086@g.us 6281234567890 6289876543210
+  group create "My Team" 6281234567890 6289876543210
+  group invite-link 120363039902323086@g.us   Get invite link
+  group name set 120363039902323086@g.us "New Name"
 
-CONTACT OPERATIONS:
+NOTES:
+  - Group JID format: groupid@g.us
+  - Multiple phones can be separated by spaces
+  - You must be an admin to manage participants and settings
+`);
+}
+
+/**
+ * Show help for check commands
+ */
+function showHelpCheck(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                         Check Commands                                 ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
+  check <phone>                               Check if number is on WhatsApp
+  check <phone1> <phone2> ...                 Batch check multiple numbers
+
+OPTIONS:
+  --json                                      Output as JSON
+
+EXAMPLES:
+  check 6281234567890                         Check single number
+  check 6281234567890 6289876543210           Check multiple numbers
+  check 6281234567890 6289876543210 --json    JSON output
+
+OUTPUT:
+  Shows whether each number is registered on WhatsApp and its JID.
+
+NOTES:
+  - Phone number format: international without + (e.g., 6281234567890)
+  - Useful for validating contacts before sending messages
+`);
+}
+
+/**
+ * Show help for contact commands
+ */
+function showHelpContact(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                        Contact Commands                                ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
   contact list [options]                      List all contacts
-  contact info <phone>                        Get contact info
+  contact info <phone>                        Get contact information
   contact business <phone>                    Get business profile
   contact picture <phone> [--high]            Get profile picture URL
-  contact add <phone> <name> [options]        Add/edit contact
+  contact add <phone> <name> [options]        Add or edit contact
   contact remove <phone>                      Remove contact
 
-  Options: --limit N, --filter TEXT, --first <firstName>, --last <lastName>
+OPTIONS:
+  --limit N                                   Limit number of results
+  --filter TEXT                               Filter by name/phone
+  --high                                      Get high-resolution picture
+  --first <firstName>                         Set first name
+  --last <lastName>                           Set last name
+  --json                                      Output as JSON
 
-PROFILE OPERATIONS:
-  profile picture set <path>                  Set profile picture
+EXAMPLES:
+  contact list                                List all contacts
+  contact list --limit 10                     List first 10 contacts
+  contact list --filter john                  Find contacts matching 'john'
+  contact info 6281234567890                  Get contact details
+  contact business 6281234567890              Get business profile (if business account)
+  contact picture 6281234567890               Get profile picture URL
+  contact picture 6281234567890 --high        Get high-res profile picture
+  contact add 6281234567890 "John Doe"        Add/update contact
+  contact add 6281234567890 "John Doe" --first John --last Doe
+  contact remove 6281234567890                Remove contact
+
+NOTES:
+  - Phone number format: international without + (e.g., 6281234567890)
+  - Business profile only available for WhatsApp Business accounts
+  - Profile picture may be unavailable due to privacy settings
+`);
+}
+
+/**
+ * Show help for profile commands
+ */
+function showHelpProfile(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                        Profile Commands                                ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
+  profile picture set <path>                  Set your profile picture
+  profile picture remove                      Remove your profile picture
+  profile name set <name>                     Set your display name
+  profile status set <status>                 Set your status/about text
+
+EXAMPLES:
+  profile picture set ./avatar.jpg            Set profile picture
   profile picture remove                      Remove profile picture
-  profile name set <name>                     Set display name
-  profile status set <status>                 Set status/about text
+  profile name set "My Bot"                   Set display name
+  profile name set "Customer Support Bot"
+  profile status set "Available 24/7"         Set status text
+  profile status set "Away until Monday"
 
-LABEL OPERATIONS (WhatsApp Business):
+NOTES:
+  - Supported image formats: JPEG, PNG
+  - Display name may take time to propagate
+  - Status/about text has a character limit
+`);
+}
+
+/**
+ * Show help for label commands
+ */
+function showHelpLabel(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                    Label Commands (WhatsApp Business)                  ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
   label list                                  List all labels
   label chats <labelId>                       List chats with this label
   label add <name> <color>                    Create a new label
   label chat add <jid> <labelId>              Add label to chat
   label chat remove <jid> <labelId>           Remove label from chat
 
-  Color: 0-19 or name (salmon, gold, yellow, mint, teal, cyan, sky, blue, etc.)
-
-CATALOG OPERATIONS (WhatsApp Business):
-  catalog list [options]                      List catalog products
-  catalog collections [options]               List product collections
-  catalog product create <name> <desc> <price> <currency>   Create product
-  catalog product update <productId> [opts]   Update product
-  catalog product delete <ids...>             Delete products
-
-  Options: --phone <phone>, --limit N, --cursor <cursor>
-  Product options: --image <path>, --url <url>, --retailerId <id>, --hidden
+COLOR OPTIONS:
+  By number: 0-19
+  By name: salmon, gold, yellow, mint, teal, cyan, sky, blue, purple, pink,
+           rose, orange, lime, green, emerald, indigo, violet, magenta, red, gray
 
 EXAMPLES:
-  get groups --limit 5
-  get contacts --filter john
-  get chats --filter 628
-  get profile 6281234567890
-  send text 6281234567890 "Hello"
-  load messages 6281234567890@s.whatsapp.net
-  check 6281234567890
-  contact list --limit 10 --filter john
-  contact info 6281234567890
-  contact add 6281234567890 "John Doe" --first John --last Doe
-  profile name set "My Bot Name"
-  profile status set "Hello, I'm a bot"
-  group list --filter family
-  group participants 120363039902323086@g.us --limit 10
-  label list
-  label add "VIP" blue
-  catalog list --limit 20
+  label list                                  List all labels
+  label chats 12345678901                     List chats with label ID
+  label add "VIP" blue                        Create blue "VIP" label
+  label add "New Lead" 3                      Create label with color #3
+  label chat add 6281234567890 12345678901    Add label to chat
+  label chat remove 6281234567890 12345678901 Remove label from chat
+
+NOTES:
+  - Labels are only available for WhatsApp Business accounts
+  - Label IDs are returned when creating or listing labels
+  - JID format: phone@s.whatsapp.net or groupid@g.us
+`);
+}
+
+/**
+ * Show help for catalog commands
+ */
+function showHelpCatalog(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                   Catalog Commands (WhatsApp Business)                 ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
+  catalog list [options]                      List catalog products
+  catalog collections [options]               List product collections
+  catalog product create <name> <desc> <price> <currency>
+  catalog product update <productId> [options]
+  catalog product delete <productIds...>      Delete products
+
+OPTIONS:
+  --phone <phone>                             View another business's catalog
+  --limit N                                   Limit number of results
+  --cursor <cursor>                           Pagination cursor
+  --image <path>                              Product image path
+  --url <url>                                 Product landing page URL
+  --retailerId <id>                           Your internal SKU/product ID
+  --hidden                                    Mark product as hidden
+
+EXAMPLES:
+  catalog list                                List your catalog
+  catalog list --limit 20                     List first 20 products
+  catalog list --phone 6281234567890          View another's catalog
+  catalog collections                         List your collections
   catalog product create "T-Shirt" "Cotton shirt" 50000 IDR
+  catalog product create "Laptop" "Gaming laptop" 15000000 IDR --image ./laptop.jpg
+  catalog product update 1234567890 --price 55000
+  catalog product update 1234567890 --name "New Name" --hidden
+  catalog product delete 1234567890           Delete one product
+  catalog product delete 1234567890 1234567891  Delete multiple products
+
+NOTES:
+  - Catalog is only available for WhatsApp Business accounts
+  - Currency should be a valid ISO currency code (IDR, USD, EUR, etc.)
+  - Product IDs are returned when creating or listing products
 `);
 }
 
