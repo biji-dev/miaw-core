@@ -54,6 +54,22 @@ export {
 } from "./misc.js";
 
 export {
+  cmdContactList,
+  cmdContactInfo,
+  cmdContactBusiness,
+  cmdContactPicture,
+  cmdContactAdd,
+  cmdContactRemove,
+} from "./contact.js";
+
+export {
+  cmdProfilePictureSet,
+  cmdProfilePictureRemove,
+  cmdProfileNameSet,
+  cmdProfileStatusSet,
+} from "./profile.js";
+
+export {
   cmdLabelAdd,
   cmdLabelChats,
   cmdLabelChatAdd,

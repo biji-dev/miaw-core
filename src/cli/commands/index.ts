@@ -46,6 +46,18 @@ import {
   cmdGroupPictureSet,
   // Misc commands
   cmdCheck,
+  // Contact commands
+  cmdContactList,
+  cmdContactInfo,
+  cmdContactBusiness,
+  cmdContactPicture,
+  cmdContactAdd,
+  cmdContactRemove,
+  // Profile commands
+  cmdProfilePictureSet,
+  cmdProfilePictureRemove,
+  cmdProfileNameSet,
+  cmdProfileStatusSet,
   // Label commands (Business)
   cmdLabelAdd,
   cmdLabelChats,
@@ -397,6 +409,121 @@ export async function runCommand(
       return false;
     }
     return await cmdCheck(client, { phones: parsedArgs._ }, jsonOutput);
+  }
+
+  // Contact commands
+  if (command === "contact") {
+    const subCommand = parsedArgs._[0] || "";
+
+    switch (subCommand) {
+      case "list":
+      case "ls":
+        return await cmdContactList(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
+
+      case "info":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli contact info <phone>");
+          return false;
+        }
+        return await cmdContactInfo(client, { phone: parsedArgs._[1] }, jsonOutput);
+
+      case "business":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli contact business <phone>");
+          return false;
+        }
+        return await cmdContactBusiness(client, { phone: parsedArgs._[1] }, jsonOutput);
+
+      case "picture":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli contact picture <phone> [--high]");
+          return false;
+        }
+        return await cmdContactPicture(client, { phone: parsedArgs._[1], high: parsedArgs.high });
+
+      case "add":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli contact add <phone> <name> [--first <firstName>] [--last <lastName>]");
+          return false;
+        }
+        return await cmdContactAdd(client, {
+          phone: parsedArgs._[1],
+          name: parsedArgs._.slice(2).join(" "),
+          first: parsedArgs.first,
+          last: parsedArgs.last,
+        });
+
+      case "remove":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli contact remove <phone>");
+          return false;
+        }
+        return await cmdContactRemove(client, { phone: parsedArgs._[1] });
+
+      default:
+        console.log(`❌ Unknown contact command: ${subCommand}`);
+        console.log("Available commands:");
+        console.log("   contact list [--limit N] [--filter TEXT]   List all contacts");
+        console.log("   contact info <phone>                       Get contact info");
+        console.log("   contact business <phone>                   Get business profile");
+        console.log("   contact picture <phone> [--high]           Get profile picture URL");
+        console.log("   contact add <phone> <name>                 Add/edit contact");
+        console.log("   contact remove <phone>                     Remove contact");
+        return false;
+    }
+  }
+
+  // Profile commands
+  if (command === "profile") {
+    const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
+
+    switch (subCommand) {
+      case "picture":
+        switch (subSubCommand) {
+          case "set":
+            if (!parsedArgs._[2]) {
+              console.log("❌ Usage: miaw-cli profile picture set <path>");
+              return false;
+            }
+            return await cmdProfilePictureSet(client, { path: parsedArgs._[2] });
+          case "remove":
+            return await cmdProfilePictureRemove(client);
+          default:
+            console.log("❌ Unknown profile picture command. Usage:");
+            console.log("   profile picture set <path>     Set profile picture");
+            console.log("   profile picture remove         Remove profile picture");
+            return false;
+        }
+
+      case "name":
+        if (subSubCommand === "set") {
+          if (parsedArgs._.length < 3) {
+            console.log("❌ Usage: miaw-cli profile name set <name>");
+            return false;
+          }
+          return await cmdProfileNameSet(client, { name: parsedArgs._.slice(2).join(" ") });
+        }
+        console.log("❌ Usage: miaw-cli profile name set <name>");
+        return false;
+
+      case "status":
+        if (subSubCommand === "set") {
+          // Status can be empty to clear it
+          return await cmdProfileStatusSet(client, { status: parsedArgs._.slice(2).join(" ") });
+        }
+        console.log("❌ Usage: miaw-cli profile status set <status>");
+        return false;
+
+      default:
+        console.log(`❌ Unknown profile command: ${subCommand}`);
+        console.log("Available commands:");
+        console.log("   profile picture set <path>     Set profile picture");
+        console.log("   profile picture remove         Remove profile picture");
+        console.log("   profile name set <name>        Set display name");
+        console.log("   profile status set <status>    Set status/about text");
+        return false;
+    }
   }
 
   // Label commands (Business)
