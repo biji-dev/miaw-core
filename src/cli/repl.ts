@@ -35,7 +35,7 @@ interface CommandNode {
 const commandTree: Record<string, CommandNode> = {
   // REPL-specific commands
   help: {
-    subcommands: ["instance", "get", "load", "send", "group", "check", "contact", "profile", "label", "catalog"],
+    subcommands: ["instance", "get", "load", "send", "media", "group", "check", "contact", "profile", "label", "catalog"],
   },
   status: {},
   exit: { aliases: ["quit"] },
@@ -54,7 +54,11 @@ const commandTree: Record<string, CommandNode> = {
     flags: ["--limit", "--json", "--filter"],
   },
   send: {
-    subcommands: ["text", "image", "document"],
+    subcommands: ["text", "image", "document", "video", "audio"],
+    flags: ["--caption", "--gif", "--ptv", "--ptt"],
+  },
+  media: {
+    subcommands: ["download"],
   },
   group: {
     subcommands: [
@@ -576,6 +580,9 @@ function showReplHelp(topic: string = ""): void {
     case "send":
       showHelpSend();
       return;
+    case "media":
+      showHelpMedia();
+      return;
     case "group":
       showHelpGroup();
       return;
@@ -599,7 +606,7 @@ function showReplHelp(topic: string = ""): void {
       break;
     default:
       console.log(`❌ Unknown help topic: ${topic}`);
-      console.log(`Available topics: instance, get, load, send, group, check, contact, profile, label, catalog`);
+      console.log(`Available topics: instance, get, load, send, media, group, check, contact, profile, label, catalog`);
       console.log(`Usage: help [topic]`);
       return;
   }
@@ -624,7 +631,8 @@ COMMANDS (use "help <command>" for details):
   instance    Manage WhatsApp instances (create, connect, disconnect, etc.)
   get         Fetch data (profile, contacts, groups, chats, messages, labels)
   load        Load older messages from chat history
-  send        Send messages (text, image, document)
+  send        Send messages (text, image, document, video, audio)
+  media       Media operations (download)
   group       Group management (info, participants, invites, settings)
   check       Check if phone numbers are on WhatsApp
   contact     Contact management (list, info, add, remove)
@@ -737,13 +745,58 @@ COMMANDS:
   send text <phone> <message>                 Send text message
   send image <phone> <path> [caption]         Send image
   send document <phone> <path> [caption]      Send document
+  send video <phone> <path> [options]         Send video
+  send audio <phone> <path> [options]         Send audio
 
-EXAMPLE:
+VIDEO OPTIONS:
+  --caption <text>                            Add caption to video
+  --gif                                       Play as GIF (loops, no audio)
+  --ptv                                       Send as video note (circular)
+
+AUDIO OPTIONS:
+  --ptt                                       Send as voice note (push-to-talk)
+
+EXAMPLES:
   send image 6281234567890 ./photo.jpg "Caption"
+  send video 6281234567890 ./video.mp4 --caption "Check this"
+  send video 6281234567890 ./short.mp4 --gif
+  send audio 6281234567890 ./voice.ogg --ptt
 
 NOTES:
   - Phone format: international without + (e.g., 6281234567890)
-  - Supported images: JPEG, PNG, GIF, WebP; Documents: any file type
+  - Supported images: JPEG, PNG, GIF, WebP
+  - Supported video: MP4, MOV, AVI, WebM
+  - Supported audio: MP3, OGG, AAC, M4A, WAV
+  - Voice notes (--ptt) show as voice messages in WhatsApp
+`);
+}
+
+/**
+ * Show help for media commands
+ */
+function showHelpMedia(): void {
+  console.log(`
+╔════════════════════════════════════════════════════════════════════════╗
+║                         Media Commands                                 ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+COMMANDS:
+  media download <jid> <messageId> <output>   Download media from message
+
+WORKFLOW:
+  1. Use 'get messages <jid>' to list messages and find message IDs
+  2. Copy the message ID of the media you want to download
+  3. Run 'media download <jid> <messageId> <output-path>'
+
+EXAMPLES:
+  media download 6281234567890@s.whatsapp.net 3EB0123ABC ./photo.jpg
+  media download 120363012345678@g.us MSGID123 ./video.mp4
+
+NOTES:
+  - Only recently received messages with raw data can be downloaded
+  - Supports: image, video, audio, document, sticker
+  - Output directory will be created if it doesn't exist
+  - JID format: phone@s.whatsapp.net or groupid@g.us
 `);
 }
 
