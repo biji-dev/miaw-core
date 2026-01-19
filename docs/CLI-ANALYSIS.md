@@ -9,15 +9,15 @@
 
 ## Executive Summary
 
-The current miaw-cli implements **60 commands** covering basic WhatsApp operations. miaw-core exposes **102+ public methods** across 10 feature categories. This analysis identifies **47 missing CLI commands** (approximately **44% coverage gap**) and provides a phased roadmap for CLI enhancement.
+The current miaw-cli implements **63 commands** covering basic WhatsApp operations. miaw-core exposes **102+ public methods** across 10 feature categories. This analysis identifies **44 missing CLI commands** (approximately **41% coverage gap**) and provides a phased roadmap for CLI enhancement.
 
 ### Key Metrics
 
 | Metric | Current | Potential | Gap |
 |--------|---------|-----------|-----|
 | **Total Methods** | 102+ | 102+ | - |
-| **CLI Commands** | 60 | ~102 | **47 (44%)** |
-| **Feature Categories** | 8/10 | 10 | **2 (20%)** |
+| **CLI Commands** | 63 | ~102 | **44 (41%)** |
+| **Feature Categories** | 9/10 | 10 | **1 (10%)** |
 
 ---
 
@@ -55,9 +55,9 @@ The current miaw-cli implements **60 commands** covering basic WhatsApp operatio
 | 17 | Send text message | `sendText()` | ✅ Test | ✅ `send text <phone> <message>` | Send | - |
 | 18 | Send image | `sendImage()` | ✅ Test | ✅ `send image <phone> <path>` | Send | - |
 | 19 | Send document | `sendDocument()` | ✅ Test | ✅ `send document <phone> <path>` | Send | - |
-| 20 | Send video | `sendVideo()` | ✅ Test | ❌ | Send | **P0** |
-| 21 | Send audio | `sendAudio()` | ✅ Test | ❌ | Send | **P0** |
-| 22 | Download media | `downloadMedia()` | ✅ Test | ❌ | Send | P1 |
+| 20 | Send video | `sendVideo()` | ✅ Test | ✅ `send video <phone> <path> [options]` | Send | - |
+| 21 | Send audio | `sendAudio()` | ✅ Test | ✅ `send audio <phone> <path> [--ptt]` | Send | - |
+| 22 | Download media | `downloadMedia()` | ✅ Test | ✅ `media download <jid> <msgId> <path>` | Media | - |
 |
 | **Advanced Messaging Operations** |
 |---|---------|------------------|------------------|-------------|----------|----------|
@@ -185,7 +185,7 @@ The current miaw-cli implements **60 commands** covering basic WhatsApp operatio
 |----------|----------------|---------------|-------------|----------|
 | **Instance Management** | 10 | 7 | 3 | 70% |
 | **Basic GET Operations** | 6 | 6 | 0 | **100%** ✅ |
-| **Basic Messaging** | 6 | 3 | 3 | 50% |
+| **Basic Messaging** | 6 | 6 | 0 | **100%** ✅ |
 | **Advanced Messaging** | 6 | 0 | 6 | **0%** ❌ |
 | **Contact & Validation** | 7 | 7 | 0 | **100%** ✅ |
 | **Group Management** | 16 | 16 | 0 | **100%** ✅ |
@@ -197,21 +197,21 @@ The current miaw-cli implements **60 commands** covering basic WhatsApp operatio
 | **LID/Privacy** | 6 | 0 | 6 | **0%** ❌ |
 | **Debug Mode** | 4 | 4 (REPL) | 0 | **100%** ✅ |
 | **REPL Features** | 5 | 5 (REPL) | 0 | **100%** ✅ |
-| **TOTAL** | **107** | **60** | **47** | **56%** |
+| **TOTAL** | **107** | **63** | **44** | **59%** |
 
 ---
 
 ## Missing CLI Commands by Priority
 
-### 🔴 Priority 0 (P0) - Essential Core Features (3 missing)
+### ✅ Priority 0 (P0) - Essential Core Features (COMPLETE)
 
-| # | Feature | miaw-core Method | Proposed CLI Command |
-|---|---------|------------------|---------------------|
+| # | Feature | miaw-core Method | CLI Command | Status |
+|---|---------|------------------|-------------|--------|
 | **Basic Messaging (2)** |
-| 20 | Send video | `sendVideo()` | `send video <phone> <path> [caption]` |
-| 21 | Send audio | `sendAudio()` | `send audio <phone> <path>` |
-| **Other (1)** |
-| 22 | Download media | `downloadMedia()` | `media download <jid> <msgId> <path>` |
+| 20 | Send video | `sendVideo()` | `send video <phone> <path> [--caption] [--gif] [--ptv]` | ✅ |
+| 21 | Send audio | `sendAudio()` | `send audio <phone> <path> [--ptt]` | ✅ |
+| **Media Operations (1)** |
+| 22 | Download media | `downloadMedia()` | `media download <jid> <msgId> <path>` | ✅ |
 
 ---
 
@@ -398,7 +398,7 @@ src/cli/commands/
 
 ## Conclusion
 
-The current miaw-cli provides a solid foundation with **60 commands** (including REPL-only features). There is a **44% coverage gap** with **47 missing CLI commands** out of 107 total features.
+The current miaw-cli provides a solid foundation with **63 commands** (including REPL-only features). There is a **41% coverage gap** with **44 missing CLI commands** out of 107 total features.
 
 **Key Findings:**
 
@@ -415,7 +415,7 @@ The current miaw-cli provides a solid foundation with **60 commands** (including
 
 **Recommended Action Plan:**
 
-1. **Phase 1 (Immediate):** ✅ COMPLETE - Contact operations and profile management implemented
+1. **Phase 1 (P0):** ✅ COMPLETE - Basic messaging (video, audio) and media download implemented
 2. **Phase 2 (Short-term):** Add P1 common use case commands (advanced messaging, presence, message labels)
 3. **Phase 3 (Medium-term):** Complete newsletter features with 21 P2 commands
 4. **Phase 4 (Long-term):** Add P3 advanced power-user features (LID/privacy, instance utilities)
@@ -424,5 +424,5 @@ This phased approach ensures the CLI evolves to match miaw-core's comprehensive 
 
 ---
 
-**Document Status:** ✅ Complete (Updated v4.1.0 - Business Features added)
-**Next Steps:** Review with team, continue Phase 1 with contact operations and profile management
+**Document Status:** ✅ Complete (Updated v4.2.0 - Basic Messaging complete)
+**Next Steps:** Phase 2 implementation - Advanced messaging, presence, and message labels

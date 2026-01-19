@@ -406,6 +406,79 @@ npx miaw-cli send document 6281234567890 ./report.pdf
 npx miaw-cli send document 6281234567890 ./report.pdf "Monthly report"
 ```
 
+#### Send Video
+
+```bash
+npx miaw-cli send video <phone> <path> [--caption <text>] [--gif] [--ptv]
+```
+
+**Options:**
+- `--caption <text>` - Add caption to video
+- `--gif` - Play as GIF (loops, no audio)
+- `--ptv` - Send as video note (circular, like Telegram)
+
+**Examples:**
+```bash
+# Send video with caption
+npx miaw-cli send video 6281234567890 ./video.mp4 --caption "Check this out"
+
+# Send as GIF (loops)
+npx miaw-cli send video 6281234567890 ./short.mp4 --gif
+
+# Send as video note (circular)
+npx miaw-cli send video 6281234567890 ./selfie.mp4 --ptv
+```
+
+#### Send Audio
+
+```bash
+npx miaw-cli send audio <phone> <path> [--ptt]
+```
+
+**Options:**
+- `--ptt` - Send as voice note (push-to-talk)
+
+**Examples:**
+```bash
+# Send audio file
+npx miaw-cli send audio 6281234567890 ./music.mp3
+
+# Send as voice note
+npx miaw-cli send audio 6281234567890 ./voice.ogg --ptt
+```
+
+### Media Operations
+
+Download media from messages.
+
+#### Download Media
+
+```bash
+npx miaw-cli media download <jid> <messageId> <output-path>
+```
+
+**Workflow:**
+1. Use `get messages <jid>` to list messages and find message IDs
+2. Copy the message ID of the media you want to download
+3. Run `media download` with the JID, message ID, and output path
+
+**Examples:**
+```bash
+# First, list messages to get IDs
+npx miaw-cli get messages 6281234567890@s.whatsapp.net --limit 10
+
+# Download a specific media message
+npx miaw-cli media download 6281234567890@s.whatsapp.net 3EB0ABC123 ./photo.jpg
+
+# Download from group
+npx miaw-cli media download 120363012345678@g.us MSGID456 ./video.mp4
+```
+
+**Notes:**
+- Only recently received messages with raw data can be downloaded
+- Supports: image, video, audio, document, sticker
+- Output directory will be created if it doesn't exist
+
 ### Group Operations
 
 Manage WhatsApp groups.
