@@ -53,13 +53,19 @@ npx miaw-cli
 
 ```bash
 # REPL-specific commands
-help                 # Show all commands
+help                 # Show all commands overview
+help <command>       # Show detailed help for a command
 status               # Show connection status
 use <instance-id>    # Switch to different instance
 connect              # Connect to WhatsApp
 disconnect           # Disconnect from WhatsApp
 instances, ls        # List all instances
+debug on|off         # Toggle debug mode
 exit, quit           # Exit REPL
+
+# Help topics available:
+# help instance, help get, help load, help send, help group,
+# help check, help contact, help profile, help label, help catalog
 
 # Regular commands (without 'miaw-cli' prefix)
 get groups --limit 5
