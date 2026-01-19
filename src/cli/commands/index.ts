@@ -27,6 +27,10 @@ import {
   cmdSendText,
   cmdSendImage,
   cmdSendDocument,
+  cmdSendVideo,
+  cmdSendAudio,
+  // Media commands
+  cmdMediaDownload,
   // Group commands
   cmdGroupList,
   cmdGroupInfo,
@@ -46,6 +50,29 @@ import {
   cmdGroupPictureSet,
   // Misc commands
   cmdCheck,
+  // Contact commands
+  cmdContactList,
+  cmdContactInfo,
+  cmdContactBusiness,
+  cmdContactPicture,
+  cmdContactAdd,
+  cmdContactRemove,
+  // Profile commands
+  cmdProfilePictureSet,
+  cmdProfilePictureRemove,
+  cmdProfileNameSet,
+  cmdProfileStatusSet,
+  // Label commands (Business)
+  cmdLabelAdd,
+  cmdLabelChats,
+  cmdLabelChatAdd,
+  cmdLabelChatRemove,
+  // Catalog commands (Business)
+  cmdCatalogList,
+  cmdCatalogCollections,
+  cmdCatalogProductCreate,
+  cmdCatalogProductUpdate,
+  cmdCatalogProductDelete,
 } from "./commands-index.js";
 
 export interface CommandContext {
@@ -55,6 +82,7 @@ export interface CommandContext {
     debug?: boolean;
   };
   jsonOutput?: boolean;
+  flags?: { [key: string]: string | boolean };
 }
 
 /**
@@ -124,7 +152,13 @@ export async function runCommand(
           clientConfig.instanceId
         );
       default:
-        console.log(`❌ Unknown instance command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: instance <command>");
+          console.log("Commands: ls, status, create, delete, connect, disconnect, logout");
+        } else {
+          console.log(`❌ Unknown instance command: ${subCommand}`);
+          console.log("Commands: ls, status, create, delete, connect, disconnect, logout");
+        }
         return false;
     }
   }
@@ -158,7 +192,13 @@ export async function runCommand(
       case "labels":
         return await cmdGetLabels(client, jsonOutput);
       default:
-        console.log(`❌ Unknown get command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: get <command>");
+          console.log("Commands: profile, contacts, groups, chats, messages, labels");
+        } else {
+          console.log(`❌ Unknown get command: ${subCommand}`);
+          console.log("Commands: profile, contacts, groups, chats, messages, labels");
+        }
         return false;
     }
   }
@@ -197,8 +237,63 @@ export async function runCommand(
           path: parsedArgs._[2],
           caption: parsedArgs._[3],
         });
+      case "video":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli send video <phone> <path> [--caption <text>] [--gif] [--ptv]");
+          return false;
+        }
+        return await cmdSendVideo(client, {
+          phone: parsedArgs._[1],
+          path: parsedArgs._[2],
+          caption: parsedArgs.caption,
+          gif: parsedArgs.gif,
+          ptv: parsedArgs.ptv,
+        });
+      case "audio":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli send audio <phone> <path> [--ptt]");
+          return false;
+        }
+        return await cmdSendAudio(client, {
+          phone: parsedArgs._[1],
+          path: parsedArgs._[2],
+          ptt: parsedArgs.ptt,
+        });
       default:
-        console.log(`❌ Unknown send command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: send <command> <phone> <message|path>");
+          console.log("Commands: text, image, document, video, audio");
+        } else {
+          console.log(`❌ Unknown send command: ${subCommand}`);
+          console.log("Commands: text, image, document, video, audio");
+        }
+        return false;
+    }
+  }
+
+  // Media commands
+  if (command === "media") {
+    const subCommand = parsedArgs._[0] || "";
+
+    switch (subCommand) {
+      case "download":
+        if (parsedArgs._.length < 4) {
+          console.log("❌ Usage: miaw-cli media download <jid> <messageId> <output-path>");
+          return false;
+        }
+        return await cmdMediaDownload(client, {
+          jid: parsedArgs._[1],
+          messageId: parsedArgs._[2],
+          outputPath: parsedArgs._[3],
+        });
+      default:
+        if (!subCommand) {
+          console.log("Usage: media <command>");
+          console.log("Commands: download");
+        } else {
+          console.log(`❌ Unknown media command: ${subCommand}`);
+          console.log("Commands: download");
+        }
         return false;
     }
   }
@@ -373,7 +468,13 @@ export async function runCommand(
         return false;
 
       default:
-        console.log(`❌ Unknown group command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: group <command>");
+          console.log("Commands: list, info, create, leave, participants, invite, invite-link, name, description, picture");
+        } else {
+          console.log(`❌ Unknown group command: ${subCommand}`);
+          console.log("Commands: list, info, create, leave, participants, invite, invite-link, name, description, picture");
+        }
         return false;
     }
   }
@@ -385,6 +486,291 @@ export async function runCommand(
       return false;
     }
     return await cmdCheck(client, { phones: parsedArgs._ }, jsonOutput);
+  }
+
+  // Contact commands
+  if (command === "contact") {
+    const subCommand = parsedArgs._[0] || "";
+
+    switch (subCommand) {
+      case "list":
+      case "ls":
+        return await cmdContactList(client, { limit: parsedArgs.limit, filter: parsedArgs.filter }, jsonOutput);
+
+      case "info":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli contact info <phone>");
+          return false;
+        }
+        return await cmdContactInfo(client, { phone: parsedArgs._[1] }, jsonOutput);
+
+      case "business":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli contact business <phone>");
+          return false;
+        }
+        return await cmdContactBusiness(client, { phone: parsedArgs._[1] }, jsonOutput);
+
+      case "picture":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli contact picture <phone> [--high]");
+          return false;
+        }
+        return await cmdContactPicture(client, { phone: parsedArgs._[1], high: parsedArgs.high });
+
+      case "add":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli contact add <phone> <name> [--first <firstName>] [--last <lastName>]");
+          return false;
+        }
+        return await cmdContactAdd(client, {
+          phone: parsedArgs._[1],
+          name: parsedArgs._.slice(2).join(" "),
+          first: parsedArgs.first,
+          last: parsedArgs.last,
+        });
+
+      case "remove":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli contact remove <phone>");
+          return false;
+        }
+        return await cmdContactRemove(client, { phone: parsedArgs._[1] });
+
+      default:
+        if (!subCommand) {
+          console.log("Usage: contact <command>");
+        } else {
+          console.log(`❌ Unknown contact command: ${subCommand}`);
+        }
+        console.log("Commands: list, info, business, picture, add, remove");
+        return false;
+    }
+  }
+
+  // Profile commands
+  if (command === "profile") {
+    const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
+
+    switch (subCommand) {
+      case "picture":
+        switch (subSubCommand) {
+          case "set":
+            if (!parsedArgs._[2]) {
+              console.log("❌ Usage: miaw-cli profile picture set <path>");
+              return false;
+            }
+            return await cmdProfilePictureSet(client, { path: parsedArgs._[2] });
+          case "remove":
+            return await cmdProfilePictureRemove(client);
+          default:
+            console.log("❌ Unknown profile picture command. Usage:");
+            console.log("   profile picture set <path>     Set profile picture");
+            console.log("   profile picture remove         Remove profile picture");
+            return false;
+        }
+
+      case "name":
+        if (subSubCommand === "set") {
+          if (parsedArgs._.length < 3) {
+            console.log("❌ Usage: miaw-cli profile name set <name>");
+            return false;
+          }
+          return await cmdProfileNameSet(client, { name: parsedArgs._.slice(2).join(" ") });
+        }
+        console.log("❌ Usage: miaw-cli profile name set <name>");
+        return false;
+
+      case "status":
+        if (subSubCommand === "set") {
+          // Status can be empty to clear it
+          return await cmdProfileStatusSet(client, { status: parsedArgs._.slice(2).join(" ") });
+        }
+        console.log("❌ Usage: miaw-cli profile status set <status>");
+        return false;
+
+      default:
+        if (!subCommand) {
+          console.log("Usage: profile <command> <subcommand>");
+        } else {
+          console.log(`❌ Unknown profile command: ${subCommand}`);
+        }
+        console.log("Commands: picture (set|remove), name set, status set");
+        return false;
+    }
+  }
+
+  // Label commands (Business)
+  if (command === "label") {
+    const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
+
+    switch (subCommand) {
+      case "list":
+      case "ls":
+        return await cmdGetLabels(client, jsonOutput);
+
+      case "add":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli label add <name> <color>");
+          console.log("   Color: 0-19 or name (salmon, gold, yellow, mint, teal, cyan, sky, blue, purple, pink, etc.)");
+          return false;
+        }
+        return await cmdLabelAdd(
+          client,
+          { name: parsedArgs._[1], color: parsedArgs._[2] },
+          jsonOutput
+        );
+
+      case "chats":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli label chats <labelId>");
+          console.log("   Use 'label list' to see available labels");
+          return false;
+        }
+        return await cmdLabelChats(
+          client,
+          { labelId: parsedArgs._[1] },
+          jsonOutput
+        );
+
+      case "chat":
+        switch (subSubCommand) {
+          case "add":
+            if (parsedArgs._.length < 4) {
+              console.log("❌ Usage: miaw-cli label chat add <jid> <labelId>");
+              return false;
+            }
+            return await cmdLabelChatAdd(
+              client,
+              { jid: parsedArgs._[2], labelId: parsedArgs._[3] },
+              jsonOutput
+            );
+          case "remove":
+            if (parsedArgs._.length < 4) {
+              console.log("❌ Usage: miaw-cli label chat remove <jid> <labelId>");
+              return false;
+            }
+            return await cmdLabelChatRemove(
+              client,
+              { jid: parsedArgs._[2], labelId: parsedArgs._[3] },
+              jsonOutput
+            );
+          default:
+            if (!subSubCommand) {
+              console.log("Usage: label chat <command>");
+            } else {
+              console.log(`❌ Unknown label chat command: ${subSubCommand}`);
+            }
+            console.log("Commands: add, remove");
+            return false;
+        }
+
+      default:
+        if (!subCommand) {
+          console.log("Usage: label <command>");
+        } else {
+          console.log(`❌ Unknown label command: ${subCommand}`);
+        }
+        console.log("Commands: list, chats, add, chat (add|remove)");
+        return false;
+    }
+  }
+
+  // Catalog commands (Business)
+  if (command === "catalog") {
+    const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
+
+    switch (subCommand) {
+      case "list":
+        return await cmdCatalogList(
+          client,
+          { phone: parsedArgs.phone, limit: parsedArgs.limit, cursor: parsedArgs.cursor },
+          jsonOutput
+        );
+
+      case "collections":
+        return await cmdCatalogCollections(
+          client,
+          { phone: parsedArgs.phone, limit: parsedArgs.limit },
+          jsonOutput
+        );
+
+      case "product":
+        switch (subSubCommand) {
+          case "create":
+            if (parsedArgs._.length < 6) {
+              console.log("❌ Usage: miaw-cli catalog product create <name> <description> <price> <currency>");
+              console.log("   Options: --image <path>, --url <url>, --retailerId <id>, --hidden");
+              return false;
+            }
+            return await cmdCatalogProductCreate(
+              client,
+              {
+                name: parsedArgs._[2],
+                description: parsedArgs._[3],
+                price: parseFloat(parsedArgs._[4]),
+                currency: parsedArgs._[5],
+                image: parsedArgs.image,
+                url: parsedArgs.url,
+                retailerId: parsedArgs.retailerId,
+                hidden: parsedArgs.hidden,
+              },
+              jsonOutput
+            );
+          case "update":
+            if (!parsedArgs._[2]) {
+              console.log("❌ Usage: miaw-cli catalog product update <productId> [options]");
+              console.log("   Options: --name <name>, --description <desc>, --price <price>, --currency <currency>");
+              console.log("            --image <path>, --url <url>, --retailerId <id>, --hidden");
+              return false;
+            }
+            return await cmdCatalogProductUpdate(
+              client,
+              {
+                productId: parsedArgs._[2],
+                name: parsedArgs.name,
+                description: parsedArgs.description,
+                price: parsedArgs.price,
+                currency: parsedArgs.currency,
+                image: parsedArgs.image,
+                url: parsedArgs.url,
+                retailerId: parsedArgs.retailerId,
+                hidden: parsedArgs.hidden,
+              },
+              jsonOutput
+            );
+          case "delete":
+            if (parsedArgs._.length < 3) {
+              console.log("❌ Usage: miaw-cli catalog product delete <productId> [productId...]");
+              return false;
+            }
+            return await cmdCatalogProductDelete(
+              client,
+              { productIds: parsedArgs._.slice(2) },
+              jsonOutput
+            );
+          default:
+            if (!subSubCommand) {
+              console.log("Usage: catalog product <command>");
+            } else {
+              console.log(`❌ Unknown catalog product command: ${subSubCommand}`);
+            }
+            console.log("Commands: create, update, delete");
+            return false;
+        }
+
+      default:
+        if (!subCommand) {
+          console.log("Usage: catalog <command>");
+        } else {
+          console.log(`❌ Unknown catalog command: ${subCommand}`);
+        }
+        console.log("Commands: list, collections, product (create|update|delete)");
+        return false;
+    }
   }
 
   // Load commands
@@ -403,7 +789,12 @@ export async function runCommand(
           jsonOutput
         );
       default:
-        console.log(`❌ Unknown load command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: load <command>");
+        } else {
+          console.log(`❌ Unknown load command: ${subCommand}`);
+        }
+        console.log("Commands: messages");
         return false;
     }
   }

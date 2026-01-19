@@ -28,7 +28,11 @@ export {
   cmdSendText,
   cmdSendImage,
   cmdSendDocument,
+  cmdSendVideo,
+  cmdSendAudio,
 } from "./send.js";
+
+export { cmdMediaDownload } from "./media.js";
 
 export {
   cmdGroupList,
@@ -52,3 +56,34 @@ export {
 export {
   cmdCheck,
 } from "./misc.js";
+
+export {
+  cmdContactList,
+  cmdContactInfo,
+  cmdContactBusiness,
+  cmdContactPicture,
+  cmdContactAdd,
+  cmdContactRemove,
+} from "./contact.js";
+
+export {
+  cmdProfilePictureSet,
+  cmdProfilePictureRemove,
+  cmdProfileNameSet,
+  cmdProfileStatusSet,
+} from "./profile.js";
+
+export {
+  cmdLabelAdd,
+  cmdLabelChats,
+  cmdLabelChatAdd,
+  cmdLabelChatRemove,
+} from "./label.js";
+
+export {
+  cmdCatalogList,
+  cmdCatalogCollections,
+  cmdCatalogProductCreate,
+  cmdCatalogProductUpdate,
+  cmdCatalogProductDelete,
+} from "./catalog.js";

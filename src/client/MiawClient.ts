@@ -190,6 +190,8 @@ export class MiawClient extends EventEmitter {
   private chatsStore: Map<string, ChatInfo> = new Map();
   private messagesStore: Map<string, MiawMessage[]> = new Map();
   private labelsStore: Map<string, Label> = new Map();
+  // Store label-chat associations (labelId -> Set of chatJids)
+  private labelChatsStore: Map<string, Set<string>> = new Map();
   // Track pending history fetch requests for loadMoreMessages
   private pendingHistoryRequests: Map<string, {
     jid: string;
@@ -598,12 +600,24 @@ export class MiawClient extends EventEmitter {
       }
     });
 
-    // Debug listener for labels.association (chat/message label associations)
-    this.socket.ev.on("labels.association", (association: any) => {
-      if (this.options.debug) {
-        this.logger.debug("\n========== LABEL ASSOCIATION ==========");
-        this.logger.debug(JSON.stringify(association, null, 2));
-        this.logger.debug("=======================================\n");
+    // Handle label-chat associations
+    this.socket.ev.on("labels.association", ({ association, type }: { association: any; type: "add" | "remove" }) => {
+      // Only handle chat-level associations (not message-level)
+      if (association.type === "label_jid") {
+        const { labelId, chatId } = association;
+
+        if (type === "add") {
+          if (!this.labelChatsStore.has(labelId)) {
+            this.labelChatsStore.set(labelId, new Set());
+          }
+          this.labelChatsStore.get(labelId)!.add(chatId);
+        } else if (type === "remove") {
+          this.labelChatsStore.get(labelId)?.delete(chatId);
+        }
+
+        if (this.options.debug) {
+          this.logger.debug(`Label association: ${type} chat ${chatId} ${type === "add" ? "to" : "from"} label ${labelId}`);
+        }
       }
     });
   }
@@ -838,7 +852,6 @@ export class MiawClient extends EventEmitter {
   private updateContactsStore(contacts: any[]): void {
     for (const contact of contacts) {
       let jid = contact.id;
-      let phone: string | undefined;
 
       // Baileys v7: Use phoneNumber when id is LID
       if (jid?.endsWith("@lid") && contact.phoneNumber) {
@@ -850,7 +863,7 @@ export class MiawClient extends EventEmitter {
       if (!jid) continue;
 
       // Extract phone number from JID
-      phone = jid.endsWith("@s.whatsapp.net")
+      const phone = jid.endsWith("@s.whatsapp.net")
         ? jid.replace("@s.whatsapp.net", "")
         : undefined;
 
@@ -2000,6 +2013,34 @@ export class MiawClient extends EventEmitter {
         error: (error as Error).message,
       };
     }
+  }
+
+  /**
+   * Get chats that have a specific label
+   * @param labelId - Label ID to query
+   * @returns Array of ChatInfo for chats with this label
+   */
+  public getChatsByLabel(labelId: string): ChatInfo[] {
+    const chatJids = this.labelChatsStore.get(labelId);
+    if (!chatJids || chatJids.size === 0) {
+      return [];
+    }
+
+    const chats: ChatInfo[] = [];
+    for (const jid of chatJids) {
+      const chat = this.chatsStore.get(jid);
+      if (chat) {
+        chats.push(chat);
+      } else {
+        // Chat not in store, create minimal info
+        chats.push({
+          jid,
+          phone: jid.replace(/@s\.whatsapp\.net$/, ""),
+          isGroup: jid.endsWith("@g.us"),
+        });
+      }
+    }
+    return chats;
   }
 
   /**

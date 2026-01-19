@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-20
+
+**CLI Major Expansion** - Business features, contact/profile management, and complete messaging commands
+
+### Added
+
+#### CLI Messaging Commands
+
+- `send video <phone> <path>` - Send video files with optional caption
+  - `--caption` - Add caption to video
+  - `--gif` - Send as GIF (loops, no audio)
+  - `--ptv` - Send as video note (circular format)
+- `send audio <phone> <path>` - Send audio files
+  - `--ptt` - Send as voice note (push-to-talk)
+- `media download <jid> <messageId> <output>` - Download media from messages
+
+#### CLI Business Commands
+
+- `label add <name> [--color <color>]` - Create or edit labels
+- `label chats <labelId>` - List chats with a specific label
+- `label chat add <jid> <labelId>` - Add label to a chat
+- `label chat remove <jid> <labelId>` - Remove label from a chat
+- `catalog list [jid]` - List products in catalog
+- `catalog collections [jid]` - List catalog collections
+- `catalog product create <name> <price> <currency>` - Create a product
+- `catalog product update <productId>` - Update a product
+- `catalog product delete <productId>` - Delete a product
+
+#### CLI Contact Commands
+
+- `contact list` - List all contacts
+- `contact info <jid>` - Get contact information
+- `contact business <jid>` - Get business profile
+- `contact picture <jid>` - Get profile picture URL
+- `contact add <phone> <name>` - Add a contact
+- `contact remove <phone>` - Remove a contact
+
+#### CLI Profile Commands
+
+- `profile picture set <path>` - Set profile picture
+- `profile picture remove` - Remove profile picture
+- `profile name set <name>` - Set display name
+- `profile status set <status>` - Set status message
+
+### Changed
+
+- **Help system** - Added topic-specific help sub-commands (`help send`, `help group`, etc.)
+- **Autocomplete** - Enhanced tab completion for all new commands and flags
+- **CLI statistics** - 63 commands implemented (up from 60), 59% coverage
+
+---
+
 ## [1.1.0] - 2026-01-02
 
 **Baileys v7 Migration** - ESM-only release with improved session stability

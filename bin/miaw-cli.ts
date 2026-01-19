@@ -77,86 +77,37 @@ USAGE:
 
 GLOBAL FLAGS:
   --instance-id <id>                          Instance ID (default: "default")
-  --session-path <path>                       Session directory (default: "./sessions-cli")
+  --session-path <path>                       Session directory
   --json                                      Output as JSON
   --debug                                     Enable verbose logging
-  --help                                      Show this help message
 
 COMMANDS:
+  instance    Manage instances (ls, status, create, delete, connect, disconnect, logout)
+  get         Fetch data (profile, contacts, groups, chats, messages, labels)
+  load        Load older messages from history
+  send        Send messages (text, image, document)
+  group       Group management (list, info, participants, invite, settings)
+  check       Check if phone numbers are on WhatsApp
+  contact     Contact management (list, info, business, picture, add, remove)
+  profile     Profile management (picture, name, status)
+  label       Label management - WhatsApp Business (list, chats, add, chat)
+  catalog     Catalog management - WhatsApp Business (list, collections, product)
 
-INSTANCE MANAGEMENT:
-  instance ls                                 List all instances
-  instance status [id]                        Show connection status
-  instance create <id>                        Create new instance
-  instance delete <id>                        Delete instance
-  instance connect <id>                       Connect instance
-  instance disconnect <id>                    Disconnect instance
-  instance logout <id>                        Logout and clear session
-
-GET OPERATIONS:
-  get profile [jid]                           Get profile (own or contact)
-  get contacts [options]                      List all contacts
-  get groups [options]                        List all groups
-  get chats [options]                         List all chats
-  get messages <jid> [options]                Get chat messages
-  get labels                                  List labels/lists
-
-  Options: --limit N, --filter TEXT (case-insensitive search)
-
-LOAD OPERATIONS:
-  load messages <jid> [--count N]             Load older messages (default: 50)
-
-SEND OPERATIONS:
-  send text <phone> <message>                 Send text message
-  send image <phone> <path>                   Send image
-  send document <phone> <path>                Send document
-
-GROUP OPERATIONS:
-  group list [options]                        List all groups
-  group info <jid>                            Get group details
-  group participants <jid> [options]          List members (with phone/name)
-  group participants add <jid> <phones>       Add members to group
-  group participants remove <jid> <phones>    Remove members from group
-  group participants promote <jid> <phones>   Promote members to admin
-  group participants demote <jid> <phones>    Demote admins to member
-  group invite-link <jid>                     Get invite link
-  group invite accept <code>                  Join group via invite code
-  group invite revoke <jid>                   Revoke and get new invite link
-  group invite info <code>                    Get group info from invite code
-  group create <name> <phones..>              Create new group
-  group leave <jid>                           Leave a group
-  group name set <jid> <name>                 Update group name
-  group description set <jid> [desc]          Update group description
-  group picture set <jid> <path>              Update group picture
-
-  Options: --limit N, --filter TEXT (case-insensitive search)
-
-UTILITY:
-  check <phone>                               Check if number on WhatsApp
-  check <phone1> <phone2>                     Batch check numbers
-
-REPL COMMANDS (interactive mode):
-  help                                        Show all commands
-  status                                      Show connection status
-  use <instance-id>                           Switch active instance
-  connect [id]                                Connect to WhatsApp
-  disconnect [id]                             Disconnect from WhatsApp
-  debug [on|off]                              Toggle debug mode
-  instances, ls                               List all instances
-  exit, quit                                  Exit REPL
+COMMON OPTIONS:
+  --limit N                                   Limit number of results
+  --filter TEXT                               Filter by name/phone (case-insensitive)
 
 EXAMPLES:
-  miaw-cli get groups --limit 10
-  miaw-cli get contacts --filter john
-  miaw-cli get chats --filter 628
-  miaw-cli get profile 6281234567890
+  miaw-cli get contacts --limit 10 --filter john
   miaw-cli send text 6281234567890 "Hello"
-  miaw-cli load messages 6281234567890@s.whatsapp.net
-  miaw-cli check 6281234567890
-  miaw-cli group list --filter family
-  miaw-cli group participants 120363039902323086@g.us
+  miaw-cli group participants add 120363xxx@g.us 628xxx
+  miaw-cli contact add 6281234567890 "John Doe"
 
-For more information: https://github.com/biji-dev/miaw-core
+REPL MODE:
+  Run 'miaw-cli' without arguments to start interactive mode.
+  In REPL, use 'help <command>' for detailed help on each command.
+
+For detailed documentation: https://github.com/biji-dev/miaw-core/blob/main/docs/CLI.md
 `);
 }
 
