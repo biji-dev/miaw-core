@@ -9,15 +9,15 @@
 
 ## Executive Summary
 
-The current miaw-cli implements **42 commands** covering basic WhatsApp operations. miaw-core exposes **102+ public methods** across 10 feature categories. This analysis identifies **64 missing CLI commands** (approximately **60% coverage gap**) and provides a phased roadmap for CLI enhancement.
+The current miaw-cli implements **60 commands** covering basic WhatsApp operations. miaw-core exposes **102+ public methods** across 10 feature categories. This analysis identifies **47 missing CLI commands** (approximately **44% coverage gap**) and provides a phased roadmap for CLI enhancement.
 
 ### Key Metrics
 
 | Metric | Current | Potential | Gap |
 |--------|---------|-----------|-----|
 | **Total Methods** | 102+ | 102+ | - |
-| **CLI Commands** | 42 | ~102 | **64 (60%)** |
-| **Feature Categories** | 6/10 | 10 | **4 (40%)** |
+| **CLI Commands** | 60 | ~102 | **47 (44%)** |
+| **Feature Categories** | 8/10 | 10 | **2 (20%)** |
 
 ---
 
@@ -72,11 +72,11 @@ The current miaw-cli implements **42 commands** covering basic WhatsApp operatio
 |---|---------|------------------|------------------|-------------|----------|----------|
 | 29 | Check phone number | `checkNumber()` | ✅ Test | ✅ `check <phone>` | Misc | - |
 | 30 | Batch check numbers | `checkNumbers()` | ✅ Test | ✅ `check <phone1> <phone2>` | Misc | - |
-| 31 | Get contact info | `getContactInfo()` | ✅ Test | ❌ | Contact | **P0** |
-| 32 | Get business profile | `getBusinessProfile()` | ✅ Test | ❌ | Contact | **P0** |
-| 33 | Get profile picture | `getProfilePicture()` | ✅ Test | ❌ | Contact | **P0** |
-| 34 | Add/edit contact | `addOrEditContact()` | ✅ Test | ❌ | Contact | **P0** |
-| 35 | Remove contact | `removeContact()` | ✅ Test | ❌ | Contact | **P0** |
+| 31 | Get contact info | `getContactInfo()` | ✅ Test | ✅ `contact info <phone>` | Contact | - |
+| 32 | Get business profile | `getBusinessProfile()` | ✅ Test | ✅ `contact business <phone>` | Contact | - |
+| 33 | Get profile picture | `getProfilePicture()` | ✅ Test | ✅ `contact picture <phone>` | Contact | - |
+| 34 | Add/edit contact | `addOrEditContact()` | ✅ Test | ✅ `contact add <phone> <name>` | Contact | - |
+| 35 | Remove contact | `removeContact()` | ✅ Test | ✅ `contact remove <phone>` | Contact | - |
 |
 | **Group Management** |
 |---|---------|------------------|------------------|-------------|----------|----------|
@@ -99,10 +99,10 @@ The current miaw-cli implements **42 commands** covering basic WhatsApp operatio
 |
 | **Profile Management** |
 |---|---------|------------------|------------------|-------------|----------|----------|
-| 51 | Update profile picture | `updateProfilePicture()` | ✅ Test | ❌ | Profile | **P0** |
-| 52 | Remove profile picture | `removeProfilePicture()` | ✅ Test | ❌ | Profile | **P0** |
-| 53 | Update profile name | `updateProfileName()` | ✅ Test | ❌ | Profile | **P0** |
-| 54 | Update profile status | `updateProfileStatus()` | ✅ Test | ❌ | Profile | **P0** |
+| 51 | Update profile picture | `updateProfilePicture()` | ✅ Test | ✅ `profile picture set <path>` | Profile | - |
+| 52 | Remove profile picture | `removeProfilePicture()` | ✅ Test | ✅ `profile picture remove` | Profile | - |
+| 53 | Update profile name | `updateProfileName()` | ✅ Test | ✅ `profile name set <name>` | Profile | - |
+| 54 | Update profile status | `updateProfileStatus()` | ✅ Test | ✅ `profile status set <status>` | Profile | - |
 |
 | **Presence & UX Features** |
 |---|---------|------------------|------------------|-------------|----------|----------|
@@ -187,9 +187,9 @@ The current miaw-cli implements **42 commands** covering basic WhatsApp operatio
 | **Basic GET Operations** | 6 | 6 | 0 | **100%** ✅ |
 | **Basic Messaging** | 6 | 3 | 3 | 50% |
 | **Advanced Messaging** | 6 | 0 | 6 | **0%** ❌ |
-| **Contact & Validation** | 7 | 2 | 5 | 29% |
+| **Contact & Validation** | 7 | 7 | 0 | **100%** ✅ |
 | **Group Management** | 16 | 16 | 0 | **100%** ✅ |
-| **Profile Management** | 4 | 0 | 4 | **0%** ❌ |
+| **Profile Management** | 4 | 4 | 0 | **100%** ✅ |
 | **Presence & UX** | 6 | 0 | 6 | **0%** ❌ |
 | **Business - Labels** | 5 | 3 | 2 | 60% |
 | **Business - Catalog** | 5 | 5 | 0 | **100%** ✅ |
@@ -197,34 +197,19 @@ The current miaw-cli implements **42 commands** covering basic WhatsApp operatio
 | **LID/Privacy** | 6 | 0 | 6 | **0%** ❌ |
 | **Debug Mode** | 4 | 4 (REPL) | 0 | **100%** ✅ |
 | **REPL Features** | 5 | 5 (REPL) | 0 | **100%** ✅ |
-| **TOTAL** | **107** | **51** | **56** | **48%** |
+| **TOTAL** | **107** | **60** | **47** | **56%** |
 
 ---
 
 ## Missing CLI Commands by Priority
 
-### 🔴 Priority 0 (P0) - Essential Core Features (15 missing)
+### 🔴 Priority 0 (P0) - Essential Core Features (3 missing)
 
 | # | Feature | miaw-core Method | Proposed CLI Command |
 |---|---------|------------------|---------------------|
 | **Basic Messaging (2)** |
 | 20 | Send video | `sendVideo()` | `send video <phone> <path> [caption]` |
 | 21 | Send audio | `sendAudio()` | `send audio <phone> <path>` |
-| **Contact Operations (5)** |
-| 31 | Get contact info | `getContactInfo()` | `contact info <phone>` |
-| 32 | Get business profile | `getBusinessProfile()` | `contact business <phone>` |
-| 33 | Get profile picture | `getProfilePicture()` | `contact picture <phone> [high]` |
-| 34 | Add/edit contact | `addOrEditContact()` | `contact add <phone> <name>` |
-| 35 | Remove contact | `removeContact()` | `contact remove <phone>` |
-| **Profile Management (4)** |
-| 51 | Update picture | `updateProfilePicture()` | `profile picture set <path>` |
-| 52 | Remove picture | `removeProfilePicture()` | `profile picture remove` |
-| 53 | Update name | `updateProfileName()` | `profile name set <name>` |
-| 54 | Update status | `updateProfileStatus()` | `profile status set <status>` |
-| **Business Labels - Chat (3)** |
-| 61 | Create label | `addLabel()` | `label add <name> [color]` |
-| 62 | Add to chat | `addChatLabel()` | `label chat add <jid> <labelId>` |
-| 63 | Remove from chat | `removeChatLabel()` | `label chat remove <jid> <labelId>` |
 | **Other (1)** |
 | 22 | Download media | `downloadMedia()` | `media download <jid> <msgId> <path>` |
 
@@ -413,7 +398,7 @@ src/cli/commands/
 
 ## Conclusion
 
-The current miaw-cli provides a solid foundation with **51 commands** (including REPL-only features). There is a **52% coverage gap** with **56 missing CLI commands** out of 107 total features.
+The current miaw-cli provides a solid foundation with **60 commands** (including REPL-only features). There is a **44% coverage gap** with **47 missing CLI commands** out of 107 total features.
 
 **Key Findings:**
 
@@ -421,16 +406,16 @@ The current miaw-cli provides a solid foundation with **51 commands** (including
 2. **Group Management** is 100% complete ✅ (16/16 commands)
 3. **Debug & REPL features** are 100% complete ✅
 4. **Business Catalog** is 100% complete ✅ (5/5 commands)
-5. **Business Labels (Chat)** has 60% coverage (3/5 commands - message labels pending)
-6. **Advanced Messaging** has 0% coverage ❌ (6 missing - P1)
-7. **Profile Management** has 0% coverage ❌ (4 missing - P0)
-8. **Presence & UX** has 0% coverage ❌ (6 missing - P1)
-9. **Contact Operations** has 29% coverage ⚠️ (5 missing - P0)
+5. **Contact & Validation** is 100% complete ✅ (7/7 commands)
+6. **Profile Management** is 100% complete ✅ (4/4 commands)
+7. **Business Labels (Chat)** has 60% coverage (3/5 commands - message labels pending)
+8. **Advanced Messaging** has 0% coverage ❌ (6 missing - P1)
+9. **Presence & UX** has 0% coverage ❌ (6 missing - P1)
 10. **Newsletter** has 0% coverage ❌ (21 missing - P2)
 
 **Recommended Action Plan:**
 
-1. **Phase 1 (Immediate):** Implement remaining P0 essential commands (contact operations, profile management)
+1. **Phase 1 (Immediate):** ✅ COMPLETE - Contact operations and profile management implemented
 2. **Phase 2 (Short-term):** Add P1 common use case commands (advanced messaging, presence, message labels)
 3. **Phase 3 (Medium-term):** Complete newsletter features with 21 P2 commands
 4. **Phase 4 (Long-term):** Add P3 advanced power-user features (LID/privacy, instance utilities)

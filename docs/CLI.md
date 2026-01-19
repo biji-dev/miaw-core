@@ -529,6 +529,225 @@ npx miaw-cli check 6281234567890 --json
 ✅ 2/3 numbers are on WhatsApp
 ```
 
+### Contact Operations
+
+Manage and query contacts.
+
+#### List Contacts
+
+```bash
+npx miaw-cli contact list [--limit N] [--filter <text>]
+```
+
+**Examples:**
+```bash
+# List all contacts
+npx miaw-cli contact list
+
+# Limit to 10 contacts
+npx miaw-cli contact list --limit 10
+
+# Filter by name or phone
+npx miaw-cli contact list --filter john
+
+# JSON output
+npx miaw-cli contact list --json
+```
+
+**Output:**
+```
+📇 Contacts (150):
+
+┌─────────────────────────┬─────────────────┬───────────────────┐
+│ JID                     │ Phone           │ Name              │
+├─────────────────────────┼─────────────────┼───────────────────┤
+│ 6281234567890@s.whats... │ 6281234567890   │ John Doe          │
+│ 6289876543210@s.whats... │ 6289876543210   │ Jane Smith        │
+└─────────────────────────┴─────────────────┴───────────────────┘
+```
+
+#### Get Contact Info
+
+```bash
+npx miaw-cli contact info <phone>
+```
+
+**Example:**
+```bash
+npx miaw-cli contact info 6281234567890
+```
+
+**Output:**
+```
+📇 Contact Info
+┌─────────────────┬──────────────────────────────────────────┐
+│ Key             │ Value                                   │
+├─────────────────┼──────────────────────────────────────────┤
+│ jid             │ 6281234567890@s.whatsapp.net            │
+│ phone           │ 6281234567890                           │
+│ name            │ John Doe                                │
+│ status          │ Available                               │
+└─────────────────┴──────────────────────────────────────────┘
+```
+
+#### Get Business Profile
+
+```bash
+npx miaw-cli contact business <phone>
+```
+
+**Example:**
+```bash
+npx miaw-cli contact business 6281234567890
+```
+
+**Output:**
+```
+🏢 Business Profile
+┌─────────────────┬──────────────────────────────────────────┐
+│ Key             │ Value                                   │
+├─────────────────┼──────────────────────────────────────────┤
+│ jid             │ 6281234567890@s.whatsapp.net            │
+│ description     │ Your trusted partner                    │
+│ category        │ Retail                                  │
+│ email           │ contact@business.com                    │
+│ website         │ https://business.com                    │
+└─────────────────┴──────────────────────────────────────────┘
+```
+
+**Note:** Returns error if the contact is not a business account.
+
+#### Get Profile Picture
+
+```bash
+npx miaw-cli contact picture <phone> [--high]
+```
+
+**Parameters:**
+- `--high`: Get high resolution picture (optional)
+
+**Examples:**
+```bash
+# Get standard resolution
+npx miaw-cli contact picture 6281234567890
+
+# Get high resolution
+npx miaw-cli contact picture 6281234567890 --high
+```
+
+**Output:**
+```
+✅ Profile Picture URL
+https://pps.whatsapp.net/v/t61.24694-24/...
+```
+
+#### Add/Edit Contact
+
+```bash
+npx miaw-cli contact add <phone> <name> [--first <firstName>] [--last <lastName>]
+```
+
+**Parameters:**
+- `phone`: Phone number in international format
+- `name`: Full display name
+- `--first`: First name (optional)
+- `--last`: Last name (optional)
+
+**Examples:**
+```bash
+# Add with full name
+npx miaw-cli contact add 6281234567890 "John Doe"
+
+# Add with first and last name
+npx miaw-cli contact add 6281234567890 "John Doe" --first John --last Doe
+```
+
+**Output:**
+```
+✅ Contact saved: John Doe (6281234567890)
+```
+
+#### Remove Contact
+
+```bash
+npx miaw-cli contact remove <phone>
+```
+
+**Example:**
+```bash
+npx miaw-cli contact remove 6281234567890
+```
+
+**Output:**
+```
+✅ Contact removed: 6281234567890
+```
+
+### Profile Operations
+
+Manage your own WhatsApp profile.
+
+#### Set Profile Picture
+
+```bash
+npx miaw-cli profile picture set <path>
+```
+
+**Example:**
+```bash
+npx miaw-cli profile picture set ./avatar.jpg
+```
+
+**Output:**
+```
+✅ Profile picture updated
+```
+
+**Supported formats:** JPEG, PNG
+
+#### Remove Profile Picture
+
+```bash
+npx miaw-cli profile picture remove
+```
+
+**Output:**
+```
+✅ Profile picture removed
+```
+
+#### Set Display Name
+
+```bash
+npx miaw-cli profile name set <name>
+```
+
+**Example:**
+```bash
+npx miaw-cli profile name set "My Bot"
+```
+
+**Output:**
+```
+✅ Profile name updated to: My Bot
+```
+
+#### Set Status/About Text
+
+```bash
+npx miaw-cli profile status set <status>
+```
+
+**Example:**
+```bash
+npx miaw-cli profile status set "Available 24/7"
+```
+
+**Output:**
+```
+✅ Profile status updated to: Available 24/7
+```
+
 ### Label Commands (WhatsApp Business Only)
 
 Manage labels for organizing chats.
