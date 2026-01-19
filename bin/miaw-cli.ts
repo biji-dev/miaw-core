@@ -135,6 +135,22 @@ UTILITY:
   check <phone>                               Check if number on WhatsApp
   check <phone1> <phone2>                     Batch check numbers
 
+CONTACT OPERATIONS:
+  contact list [options]                      List all contacts
+  contact info <phone>                        Get contact info
+  contact business <phone>                    Get business profile
+  contact picture <phone> [--high]            Get profile picture URL
+  contact add <phone> <name> [options]        Add/edit contact
+  contact remove <phone>                      Remove contact
+
+  Options: --limit N, --filter TEXT, --first <firstName>, --last <lastName>
+
+PROFILE OPERATIONS:
+  profile picture set <path>                  Set profile picture
+  profile picture remove                      Remove profile picture
+  profile name set <name>                     Set display name
+  profile status set <status>                 Set status/about text
+
 LABEL OPERATIONS (WhatsApp Business):
   label list                                  List all labels
   label chats <labelId>                       List chats with this label
@@ -172,6 +188,11 @@ EXAMPLES:
   miaw-cli send text 6281234567890 "Hello"
   miaw-cli load messages 6281234567890@s.whatsapp.net
   miaw-cli check 6281234567890
+  miaw-cli contact list --limit 10
+  miaw-cli contact info 6281234567890
+  miaw-cli contact add 6281234567890 "John Doe"
+  miaw-cli profile name set "My Bot"
+  miaw-cli profile status set "Available"
   miaw-cli group list --filter family
   miaw-cli group participants 120363039902323086@g.us
   miaw-cli label list

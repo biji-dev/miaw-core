@@ -73,6 +73,18 @@ const commandTree: Record<string, CommandNode> = {
     flags: ["--count"],
   },
   check: {},
+  contact: {
+    subcommands: ["list", "ls", "info", "business", "picture", "add", "remove"],
+    flags: ["--limit", "--filter", "--json", "--high", "--first", "--last"],
+  },
+  profile: {
+    subcommands: ["picture", "name", "status"],
+    nestedSubcommands: {
+      picture: ["set", "remove"],
+      name: ["set"],
+      status: ["set"],
+    },
+  },
   label: {
     subcommands: ["list", "chats", "add", "chat"],
     nestedSubcommands: {
@@ -610,6 +622,22 @@ UTILITY:
   check <phone>                               Check if number on WhatsApp
   check <phone1> <phone2>                     Batch check numbers
 
+CONTACT OPERATIONS:
+  contact list [options]                      List all contacts
+  contact info <phone>                        Get contact info
+  contact business <phone>                    Get business profile
+  contact picture <phone> [--high]            Get profile picture URL
+  contact add <phone> <name> [options]        Add/edit contact
+  contact remove <phone>                      Remove contact
+
+  Options: --limit N, --filter TEXT, --first <firstName>, --last <lastName>
+
+PROFILE OPERATIONS:
+  profile picture set <path>                  Set profile picture
+  profile picture remove                      Remove profile picture
+  profile name set <name>                     Set display name
+  profile status set <status>                 Set status/about text
+
 LABEL OPERATIONS (WhatsApp Business):
   label list                                  List all labels
   label chats <labelId>                       List chats with this label
@@ -637,6 +665,11 @@ EXAMPLES:
   send text 6281234567890 "Hello"
   load messages 6281234567890@s.whatsapp.net
   check 6281234567890
+  contact list --limit 10 --filter john
+  contact info 6281234567890
+  contact add 6281234567890 "John Doe" --first John --last Doe
+  profile name set "My Bot Name"
+  profile status set "Hello, I'm a bot"
   group list --filter family
   group participants 120363039902323086@g.us --limit 10
   label list
