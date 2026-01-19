@@ -129,3 +129,100 @@ export async function cmdSendDocument(
   );
   return false;
 }
+
+/**
+ * Send video
+ */
+export async function cmdSendVideo(
+  client: MiawClient,
+  args: {
+    phone: string;
+    path: string;
+    caption?: string;
+    gif?: boolean;
+    ptv?: boolean;
+  }
+): Promise<boolean> {
+  const result = await ensureConnected(client);
+  if (!result.success) {
+    console.log(`❌ Not connected: ${result.reason}`);
+    return false;
+  }
+
+  // Check if file exists
+  if (!fs.existsSync(args.path)) {
+    console.log(`❌ File not found: ${args.path}`);
+    return false;
+  }
+
+  const mediaType = args.ptv ? "video note" : args.gif ? "GIF" : "video";
+  console.log(`📤 Sending ${mediaType} to ${args.phone}...`);
+
+  const options: { caption?: string; gifPlayback?: boolean; ptv?: boolean } =
+    {};
+  if (args.caption) options.caption = args.caption;
+  if (args.gif) options.gifPlayback = true;
+  if (args.ptv) options.ptv = true;
+
+  const sendResult = await client.sendVideo(args.phone, args.path, options);
+
+  if (sendResult.success) {
+    console.log(
+      formatMessage(
+        true,
+        `${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} sent successfully`,
+        `Message ID: ${sendResult.messageId}`
+      )
+    );
+    return true;
+  }
+
+  console.log(
+    formatMessage(false, `Failed to send ${mediaType}`, sendResult.error)
+  );
+  return false;
+}
+
+/**
+ * Send audio
+ */
+export async function cmdSendAudio(
+  client: MiawClient,
+  args: { phone: string; path: string; ptt?: boolean }
+): Promise<boolean> {
+  const result = await ensureConnected(client);
+  if (!result.success) {
+    console.log(`❌ Not connected: ${result.reason}`);
+    return false;
+  }
+
+  // Check if file exists
+  if (!fs.existsSync(args.path)) {
+    console.log(`❌ File not found: ${args.path}`);
+    return false;
+  }
+
+  const mediaType = args.ptt ? "voice note" : "audio";
+  console.log(`📤 Sending ${mediaType} to ${args.phone}...`);
+
+  const options: { ptt?: boolean } = {};
+  if (args.ptt) options.ptt = true;
+
+  const sendResult = await client.sendAudio(args.phone, args.path, options);
+
+  if (sendResult.success) {
+    console.log(
+      formatMessage(
+        true,
+        `${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} sent successfully`,
+        `Message ID: ${sendResult.messageId}`
+      )
+    );
+    return true;
+  }
+
+  console.log(
+    formatMessage(false, `Failed to send ${mediaType}`, sendResult.error)
+  );
+  return false;
+}
