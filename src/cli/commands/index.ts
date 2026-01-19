@@ -48,6 +48,7 @@ import {
   cmdCheck,
   // Label commands (Business)
   cmdLabelAdd,
+  cmdLabelChats,
   cmdLabelChatAdd,
   cmdLabelChatRemove,
   // Catalog commands (Business)
@@ -420,6 +421,18 @@ export async function runCommand(
           jsonOutput
         );
 
+      case "chats":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli label chats <labelId>");
+          console.log("   Use 'label list' to see available labels");
+          return false;
+        }
+        return await cmdLabelChats(
+          client,
+          { labelId: parsedArgs._[1] },
+          jsonOutput
+        );
+
       case "chat":
         switch (subSubCommand) {
           case "add":
@@ -453,6 +466,7 @@ export async function runCommand(
         console.log(`❌ Unknown label command: ${subCommand}`);
         console.log("Available commands:");
         console.log("   label list                          List all labels");
+        console.log("   label chats <labelId>               List chats with this label");
         console.log("   label add <name> <color>            Create a new label");
         console.log("   label chat add <jid> <labelId>      Add label to chat");
         console.log("   label chat remove <jid> <labelId>   Remove label from chat");

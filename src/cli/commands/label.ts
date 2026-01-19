@@ -7,6 +7,7 @@
 import { MiawClient } from "../../index.js";
 import { LabelColor } from "../../types/index.js";
 import { ensureConnected } from "../utils/session.js";
+import { formatTable, formatJson } from "../utils/formatter.js";
 
 /**
  * Color name to LabelColor mapping
@@ -198,4 +199,61 @@ export async function cmdLabelChatRemove(
   }
 
   return removeResult.success;
+}
+
+/**
+ * List chats that have a specific label
+ *
+ * Usage: label chats <labelId>
+ */
+export async function cmdLabelChats(
+  client: MiawClient,
+  args: { labelId: string },
+  jsonOutput: boolean
+): Promise<boolean> {
+  const result = await ensureConnected(client);
+  if (!result.success) {
+    console.log(`❌ Not connected: ${result.reason}`);
+    return false;
+  }
+
+  if (!args.labelId) {
+    console.log("❌ Usage: label chats <labelId>");
+    console.log("   Use 'label list' to see available labels");
+    return false;
+  }
+
+  const chats = client.getChatsByLabel(args.labelId);
+
+  if (jsonOutput) {
+    console.log(formatJson(chats));
+    return true;
+  }
+
+  if (chats.length === 0) {
+    console.log(`📭 No chats found with label ${args.labelId}`);
+    console.log("   Note: Label associations are populated via sync events.");
+    console.log("   Try adding/removing a label to trigger sync.");
+    return true;
+  }
+
+  console.log(`\n🏷️  Chats with label ${args.labelId} (${chats.length}):\n`);
+
+  const tableData = chats.map((c) => ({
+    jid: c.jid,
+    phone: c.phone || "-",
+    name: c.name || "-",
+    type: c.isGroup ? "Group" : "Individual",
+  }));
+
+  console.log(
+    formatTable(tableData, [
+      { key: "jid", label: "JID", width: 35 },
+      { key: "phone", label: "Phone", width: 15 },
+      { key: "name", label: "Name", width: 20 },
+      { key: "type", label: "Type", width: 12 },
+    ])
+  );
+
+  return true;
 }

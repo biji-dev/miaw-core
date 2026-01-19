@@ -55,6 +55,7 @@ export {
 
 export {
   cmdLabelAdd,
+  cmdLabelChats,
   cmdLabelChatAdd,
   cmdLabelChatRemove,
 } from "./label.js";
