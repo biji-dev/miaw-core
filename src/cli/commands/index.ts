@@ -148,7 +148,13 @@ export async function runCommand(
           clientConfig.instanceId
         );
       default:
-        console.log(`❌ Unknown instance command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: instance <command>");
+          console.log("Commands: ls, status, create, delete, connect, disconnect, logout");
+        } else {
+          console.log(`❌ Unknown instance command: ${subCommand}`);
+          console.log("Commands: ls, status, create, delete, connect, disconnect, logout");
+        }
         return false;
     }
   }
@@ -182,7 +188,13 @@ export async function runCommand(
       case "labels":
         return await cmdGetLabels(client, jsonOutput);
       default:
-        console.log(`❌ Unknown get command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: get <command>");
+          console.log("Commands: profile, contacts, groups, chats, messages, labels");
+        } else {
+          console.log(`❌ Unknown get command: ${subCommand}`);
+          console.log("Commands: profile, contacts, groups, chats, messages, labels");
+        }
         return false;
     }
   }
@@ -222,7 +234,13 @@ export async function runCommand(
           caption: parsedArgs._[3],
         });
       default:
-        console.log(`❌ Unknown send command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: send <command> <phone> <message|path>");
+          console.log("Commands: text, image, document");
+        } else {
+          console.log(`❌ Unknown send command: ${subCommand}`);
+          console.log("Commands: text, image, document");
+        }
         return false;
     }
   }
@@ -397,7 +415,13 @@ export async function runCommand(
         return false;
 
       default:
-        console.log(`❌ Unknown group command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: group <command>");
+          console.log("Commands: list, info, create, leave, participants, invite, invite-link, name, description, picture");
+        } else {
+          console.log(`❌ Unknown group command: ${subCommand}`);
+          console.log("Commands: list, info, create, leave, participants, invite, invite-link, name, description, picture");
+        }
         return false;
     }
   }
@@ -461,14 +485,12 @@ export async function runCommand(
         return await cmdContactRemove(client, { phone: parsedArgs._[1] });
 
       default:
-        console.log(`❌ Unknown contact command: ${subCommand}`);
-        console.log("Available commands:");
-        console.log("   contact list [--limit N] [--filter TEXT]   List all contacts");
-        console.log("   contact info <phone>                       Get contact info");
-        console.log("   contact business <phone>                   Get business profile");
-        console.log("   contact picture <phone> [--high]           Get profile picture URL");
-        console.log("   contact add <phone> <name>                 Add/edit contact");
-        console.log("   contact remove <phone>                     Remove contact");
+        if (!subCommand) {
+          console.log("Usage: contact <command>");
+        } else {
+          console.log(`❌ Unknown contact command: ${subCommand}`);
+        }
+        console.log("Commands: list, info, business, picture, add, remove");
         return false;
     }
   }
@@ -516,12 +538,12 @@ export async function runCommand(
         return false;
 
       default:
-        console.log(`❌ Unknown profile command: ${subCommand}`);
-        console.log("Available commands:");
-        console.log("   profile picture set <path>     Set profile picture");
-        console.log("   profile picture remove         Remove profile picture");
-        console.log("   profile name set <name>        Set display name");
-        console.log("   profile status set <status>    Set status/about text");
+        if (!subCommand) {
+          console.log("Usage: profile <command> <subcommand>");
+        } else {
+          console.log(`❌ Unknown profile command: ${subCommand}`);
+        }
+        console.log("Commands: picture (set|remove), name set, status set");
         return false;
     }
   }
@@ -583,20 +605,22 @@ export async function runCommand(
               jsonOutput
             );
           default:
-            console.log("❌ Unknown label chat command. Usage:");
-            console.log("   label chat add <jid> <labelId>      Add label to chat");
-            console.log("   label chat remove <jid> <labelId>   Remove label from chat");
+            if (!subSubCommand) {
+              console.log("Usage: label chat <command>");
+            } else {
+              console.log(`❌ Unknown label chat command: ${subSubCommand}`);
+            }
+            console.log("Commands: add, remove");
             return false;
         }
 
       default:
-        console.log(`❌ Unknown label command: ${subCommand}`);
-        console.log("Available commands:");
-        console.log("   label list                          List all labels");
-        console.log("   label chats <labelId>               List chats with this label");
-        console.log("   label add <name> <color>            Create a new label");
-        console.log("   label chat add <jid> <labelId>      Add label to chat");
-        console.log("   label chat remove <jid> <labelId>   Remove label from chat");
+        if (!subCommand) {
+          console.log("Usage: label <command>");
+        } else {
+          console.log(`❌ Unknown label command: ${subCommand}`);
+        }
+        console.log("Commands: list, chats, add, chat (add|remove)");
         return false;
     }
   }
@@ -676,21 +700,22 @@ export async function runCommand(
               jsonOutput
             );
           default:
-            console.log("❌ Unknown catalog product command. Usage:");
-            console.log("   catalog product create <name> <desc> <price> <currency>   Create product");
-            console.log("   catalog product update <productId> [options]              Update product");
-            console.log("   catalog product delete <productId> [productId...]         Delete products");
+            if (!subSubCommand) {
+              console.log("Usage: catalog product <command>");
+            } else {
+              console.log(`❌ Unknown catalog product command: ${subSubCommand}`);
+            }
+            console.log("Commands: create, update, delete");
             return false;
         }
 
       default:
-        console.log(`❌ Unknown catalog command: ${subCommand}`);
-        console.log("Available commands:");
-        console.log("   catalog list [--phone <phone>] [--limit <n>]              List products");
-        console.log("   catalog collections [--phone <phone>] [--limit <n>]       List collections");
-        console.log("   catalog product create <name> <desc> <price> <currency>   Create product");
-        console.log("   catalog product update <productId> [options]              Update product");
-        console.log("   catalog product delete <productId> [productId...]         Delete products");
+        if (!subCommand) {
+          console.log("Usage: catalog <command>");
+        } else {
+          console.log(`❌ Unknown catalog command: ${subCommand}`);
+        }
+        console.log("Commands: list, collections, product (create|update|delete)");
         return false;
     }
   }
@@ -711,7 +736,12 @@ export async function runCommand(
           jsonOutput
         );
       default:
-        console.log(`❌ Unknown load command: ${subCommand}`);
+        if (!subCommand) {
+          console.log("Usage: load <command>");
+        } else {
+          console.log(`❌ Unknown load command: ${subCommand}`);
+        }
+        console.log("Commands: messages");
         return false;
     }
   }

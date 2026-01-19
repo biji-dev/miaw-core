@@ -660,10 +660,8 @@ COMMANDS:
   instance disconnect <id>                    Disconnect instance
   instance logout <id>                        Logout and clear session
 
-EXAMPLES:
-  instance ls                                 List all instances
-  instance create my-bot && instance connect my-bot
-  instance status my-bot                      Check instance status
+EXAMPLE:
+  instance create my-bot                      Create and scan QR for new instance
 
 NOTES:
   - Each instance maintains its own WhatsApp session
@@ -694,11 +692,8 @@ OPTIONS:
   --filter TEXT                               Filter by name/phone (case-insensitive)
   --json                                      Output as JSON
 
-EXAMPLES:
-  get profile 6281234567890                   Get contact's profile
-  get contacts --limit 10 --filter john       Filter first 10 contacts
-  get groups --limit 5 --filter family        Filter first 5 groups
-  get messages 628xxx@s.whatsapp.net --limit 50
+EXAMPLE:
+  get contacts --limit 10 --filter john       Filter and limit results
 
 NOTES:
   - JID format: phone@s.whatsapp.net (individual), groupid@g.us (group)
@@ -720,7 +715,7 @@ COMMANDS:
 OPTIONS:
   --count N                                   Number of messages to load (default: 50)
 
-EXAMPLES:
+EXAMPLE:
   load messages 628xxx@s.whatsapp.net --count 100
 
 NOTES:
@@ -743,10 +738,8 @@ COMMANDS:
   send image <phone> <path> [caption]         Send image
   send document <phone> <path> [caption]      Send document
 
-EXAMPLES:
-  send text 6281234567890 "Hello World"
-  send image 6281234567890 ./photo.jpg "Caption here"
-  send document 6281234567890 ./report.pdf "Monthly Report"
+EXAMPLE:
+  send image 6281234567890 ./photo.jpg "Caption"
 
 NOTES:
   - Phone format: international without + (e.g., 6281234567890)
@@ -791,11 +784,8 @@ OPTIONS:
   --limit N                                   Limit number of results
   --filter TEXT                               Filter by name (case-insensitive)
 
-EXAMPLES:
-  group list --filter family                  Filter groups by name
-  group info 120363xxx@g.us                   Get group details
+EXAMPLE:
   group participants add 120363xxx@g.us 628xxx 628yyy
-  group create "Team" 628xxx 628yyy           Create group with members
 
 NOTES:
   - Group JID format: groupid@g.us
@@ -819,8 +809,8 @@ COMMANDS:
 OPTIONS:
   --json                                      Output as JSON
 
-EXAMPLES:
-  check 6281234567890 6289876543210 --json    Check multiple numbers
+EXAMPLE:
+  check 6281234567890 6289876543210           Check multiple numbers
 
 NOTES:
   - Phone format: international without + (e.g., 6281234567890)
@@ -853,10 +843,7 @@ OPTIONS:
   --last <lastName>                           Set last name
   --json                                      Output as JSON
 
-EXAMPLES:
-  contact list --limit 10 --filter john       Filter contacts
-  contact info 6281234567890                  Get contact details
-  contact picture 6281234567890 --high        Get high-res profile picture
+EXAMPLE:
   contact add 628xxx "John Doe" --first John --last Doe
 
 NOTES:
@@ -879,11 +866,6 @@ COMMANDS:
   profile picture remove                      Remove your profile picture
   profile name set <name>                     Set your display name
   profile status set <status>                 Set your status/about text
-
-EXAMPLES:
-  profile picture set ./avatar.jpg            Set profile picture
-  profile name set "My Bot"                   Set display name
-  profile status set "Available 24/7"         Set status text
 
 NOTES:
   - Supported image formats: JPEG, PNG
@@ -911,10 +893,8 @@ COLOR OPTIONS:
   By name: salmon, gold, yellow, mint, teal, cyan, sky, blue, purple, pink,
            rose, orange, lime, green, emerald, indigo, violet, magenta, red, gray
 
-EXAMPLES:
-  label add "VIP" blue                        Create label (color: name or 0-19)
-  label chats 12345678901                     List chats with label
-  label chat add 628xxx@s.whatsapp.net 12345678901
+EXAMPLE:
+  label add "VIP" blue                        Color: name or number 0-19
 
 NOTES:
   - Labels only available for WhatsApp Business accounts
@@ -947,11 +927,8 @@ OPTIONS:
   --retailerId <id>                           Your internal SKU/product ID
   --hidden                                    Mark product as hidden
 
-EXAMPLES:
-  catalog list --limit 20 --phone 628xxx      View catalog (own or other's)
+EXAMPLE:
   catalog product create "T-Shirt" "Cotton" 50000 IDR --image ./shirt.jpg
-  catalog product update 123xxx --name "New Name" --hidden
-  catalog product delete 123xxx 124xxx        Delete multiple products
 
 NOTES:
   - Catalog only available for WhatsApp Business accounts
