@@ -852,7 +852,6 @@ export class MiawClient extends EventEmitter {
   private updateContactsStore(contacts: any[]): void {
     for (const contact of contacts) {
       let jid = contact.id;
-      let phone: string | undefined;
 
       // Baileys v7: Use phoneNumber when id is LID
       if (jid?.endsWith("@lid") && contact.phoneNumber) {
@@ -864,7 +863,7 @@ export class MiawClient extends EventEmitter {
       if (!jid) continue;
 
       // Extract phone number from JID
-      phone = jid.endsWith("@s.whatsapp.net")
+      const phone = jid.endsWith("@s.whatsapp.net")
         ? jid.replace("@s.whatsapp.net", "")
         : undefined;
 
