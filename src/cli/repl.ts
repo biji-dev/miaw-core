@@ -34,7 +34,9 @@ interface CommandNode {
 
 const commandTree: Record<string, CommandNode> = {
   // REPL-specific commands
-  help: {},
+  help: {
+    subcommands: ["instance", "get", "load", "send", "group", "check", "contact", "profile", "label", "catalog"],
+  },
   status: {},
   exit: { aliases: ["quit"] },
   use: {},
@@ -660,12 +662,8 @@ COMMANDS:
 
 EXAMPLES:
   instance ls                                 List all instances
-  instance status                             Show current instance status
-  instance status my-bot                      Show status of 'my-bot' instance
-  instance create my-bot                      Create a new instance 'my-bot'
-  instance connect my-bot                     Connect 'my-bot' to WhatsApp
-  instance disconnect my-bot                  Disconnect 'my-bot'
-  instance logout my-bot                      Logout and require new QR scan
+  instance create my-bot && instance connect my-bot
+  instance status my-bot                      Check instance status
 
 NOTES:
   - Each instance maintains its own WhatsApp session
@@ -697,21 +695,13 @@ OPTIONS:
   --json                                      Output as JSON
 
 EXAMPLES:
-  get profile                                 Get your own profile
   get profile 6281234567890                   Get contact's profile
-  get contacts                                List all contacts
-  get contacts --limit 10                     List first 10 contacts
-  get contacts --filter john                  Find contacts matching 'john'
-  get groups --limit 5                        List first 5 groups
-  get groups --filter family                  Find groups matching 'family'
-  get chats --limit 20                        List recent 20 chats
-  get messages 6281234567890@s.whatsapp.net   Get messages from chat
-  get messages 6281234567890@s.whatsapp.net --limit 50
-  get labels                                  List all labels
+  get contacts --limit 10 --filter john       Filter first 10 contacts
+  get groups --limit 5 --filter family        Filter first 5 groups
+  get messages 628xxx@s.whatsapp.net --limit 50
 
 NOTES:
   - JID format: phone@s.whatsapp.net (individual), groupid@g.us (group)
-  - Filter searches in name, phone, and JID fields
 `);
 }
 
@@ -731,13 +721,10 @@ OPTIONS:
   --count N                                   Number of messages to load (default: 50)
 
 EXAMPLES:
-  load messages 6281234567890@s.whatsapp.net  Load 50 older messages
-  load messages 6281234567890@s.whatsapp.net --count 100
-  load messages 120363039902323086@g.us       Load group messages
+  load messages 628xxx@s.whatsapp.net --count 100
 
 NOTES:
   - JID format: phone@s.whatsapp.net (individual), groupid@g.us (group)
-  - Messages are loaded from WhatsApp's server history
   - Use 'get messages' to view loaded messages
 `);
 }
@@ -757,18 +744,13 @@ COMMANDS:
   send document <phone> <path> [caption]      Send document
 
 EXAMPLES:
-  send text 6281234567890 "Hello World"       Send text to number
-  send text 6281234567890 "Hello, how are you?"
-  send image 6281234567890 ./photo.jpg        Send image
-  send image 6281234567890 ./photo.jpg "Check this out!"
-  send document 6281234567890 ./report.pdf    Send document
+  send text 6281234567890 "Hello World"
+  send image 6281234567890 ./photo.jpg "Caption here"
   send document 6281234567890 ./report.pdf "Monthly Report"
 
 NOTES:
-  - Phone number format: international without + (e.g., 6281234567890)
-  - Supported image formats: JPEG, PNG, GIF, WebP
-  - Documents can be any file type (PDF, DOC, ZIP, etc.)
-  - Caption is optional for images and documents
+  - Phone format: international without + (e.g., 6281234567890)
+  - Supported images: JPEG, PNG, GIF, WebP; Documents: any file type
 `);
 }
 
@@ -810,19 +792,14 @@ OPTIONS:
   --filter TEXT                               Filter by name (case-insensitive)
 
 EXAMPLES:
-  group list                                  List all groups
-  group list --filter family                  Find groups with 'family'
-  group info 120363039902323086@g.us          Get group details
-  group participants 120363039902323086@g.us  List members
-  group participants add 120363039902323086@g.us 6281234567890 6289876543210
-  group create "My Team" 6281234567890 6289876543210
-  group invite-link 120363039902323086@g.us   Get invite link
-  group name set 120363039902323086@g.us "New Name"
+  group list --filter family                  Filter groups by name
+  group info 120363xxx@g.us                   Get group details
+  group participants add 120363xxx@g.us 628xxx 628yyy
+  group create "Team" 628xxx 628yyy           Create group with members
 
 NOTES:
   - Group JID format: groupid@g.us
-  - Multiple phones can be separated by spaces
-  - You must be an admin to manage participants and settings
+  - Admin rights required for participant/settings management
 `);
 }
 
@@ -843,16 +820,11 @@ OPTIONS:
   --json                                      Output as JSON
 
 EXAMPLES:
-  check 6281234567890                         Check single number
-  check 6281234567890 6289876543210           Check multiple numbers
-  check 6281234567890 6289876543210 --json    JSON output
-
-OUTPUT:
-  Shows whether each number is registered on WhatsApp and its JID.
+  check 6281234567890 6289876543210 --json    Check multiple numbers
 
 NOTES:
-  - Phone number format: international without + (e.g., 6281234567890)
-  - Useful for validating contacts before sending messages
+  - Phone format: international without + (e.g., 6281234567890)
+  - Shows registration status and JID for each number
 `);
 }
 
@@ -882,21 +854,14 @@ OPTIONS:
   --json                                      Output as JSON
 
 EXAMPLES:
-  contact list                                List all contacts
-  contact list --limit 10                     List first 10 contacts
-  contact list --filter john                  Find contacts matching 'john'
+  contact list --limit 10 --filter john       Filter contacts
   contact info 6281234567890                  Get contact details
-  contact business 6281234567890              Get business profile (if business account)
-  contact picture 6281234567890               Get profile picture URL
   contact picture 6281234567890 --high        Get high-res profile picture
-  contact add 6281234567890 "John Doe"        Add/update contact
-  contact add 6281234567890 "John Doe" --first John --last Doe
-  contact remove 6281234567890                Remove contact
+  contact add 628xxx "John Doe" --first John --last Doe
 
 NOTES:
-  - Phone number format: international without + (e.g., 6281234567890)
-  - Business profile only available for WhatsApp Business accounts
-  - Profile picture may be unavailable due to privacy settings
+  - Phone format: international without + (e.g., 6281234567890)
+  - Business profile only for WhatsApp Business accounts
 `);
 }
 
@@ -917,16 +882,11 @@ COMMANDS:
 
 EXAMPLES:
   profile picture set ./avatar.jpg            Set profile picture
-  profile picture remove                      Remove profile picture
   profile name set "My Bot"                   Set display name
-  profile name set "Customer Support Bot"
   profile status set "Available 24/7"         Set status text
-  profile status set "Away until Monday"
 
 NOTES:
   - Supported image formats: JPEG, PNG
-  - Display name may take time to propagate
-  - Status/about text has a character limit
 `);
 }
 
@@ -952,16 +912,12 @@ COLOR OPTIONS:
            rose, orange, lime, green, emerald, indigo, violet, magenta, red, gray
 
 EXAMPLES:
-  label list                                  List all labels
-  label chats 12345678901                     List chats with label ID
-  label add "VIP" blue                        Create blue "VIP" label
-  label add "New Lead" 3                      Create label with color #3
-  label chat add 6281234567890 12345678901    Add label to chat
-  label chat remove 6281234567890 12345678901 Remove label from chat
+  label add "VIP" blue                        Create label (color: name or 0-19)
+  label chats 12345678901                     List chats with label
+  label chat add 628xxx@s.whatsapp.net 12345678901
 
 NOTES:
-  - Labels are only available for WhatsApp Business accounts
-  - Label IDs are returned when creating or listing labels
+  - Labels only available for WhatsApp Business accounts
   - JID format: phone@s.whatsapp.net or groupid@g.us
 `);
 }
@@ -992,21 +948,14 @@ OPTIONS:
   --hidden                                    Mark product as hidden
 
 EXAMPLES:
-  catalog list                                List your catalog
-  catalog list --limit 20                     List first 20 products
-  catalog list --phone 6281234567890          View another's catalog
-  catalog collections                         List your collections
-  catalog product create "T-Shirt" "Cotton shirt" 50000 IDR
-  catalog product create "Laptop" "Gaming laptop" 15000000 IDR --image ./laptop.jpg
-  catalog product update 1234567890 --price 55000
-  catalog product update 1234567890 --name "New Name" --hidden
-  catalog product delete 1234567890           Delete one product
-  catalog product delete 1234567890 1234567891  Delete multiple products
+  catalog list --limit 20 --phone 628xxx      View catalog (own or other's)
+  catalog product create "T-Shirt" "Cotton" 50000 IDR --image ./shirt.jpg
+  catalog product update 123xxx --name "New Name" --hidden
+  catalog product delete 123xxx 124xxx        Delete multiple products
 
 NOTES:
-  - Catalog is only available for WhatsApp Business accounts
-  - Currency should be a valid ISO currency code (IDR, USD, EUR, etc.)
-  - Product IDs are returned when creating or listing products
+  - Catalog only available for WhatsApp Business accounts
+  - Currency: valid ISO code (IDR, USD, EUR, etc.)
 `);
 }
 
