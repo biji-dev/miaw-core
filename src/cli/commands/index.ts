@@ -27,6 +27,10 @@ import {
   cmdSendText,
   cmdSendImage,
   cmdSendDocument,
+  cmdSendVideo,
+  cmdSendAudio,
+  // Media commands
+  cmdMediaDownload,
   // Group commands
   cmdGroupList,
   cmdGroupInfo,
@@ -233,13 +237,62 @@ export async function runCommand(
           path: parsedArgs._[2],
           caption: parsedArgs._[3],
         });
+      case "video":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli send video <phone> <path> [--caption <text>] [--gif] [--ptv]");
+          return false;
+        }
+        return await cmdSendVideo(client, {
+          phone: parsedArgs._[1],
+          path: parsedArgs._[2],
+          caption: parsedArgs.caption,
+          gif: parsedArgs.gif,
+          ptv: parsedArgs.ptv,
+        });
+      case "audio":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli send audio <phone> <path> [--ptt]");
+          return false;
+        }
+        return await cmdSendAudio(client, {
+          phone: parsedArgs._[1],
+          path: parsedArgs._[2],
+          ptt: parsedArgs.ptt,
+        });
       default:
         if (!subCommand) {
           console.log("Usage: send <command> <phone> <message|path>");
-          console.log("Commands: text, image, document");
+          console.log("Commands: text, image, document, video, audio");
         } else {
           console.log(`❌ Unknown send command: ${subCommand}`);
-          console.log("Commands: text, image, document");
+          console.log("Commands: text, image, document, video, audio");
+        }
+        return false;
+    }
+  }
+
+  // Media commands
+  if (command === "media") {
+    const subCommand = parsedArgs._[0] || "";
+
+    switch (subCommand) {
+      case "download":
+        if (parsedArgs._.length < 4) {
+          console.log("❌ Usage: miaw-cli media download <jid> <messageId> <output-path>");
+          return false;
+        }
+        return await cmdMediaDownload(client, {
+          jid: parsedArgs._[1],
+          messageId: parsedArgs._[2],
+          outputPath: parsedArgs._[3],
+        });
+      default:
+        if (!subCommand) {
+          console.log("Usage: media <command>");
+          console.log("Commands: download");
+        } else {
+          console.log(`❌ Unknown media command: ${subCommand}`);
+          console.log("Commands: download");
         }
         return false;
     }

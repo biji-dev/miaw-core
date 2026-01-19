@@ -28,7 +28,11 @@ export {
   cmdSendText,
   cmdSendImage,
   cmdSendDocument,
+  cmdSendVideo,
+  cmdSendAudio,
 } from "./send.js";
+
+export { cmdMediaDownload } from "./media.js";
 
 export {
   cmdGroupList,
