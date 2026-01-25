@@ -514,10 +514,19 @@ export class MiawClient extends EventEmitter {
         const normalized = MessageHandler.normalize({ messages: [msg as any], type: "notify" }, this.logger);
         if (normalized) {
           // Resolve senderPhone from LID if not available (WhatsApp privacy feature)
-          if (normalized.isGroup && !normalized.senderPhone && normalized.participant) {
-            const resolvedPhone = this.getPhoneFromJid(normalized.participant);
-            if (resolvedPhone) {
-              normalized.senderPhone = resolvedPhone;
+          if (!normalized.senderPhone) {
+            if (normalized.isGroup && normalized.participant) {
+              // Group message: resolve from participant (sender's JID in group)
+              const resolvedPhone = this.getPhoneFromJid(normalized.participant);
+              if (resolvedPhone) {
+                normalized.senderPhone = resolvedPhone;
+              }
+            } else if (!normalized.isGroup && normalized.from) {
+              // DM message: resolve from 'from' field (remoteJid = sender's JID)
+              const resolvedPhone = this.getPhoneFromJid(normalized.from);
+              if (resolvedPhone) {
+                normalized.senderPhone = resolvedPhone;
+              }
             }
           }
 
