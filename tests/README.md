@@ -364,6 +364,61 @@ npm test -- test-connection
 
 ---
 
+## CLI Integration Tests
+
+Automated tests for all CLI commands via `runCommand()`. Uses a real WhatsApp connection — no mocks. Skips gracefully when not connected.
+
+### Quick Start
+
+```bash
+npm run test:cli
+```
+
+### How It Works
+
+- **Shared setup** (`tests/integration/cli/cli-setup.ts`): Pre-warms the client cache so `runCommand()` finds the connected client. Idempotent — first call connects, subsequent calls return immediately.
+- **Sequential execution** (`--runInBand`): All 10 test files share one WhatsApp connection via the module-level client cache singleton.
+- **Skip logic**: Each connection-dependent test checks `isConnected()` and returns early if not paired.
+- **Teardown**: Only the last test file (`10-business-commands.test.ts`) calls `teardownCLITests()`.
+
+### Test Files (77 tests)
+
+| File | Tests | Connection Required | Description |
+|------|-------|-------------------|-------------|
+| `01-command-router` | 15 | No | Routing, unknown commands, missing args |
+| `02-get-commands` | 14 | Yes | profile, contacts, groups, chats, messages, labels |
+| `03-check-command` | 4 | Yes | Phone number validation, JSON output |
+| `04-contact-commands` | 8 | Yes | list, info, picture, business profile |
+| `05-group-commands` | 9 | Yes | list, info, participants, invite-link |
+| `06-send-commands` | 6 | Yes | text, image, document + error cases |
+| `07-load-commands` | 4 | Yes | Message history loading |
+| `08-profile-commands` | 6 | Yes | name/status set with restore |
+| `09-instance-commands` | 5 | Partial | list, status |
+| `10-business-commands` | 6 | Yes | labels, catalog |
+
+### Environment Variables
+
+Same `.env.test` file as the main integration tests. Key variables:
+
+```env
+TEST_INSTANCE_ID=miaw-test-bot
+TEST_SESSION_PATH=./test-sessions
+TEST_CONTACT_PHONE_A=6281234567890
+TEST_CONTACT_PHONE_B=6289876543210
+TEST_GROUP_JID=120363012345678@g.us
+TEST_CONNECT_TIMEOUT=60000
+```
+
+### Running Individual Files
+
+```bash
+NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='tests/integration/cli/01' --runInBand --forceExit
+```
+
+See [CLI Integration Test Plan](../docs/CLI_INTEGRATION_TEST_PLAN.md) for the full checklist.
+
+---
+
 ## Test Coverage
 
 | Category | Status | Test File |

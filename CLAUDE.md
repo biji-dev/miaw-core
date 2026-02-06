@@ -34,6 +34,9 @@ npm test                    # Run all tests
 npm run test:watch          # Watch mode
 npm run test:coverage       # Generate coverage report
 
+# CLI integration tests (77 tests, real WhatsApp connection)
+npm run test:cli            # Run all CLI tests (skips if not connected)
+
 # Interactive manual testing (80+ API methods)
 npm run test:manual         # Show available test groups
 npm run test:manual all     # Test all features
@@ -43,6 +46,8 @@ npm run test:manual newsletter  # Test newsletter/channels
 ```
 
 The interactive test suite (`npm run test:manual`) provides comprehensive testing of all 92 API methods organized into 8 groups: core, get, messaging, contacts, group, profile, business, newsletter, and ux. See [Test Coverage Analysis](./docs/TEST_COVERAGE_ANALYSIS.md).
+
+**CLI integration tests** (`npm run test:cli`) exercise all CLI commands via `runCommand()` with a real WhatsApp connection. Tests skip gracefully when not connected. Uses `--runInBand` (sequential, shared connection) and `--forceExit`. See [CLI Integration Test Plan](./docs/CLI_INTEGRATION_TEST_PLAN.md).
 
 ### CLI Tool
 
@@ -238,6 +243,13 @@ See [tests/README.md](tests/README.md) for detailed testing guide.
 
 **Interactive testing**: Use `npm run test:manual` to test all 92 API methods with a real WhatsApp connection. This is the fastest way to verify functionality during development.
 
+**CLI integration tests**: 77 tests across 10 files in `tests/integration/cli/`. Key architecture:
+
+- Shared setup in `cli-setup.ts` pre-warms the client cache via `getOrCreateClient()` so `runCommand()` finds the connected client
+- All files share one WhatsApp connection (`--runInBand`); only the last file disconnects
+- Connection-dependent tests skip with `if (!isConnected()) return;`
+- Console output assertions use `captureConsole()` in `try/finally` blocks
+
 ---
 
 ## TypeScript Configuration
@@ -288,7 +300,9 @@ docs/                   # Documentation
 └── BAILEYS_VS_MIAW_COMPARISON.md  # Comparison with raw Baileys
 
 tests/
+├── fixtures/           # Test assets (images, documents)
 ├── integration/        # Integration tests (require real WhatsApp)
+│   └── cli/           # CLI command tests (77 tests, 10 files)
 ├── unit/              # Unit tests
 └── README.md          # Testing guide
 
