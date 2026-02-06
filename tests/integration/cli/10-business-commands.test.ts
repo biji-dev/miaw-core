@@ -71,6 +71,70 @@ describe("CLI Business Commands", () => {
     }
   });
 
+  test("label list with --json outputs valid JSON", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("label", ["list"], { jsonOutput: true });
+      expect(result).toBe(true);
+      const output = capture.getFullOutput();
+      expect(() => JSON.parse(output)).not.toThrow();
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("catalog list with --limit returns boolean", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const result = await runCmd("catalog", ["list", "--limit", "3"]);
+    // May fail on non-business accounts
+    expect(typeof result).toBe("boolean");
+  });
+
+  test("catalog list with --json returns boolean (lenient)", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("catalog", ["list", "--limit", "2"], { jsonOutput: true });
+      // May fail on non-business accounts
+      expect(typeof result).toBe("boolean");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("catalog collections with --limit returns boolean", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const result = await runCmd("catalog", ["collections", "--limit", "3"]);
+    expect(typeof result).toBe("boolean");
+  });
+
+  test("catalog collections with --json returns boolean (lenient)", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("catalog", ["collections", "--limit", "2"], { jsonOutput: true });
+      expect(typeof result).toBe("boolean");
+    } finally {
+      capture.stop();
+    }
+  });
+
   test("catalog unknown subcommand returns false", async () => {
     const capture = captureConsole();
     try {

@@ -181,4 +181,127 @@ describe("CLI Command Router", () => {
       capture.stop();
     }
   });
+
+  // --- Missing args error cases ---
+
+  test("send image missing args returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("send", ["image"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("send document missing args returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("send", ["document"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("send video missing args returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("send", ["video"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("send audio missing args returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("send", ["audio"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("media download missing args returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("media", ["download"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("contact info missing phone returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("contact", ["info"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("contact business missing phone returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("contact", ["business"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("contact picture missing phone returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("contact", ["picture"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("group participants missing jid returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("group", ["participants"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("group invite-link missing jid returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("group", ["invite-link"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("load messages missing jid returns false", async () => {
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("load", ["messages"]);
+      expect(result).toBe(false);
+      expect(capture.getFullOutput()).toContain("Usage:");
+    } finally {
+      capture.stop();
+    }
+  });
 });

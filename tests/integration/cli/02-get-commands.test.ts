@@ -151,6 +151,27 @@ describe("CLI Get Commands", () => {
     expect(result).toBe(true);
   });
 
+  test("get chats with --filter returns true", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const result = await runCmd("get", ["chats", "--filter", "a"]);
+    expect(result).toBe(true);
+  });
+
+  test("get contacts with --filter numeric value returns true", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    // Regression: numeric filter used to crash due to parseCommandArgs coercion
+    const result = await runCmd("get", ["contacts", "--filter", "628"]);
+    expect(result).toBe(true);
+  });
+
+  // --- JSON output tests ---
+
   test("get contacts with --json outputs valid JSON", async () => {
     if (!isConnected()) {
       console.log("⏭️  Skipping: not connected");
@@ -159,6 +180,153 @@ describe("CLI Get Commands", () => {
     const capture = captureConsole();
     try {
       const result = await runCmd("get", ["contacts", "--limit", "2"], { jsonOutput: true });
+      expect(result).toBe(true);
+      const output = capture.getFullOutput();
+      expect(() => JSON.parse(output)).not.toThrow();
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("get groups with --json outputs valid JSON", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("get", ["groups", "--limit", "2"], { jsonOutput: true });
+      expect(result).toBe(true);
+      const output = capture.getFullOutput();
+      expect(() => JSON.parse(output)).not.toThrow();
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("get chats with --json outputs valid JSON", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("get", ["chats", "--limit", "2"], { jsonOutput: true });
+      expect(result).toBe(true);
+      const output = capture.getFullOutput();
+      expect(() => JSON.parse(output)).not.toThrow();
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("get labels with --json outputs valid JSON", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("get", ["labels"], { jsonOutput: true });
+      expect(result).toBe(true);
+      const output = capture.getFullOutput();
+      expect(() => JSON.parse(output)).not.toThrow();
+    } finally {
+      capture.stop();
+    }
+  });
+
+  test("get messages with --json outputs valid JSON", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    if (!CLI_TEST_CONFIG.contactPhoneA) {
+      console.log("⏭️  Skipping: no contact configured");
+      return;
+    }
+    const jid = `${CLI_TEST_CONFIG.contactPhoneA}@s.whatsapp.net`;
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("get", ["messages", jid, "--limit", "2"], { jsonOutput: true });
+      expect(result).toBe(true);
+      const output = capture.getFullOutput();
+      expect(() => JSON.parse(output)).not.toThrow();
+    } finally {
+      capture.stop();
+    }
+  });
+
+  // --- Filter tests with realistic values ---
+
+  test("get messages with --filter by text content returns true", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    if (!CLI_TEST_CONFIG.contactPhoneA) {
+      console.log("⏭️  Skipping: no contact configured");
+      return;
+    }
+    const jid = `${CLI_TEST_CONFIG.contactPhoneA}@s.whatsapp.net`;
+    // Filter by common word in message text
+    const result = await runCmd("get", ["messages", jid, "--filter", "hello"]);
+    expect(result).toBe(true);
+  });
+
+  test("get messages with --filter by phone prefix returns true", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    if (!CLI_TEST_CONFIG.contactPhoneA) {
+      console.log("⏭️  Skipping: no contact configured");
+      return;
+    }
+    const jid = `${CLI_TEST_CONFIG.contactPhoneA}@s.whatsapp.net`;
+    // Filter matches senderPhone field — use phone prefix
+    const result = await runCmd("get", ["messages", jid, "--filter", "62"]);
+    expect(result).toBe(true);
+  });
+
+  test("get contacts with --filter by name returns true", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    // Filter matches jid, phone, or name — use common letter
+    const result = await runCmd("get", ["contacts", "--filter", "e"]);
+    expect(result).toBe(true);
+  });
+
+  test("get groups with --filter by name returns true", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    // Filter matches jid, name, or description
+    const result = await runCmd("get", ["groups", "--filter", "e"]);
+    expect(result).toBe(true);
+  });
+
+  test("get chats with --filter by phone prefix returns true", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    // Filter matches jid, phone, or name
+    const result = await runCmd("get", ["chats", "--filter", "62"]);
+    expect(result).toBe(true);
+  });
+
+  test("get profile with --json outputs valid JSON", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("get", ["profile"], { jsonOutput: true });
       expect(result).toBe(true);
       const output = capture.getFullOutput();
       expect(() => JSON.parse(output)).not.toThrow();

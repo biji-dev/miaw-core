@@ -45,6 +45,27 @@ describe("CLI Load Commands", () => {
     expect(result).toBe(true);
   });
 
+  test("load messages with --json outputs valid JSON", async () => {
+    if (!isConnected()) {
+      console.log("⏭️  Skipping: not connected");
+      return;
+    }
+    if (!CLI_TEST_CONFIG.contactPhoneA) {
+      console.log("⏭️  Skipping: no contact configured");
+      return;
+    }
+    const jid = `${CLI_TEST_CONFIG.contactPhoneA}@s.whatsapp.net`;
+    const capture = captureConsole();
+    try {
+      const result = await runCmd("load", ["messages", jid, "--count", "5"], { jsonOutput: true });
+      expect(result).toBe(true);
+      const output = capture.getFullOutput();
+      expect(() => JSON.parse(output)).not.toThrow();
+    } finally {
+      capture.stop();
+    }
+  });
+
   test("load messages missing jid returns false", async () => {
     const capture = captureConsole();
     try {
