@@ -56,6 +56,43 @@ describe("MessageHandler", () => {
     });
   });
 
+  describe("formatJidToPhone", () => {
+    it("should extract phone from standard JID", () => {
+      expect(MessageHandler.formatJidToPhone("6281234567890@s.whatsapp.net"))
+        .toBe("6281234567890");
+    });
+
+    it("should strip device suffix from JID", () => {
+      expect(MessageHandler.formatJidToPhone("6285604722341:72@s.whatsapp.net"))
+        .toBe("6285604722341");
+    });
+
+    it("should handle JID with device suffix :0", () => {
+      expect(MessageHandler.formatJidToPhone("1234567890:0@s.whatsapp.net"))
+        .toBe("1234567890");
+    });
+
+    it("should return undefined for LID JIDs", () => {
+      expect(MessageHandler.formatJidToPhone("42877077966917@lid"))
+        .toBeUndefined();
+    });
+
+    it("should return undefined for group JIDs", () => {
+      expect(MessageHandler.formatJidToPhone("120363039902323086@g.us"))
+        .toBeUndefined();
+    });
+
+    it("should return undefined for empty string", () => {
+      expect(MessageHandler.formatJidToPhone(""))
+        .toBeUndefined();
+    });
+
+    it("should handle JID without device suffix", () => {
+      expect(MessageHandler.formatJidToPhone("1234567890@s.whatsapp.net"))
+        .toBe("1234567890");
+    });
+  });
+
   describe("isGroupJid", () => {
     it("should return true for group JIDs", () => {
       expect(MessageHandler.isGroupJid("123456789@g.us")).toBe(true);

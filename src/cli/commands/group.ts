@@ -151,7 +151,7 @@ export async function cmdGroupParticipants(
     const phone = client.getPhoneFromJid(p.jid);
 
     return {
-      jid: p.jid,
+      jid: resolvedJid !== p.jid ? resolvedJid : p.jid,
       phone: phone || contact?.phone || "-",
       name: contact?.name || "-",
       role: p.role,

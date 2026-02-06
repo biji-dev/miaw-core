@@ -6,6 +6,7 @@ import makeWASocket, {
   Browsers,
   AnyMessageContent,
   downloadMediaMessage,
+  jidNormalizedUser,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { EventEmitter } from "node:events";
@@ -513,6 +514,14 @@ export class MiawClient extends EventEmitter {
 
         const normalized = MessageHandler.normalize({ messages: [msg as any], type: "notify" }, this.logger);
         if (normalized) {
+          // Resolve @lid JIDs to @s.whatsapp.net for consistent display
+          if (normalized.from) {
+            normalized.from = this.resolveLidToJid(normalized.from);
+          }
+          if (normalized.participant) {
+            normalized.participant = this.resolveLidToJid(normalized.participant);
+          }
+
           // Resolve senderPhone from LID if not available (WhatsApp privacy feature)
           if (!normalized.senderPhone) {
             if (normalized.isGroup && normalized.participant) {
@@ -803,10 +812,7 @@ export class MiawClient extends EventEmitter {
    */
   getPhoneFromJid(jid: string): string | undefined {
     const resolved = this.resolveLidToJid(jid);
-    if (resolved.endsWith("@s.whatsapp.net")) {
-      return resolved.replace("@s.whatsapp.net", "");
-    }
-    return undefined;
+    return MessageHandler.formatJidToPhone(resolved);
   }
 
   /**
@@ -879,10 +885,8 @@ export class MiawClient extends EventEmitter {
 
       if (!jid) continue;
 
-      // Extract phone number from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
+      // Extract phone number from JID (strips device suffix like :72)
+      const phone = MessageHandler.formatJidToPhone(jid);
 
       // Build contact info
       const contactInfo: ContactInfo = {
@@ -890,6 +894,12 @@ export class MiawClient extends EventEmitter {
         phone,
         name: contact.name || contact.notify || contact.verifiedName || undefined,
       };
+
+      // Preserve existing name if new entry lacks one
+      const existing = this.contactsStore.get(jid);
+      if (existing?.name && !contactInfo.name) {
+        contactInfo.name = existing.name;
+      }
 
       // Update store with phone JID as primary key
       this.contactsStore.set(jid, contactInfo);
@@ -936,10 +946,8 @@ export class MiawClient extends EventEmitter {
         jid = chat.pnJid;
       }
 
-      // Extract phone number from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
+      // Extract phone number from JID (strips device suffix like :72)
+      const phone = MessageHandler.formatJidToPhone(jid);
 
       // Build chat info with proper field mapping for proto.IConversation
       const chatInfo: ChatInfo = {
@@ -978,6 +986,14 @@ export class MiawClient extends EventEmitter {
   private addMessageToStore(msg: any): void {
     const normalized = MessageHandler.normalize({ messages: [msg], type: "notify" }, this.logger);
     if (!normalized) return;
+
+    // Resolve @lid JIDs to @s.whatsapp.net for consistent storage
+    if (normalized.from) {
+      normalized.from = this.resolveLidToJid(normalized.from);
+    }
+    if (normalized.participant) {
+      normalized.participant = this.resolveLidToJid(normalized.participant);
+    }
 
     const chatJid = normalized.from;
     if (!this.messagesStore.has(chatJid)) {
@@ -1569,12 +1585,13 @@ export class MiawClient extends EventEmitter {
         );
       }
 
-      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      const rawJid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      const jid = this.resolveLidToJid(rawJid);
 
       // Fetch status
       let status: string | undefined;
       try {
-        const statusResult = await this.socket.fetchStatus(jid);
+        const statusResult = await this.socket.fetchStatus(rawJid);
         // fetchStatus returns an array, get first result
         const firstResult = Array.isArray(statusResult)
           ? statusResult[0]
@@ -1587,16 +1604,14 @@ export class MiawClient extends EventEmitter {
       // Check if business account
       let isBusiness = false;
       try {
-        const businessProfile = await this.socket.getBusinessProfile(jid);
+        const businessProfile = await this.socket.getBusinessProfile(rawJid);
         isBusiness = !!businessProfile;
       } catch {
         // Not a business account or not available
       }
 
-      // Extract phone from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
+      // Extract phone from resolved JID (strips device suffix like :72)
+      const phone = MessageHandler.formatJidToPhone(jid);
 
       return {
         jid,
@@ -1685,7 +1700,7 @@ export class MiawClient extends EventEmitter {
       }
 
       return {
-        jid,
+        jid: resolvedJid,
         phone,
         name,
         status,
@@ -1786,25 +1801,37 @@ export class MiawClient extends EventEmitter {
    */
   async fetchAllContacts(): Promise<FetchAllContactsResult> {
     try {
-      // Map contacts and resolve any @lid JIDs that weren't resolved earlier
-      const contacts = Array.from(this.contactsStore.values()).map(contact => {
-        // If jid is @lid and phone is missing, try to resolve using LID cache
+      // Deduplicate contacts by resolved JID, merging data (prefer entries with names)
+      const uniqueContacts = new Map<string, ContactInfo>();
+
+      for (const contact of this.contactsStore.values()) {
+        // Resolve @lid JIDs using LID cache
+        let resolved = contact;
         if (contact.jid.endsWith("@lid") && !contact.phone) {
-          const resolved = this.resolveLidToJid(contact.jid);
-          if (resolved !== contact.jid && resolved.endsWith("@s.whatsapp.net")) {
-            return {
+          const resolvedJid = this.resolveLidToJid(contact.jid);
+          if (resolvedJid !== contact.jid && resolvedJid.endsWith("@s.whatsapp.net")) {
+            resolved = {
               ...contact,
-              jid: resolved,
-              phone: resolved.replace("@s.whatsapp.net", ""),
+              jid: resolvedJid,
+              phone: MessageHandler.formatJidToPhone(resolvedJid),
             };
           }
         }
-        return contact;
-      });
+
+        const key = resolved.jid;
+        const existing = uniqueContacts.get(key);
+
+        if (!existing) {
+          uniqueContacts.set(key, resolved);
+        } else if (!existing.name && resolved.name) {
+          // Merge: prefer the entry that has a name
+          uniqueContacts.set(key, resolved);
+        }
+      }
 
       return {
         success: true,
-        contacts,
+        contacts: Array.from(uniqueContacts.values()),
       };
     } catch (error) {
       this.logger.error("Failed to fetch contacts:", error);
@@ -1837,12 +1864,12 @@ export class MiawClient extends EventEmitter {
         jid: g.id,
         name: g.subject,
         description: g.desc || undefined,
-        owner: g.owner || undefined,
+        owner: g.owner ? this.resolveLidToJid(g.owner) : undefined,
         createdAt: g.creation,
         participantCount: g.participants?.length || 0,
         participants:
           g.participants?.map((p: any) => ({
-            jid: p.id,
+            jid: this.resolveLidToJid(p.id),
             role:
               p.admin === "superadmin"
                 ? "superadmin"
@@ -1883,15 +1910,16 @@ export class MiawClient extends EventEmitter {
         );
       }
 
-      const jid = this.socket.user?.id;
-      if (!jid) {
+      const rawJid = this.socket.user?.id;
+      if (!rawJid) {
         throw new Error("User ID not available");
       }
 
-      // Extract phone number from JID
-      const phone = jid.endsWith("@s.whatsapp.net")
-        ? jid.replace("@s.whatsapp.net", "")
-        : undefined;
+      // Normalize JID (strips device suffix like :72)
+      const jid = jidNormalizedUser(rawJid);
+
+      // Extract phone number from normalized JID
+      const phone = MessageHandler.formatJidToPhone(jid);
 
       // Get display name from socket user
       const name = this.socket.user?.name;
@@ -2052,7 +2080,7 @@ export class MiawClient extends EventEmitter {
         // Chat not in store, create minimal info
         chats.push({
           jid,
-          phone: jid.replace(/@s\.whatsapp\.net$/, ""),
+          phone: MessageHandler.formatJidToPhone(jid),
           isGroup: jid.endsWith("@g.us"),
         });
       }
@@ -2186,7 +2214,12 @@ export class MiawClient extends EventEmitter {
       // Deduplicate by jid (Map may have same contact under multiple keys)
       const uniqueContacts = new Map<string, ContactInfo>();
       for (const contact of this.contactsStore.values()) {
-        if (contact.jid && !uniqueContacts.has(contact.jid)) {
+        if (!contact.jid) continue;
+        const existing = uniqueContacts.get(contact.jid);
+        if (!existing) {
+          uniqueContacts.set(contact.jid, contact);
+        } else if (!existing.name && contact.name) {
+          // Prefer entries with names
           uniqueContacts.set(contact.jid, contact);
         }
       }
@@ -2590,25 +2623,37 @@ export class MiawClient extends EventEmitter {
    */
   async fetchAllChats(): Promise<FetchAllChatsResult> {
     try {
-      // Map chats and resolve any @lid JIDs that weren't resolved earlier
-      const chats = Array.from(this.chatsStore.values()).map(chat => {
-        // If jid is @lid and phone is missing, try to resolve using LID cache
+      // Deduplicate chats by resolved JID, merging data (prefer entries with names)
+      const uniqueChats = new Map<string, ChatInfo>();
+
+      for (const chat of this.chatsStore.values()) {
+        // Resolve @lid JIDs using LID cache
+        let resolved = chat;
         if (chat.jid.endsWith("@lid") && !chat.phone) {
-          const resolved = this.resolveLidToJid(chat.jid);
-          if (resolved !== chat.jid && resolved.endsWith("@s.whatsapp.net")) {
-            return {
+          const resolvedJid = this.resolveLidToJid(chat.jid);
+          if (resolvedJid !== chat.jid && resolvedJid.endsWith("@s.whatsapp.net")) {
+            resolved = {
               ...chat,
-              jid: resolved,
-              phone: resolved.replace("@s.whatsapp.net", ""),
+              jid: resolvedJid,
+              phone: MessageHandler.formatJidToPhone(resolvedJid),
             };
           }
         }
-        return chat;
-      });
+
+        const key = resolved.jid;
+        const existing = uniqueChats.get(key);
+
+        if (!existing) {
+          uniqueChats.set(key, resolved);
+        } else if (!existing.name && resolved.name) {
+          // Merge: prefer the entry that has a name
+          uniqueChats.set(key, resolved);
+        }
+      }
 
       return {
         success: true,
-        chats,
+        chats: Array.from(uniqueChats.values()),
       };
     } catch (error) {
       this.logger.error("Failed to fetch chats:", error);
@@ -2649,7 +2694,7 @@ export class MiawClient extends EventEmitter {
 
       const participants: GroupParticipant[] = metadata.participants.map(
         (p) => ({
-          jid: p.id,
+          jid: this.resolveLidToJid(p.id),
           role:
             p.admin === "superadmin"
               ? "superadmin"
@@ -2663,7 +2708,7 @@ export class MiawClient extends EventEmitter {
         jid: metadata.id,
         name: metadata.subject,
         description: metadata.desc || undefined,
-        owner: metadata.owner || undefined,
+        owner: metadata.owner ? this.resolveLidToJid(metadata.owner) : undefined,
         createdAt: metadata.creation,
         participantCount: metadata.participants.length,
         participants,
@@ -3185,7 +3230,7 @@ export class MiawClient extends EventEmitter {
 
       const groupParticipants: GroupParticipant[] = metadata.participants.map(
         (p) => ({
-          jid: p.id,
+          jid: this.resolveLidToJid(p.id),
           role:
             p.admin === "superadmin"
               ? "superadmin"
@@ -3202,7 +3247,7 @@ export class MiawClient extends EventEmitter {
           jid: metadata.id,
           name: metadata.subject,
           description: metadata.desc || undefined,
-          owner: metadata.owner || undefined,
+          owner: metadata.owner ? this.resolveLidToJid(metadata.owner) : undefined,
           createdAt: metadata.creation,
           participantCount: metadata.participants.length,
           participants: groupParticipants,

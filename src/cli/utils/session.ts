@@ -353,8 +353,10 @@ export function phoneToJid(phone: string): string {
 }
 
 /**
- * Format JID to phone number
+ * Format JID to phone number, stripping device suffix (e.g., ':72')
  */
 export function jidToPhone(jid: string): string {
-  return jid.replace("@s.whatsapp.net", "").replace("@g.us", "");
+  const stripped = jid.replace("@s.whatsapp.net", "").replace("@g.us", "");
+  const colonIndex = stripped.indexOf(":");
+  return colonIndex >= 0 ? stripped.substring(0, colonIndex) : stripped;
 }

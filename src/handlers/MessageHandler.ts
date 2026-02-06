@@ -235,6 +235,19 @@ export class MessageHandler {
   }
 
   /**
+   * Extract phone number from a JID, stripping device suffix
+   * @param jid - WhatsApp JID (e.g., '6281234567890:72@s.whatsapp.net')
+   * @returns Phone number string (e.g., '6281234567890') or undefined if not a phone JID
+   */
+  static formatJidToPhone(jid: string): string | undefined {
+    if (!jid || !jid.endsWith("@s.whatsapp.net")) return undefined;
+    const userPart = jid.replace("@s.whatsapp.net", "");
+    // Strip device suffix (e.g., ':72' from '6281234567890:72')
+    const colonIndex = userPart.indexOf(":");
+    return colonIndex >= 0 ? userPart.substring(0, colonIndex) : userPart;
+  }
+
+  /**
    * Check if a JID is a group
    */
   static isGroupJid(jid: string): boolean {
