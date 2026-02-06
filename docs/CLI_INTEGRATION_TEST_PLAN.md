@@ -125,8 +125,8 @@ End-to-end integration tests for the miaw-core CLI tool. All tests run against a
 
 - [x] **5.1** Run full suite, verify all pass (77/77 tests, 10/10 suites)
 - [x] **5.2** Verify suite skips gracefully when no session exists
-- [ ] **5.3** Update `CLAUDE.md` with CLI test documentation
-- [ ] **5.4** Update `tests/README.md` with CLI test setup instructions
+- [x] **5.3** Update `CLAUDE.md` with CLI test documentation
+- [x] **5.4** Update `tests/README.md` with CLI test setup instructions
 
 ---
 
