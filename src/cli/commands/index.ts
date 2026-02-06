@@ -805,8 +805,11 @@ export async function runCommand(
 }
 
 /**
- * Parse command arguments
+ * Parse command arguments.
+ * Only auto-converts known numeric flags to numbers; all others stay as strings.
  */
+const NUMERIC_FLAGS = new Set(["limit", "count", "cursor"]);
+
 function parseCommandArgs(args: string[]): any {
   const parsed: any = { _: [] };
 
@@ -818,9 +821,12 @@ function parseCommandArgs(args: string[]): any {
       const nextArg = args[i + 1];
 
       if (nextArg && !nextArg.startsWith("--")) {
-        // Check if it's a number
-        const numValue = parseInt(nextArg, 10);
-        parsed[flagName] = isNaN(numValue) ? nextArg : numValue;
+        if (NUMERIC_FLAGS.has(flagName)) {
+          const numValue = parseInt(nextArg, 10);
+          parsed[flagName] = isNaN(numValue) ? nextArg : numValue;
+        } else {
+          parsed[flagName] = nextArg;
+        }
         i++;
       } else {
         parsed[flagName] = true;
