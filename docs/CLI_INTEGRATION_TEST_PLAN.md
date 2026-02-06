@@ -14,105 +14,117 @@ End-to-end integration tests for the miaw-core CLI tool. All tests run against a
 
 ### Phase 1: Infrastructure
 
-- [ ] **1.1** Create `tests/integration/cli/` directory
-- [ ] **1.2** Create shared test setup (`tests/integration/cli/cli-setup.ts`)
+- [x] **1.1** Create `tests/integration/cli/` directory
+- [x] **1.2** Create shared test setup (`tests/integration/cli/cli-setup.ts`)
   - Connect client once in `beforeAll`, disconnect in `afterAll`
-  - `skipIfNotConnected()` helper — skips suite if no session/not paired
+  - `isConnected()` helper — skips test if no session/not paired
   - `runCmd(command, args)` wrapper around `runCommand()` with shared client context
-  - Capture `console.log` output for assertion (spy on stdout)
-- [ ] **1.3** Create test fixtures (`tests/fixtures/`)
-  - `test-image.jpg` — small JPEG (~1KB) for send image tests
+  - `captureConsole()` manual start/stop for output assertions
+- [x] **1.3** Create test fixtures (`tests/fixtures/`)
+  - `test-image.jpg` — minimal 338-byte JPEG for send image tests
   - `test-doc.txt` — small text file for send document tests
-- [ ] **1.4** Add npm script `"test:cli"` in `package.json`
-  - `NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='tests/integration/cli'`
-- [ ] **1.5** Verify `.env.test` has required vars documented
+- [x] **1.4** Add npm script `"test:cli"` in `package.json`
+  - `NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='tests/integration/cli' --runInBand --forceExit`
+- [x] **1.5** Verify `.env.test` has required vars documented
   - `TEST_INSTANCE_ID`, `TEST_SESSION_PATH`
   - `TEST_CONTACT_PHONE_A`, `TEST_CONTACT_PHONE_B`
   - `TEST_GROUP_JID`
 
 ### Phase 2: Read-Only Command Tests (safe, no side effects)
 
-- [ ] **2.1** Create `tests/integration/cli/01-command-router.test.ts`
-  - [ ] Unknown command returns `false`
-  - [ ] Empty subcommand shows help, returns `false`
-  - [ ] Flag parsing works (`get contacts --limit 5`)
+- [x] **2.1** Create `tests/integration/cli/01-command-router.test.ts` (15 tests)
+  - [x] Unknown command returns `false`
+  - [x] Empty subcommand shows help for all 10 command categories
+  - [x] Missing args validation (`get messages`, `check`, `send text`)
 
-- [ ] **2.2** Create `tests/integration/cli/02-get-commands.test.ts`
-  - [ ] `get profile` — own profile, returns `true`
-  - [ ] `get profile <contactJid>` — contact profile, returns `true`
-  - [ ] `get contacts` — no filter, returns `true`
-  - [ ] `get contacts --limit 3` — returns `true`
-  - [ ] `get contacts --filter <knownName>` — returns `true`
-  - [ ] `get groups` — no filter, returns `true`
-  - [ ] `get groups --limit 2` — returns `true`
-  - [ ] `get groups --filter <partialName>` — returns `true`
-  - [ ] `get chats` — returns `true`
-  - [ ] `get chats --limit 5` — returns `true`
-  - [ ] `get messages <jid>` — returns `true`
-  - [ ] `get messages <jid> --limit 3` — returns `true`
-  - [ ] `get labels` — returns `true` (or graceful empty)
+- [x] **2.2** Create `tests/integration/cli/02-get-commands.test.ts` (14 tests)
+  - [x] `get profile` — own profile, returns `true`
+  - [x] `get profile <contactJid>` — contact profile, returns `true`
+  - [x] `get contacts` — no filter, returns `true`
+  - [x] `get contacts --limit 3` — returns `true`
+  - [x] `get contacts --filter <knownName>` — returns `true`
+  - [x] `get groups` — no filter, returns `true`
+  - [x] `get groups --limit 2` — returns `true`
+  - [x] `get groups --filter <partialName>` — returns `true`
+  - [x] `get chats` — returns `true`
+  - [x] `get chats --limit 5` — returns `true`
+  - [x] `get messages <jid>` — returns `true`
+  - [x] `get messages <jid> --limit 3` — returns `true`
+  - [x] `get labels` — returns `true` (or graceful empty)
+  - [x] `get contacts --json` — validates JSON output
 
-- [ ] **2.3** Create `tests/integration/cli/03-check-command.test.ts`
-  - [ ] `check <validPhone>` — returns `true`
-  - [ ] `check <phone1> <phone2>` — batch check, returns `true`
-  - [ ] `check` (no args) — returns `false`
+- [x] **2.3** Create `tests/integration/cli/03-check-command.test.ts` (4 tests)
+  - [x] `check <validPhone>` — returns `true`
+  - [x] `check <phone1> <phone2>` — batch check, returns `true`
+  - [x] `check --json` — validates JSON output
+  - [x] `check` (no args) — returns `false`
 
-- [ ] **2.4** Create `tests/integration/cli/04-contact-commands.test.ts`
-  - [ ] `contact list` — returns `true`
-  - [ ] `contact list --filter <name>` — returns `true`
-  - [ ] `contact list --limit 5` — returns `true`
-  - [ ] `contact info <phone>` — returns `true`
-  - [ ] `contact picture <phone>` — returns `true` or `false` (privacy OK)
-  - [ ] `contact business <phone>` — returns `true` or `false` (non-biz OK)
+- [x] **2.4** Create `tests/integration/cli/04-contact-commands.test.ts` (8 tests)
+  - [x] `contact list` — returns `true`
+  - [x] `contact ls` (alias) — returns `true`
+  - [x] `contact list --filter <name>` — returns `true`
+  - [x] `contact list --limit 5` — returns `true`
+  - [x] `contact info <phone>` — returns `true`
+  - [x] `contact picture <phone>` — returns `true` or `false` (privacy OK)
+  - [x] `contact business <phone>` — returns `true` or `false` (non-biz OK)
+  - [x] `contact info` (missing phone) — returns `false`
 
-- [ ] **2.5** Create `tests/integration/cli/05-group-commands.test.ts`
-  - [ ] `group list` — returns `true`
-  - [ ] `group list --filter <name>` — returns `true`
-  - [ ] `group list --limit 3` — returns `true`
-  - [ ] `group info <groupJid>` — returns `true`
-  - [ ] `group participants <groupJid>` — returns `true`
-  - [ ] `group participants <groupJid> --filter admin` — returns `true`
-  - [ ] `group invite-link <groupJid>` — returns `true` (needs admin)
+- [x] **2.5** Create `tests/integration/cli/05-group-commands.test.ts` (9 tests)
+  - [x] `group list` — returns `true`
+  - [x] `group ls` (alias) — returns `true`
+  - [x] `group list --filter <name>` — returns `true`
+  - [x] `group list --limit 3` — returns `true`
+  - [x] `group info <groupJid>` — returns `true`
+  - [x] `group participants <groupJid>` — returns `true`
+  - [x] `group participants <groupJid> --filter admin` — returns `true`
+  - [x] `group invite-link <groupJid>` — returns boolean (needs admin)
+  - [x] `group info` (missing JID) — returns `false`
 
 ### Phase 3: Write Command Tests (controlled side effects)
 
-- [ ] **3.1** Create `tests/integration/cli/06-send-commands.test.ts`
-  - [ ] `send text <phone> "CLI integration test"` — returns `true`
-  - [ ] `send text` (missing args) — returns `false`
-  - [ ] `send image <phone> <testImagePath>` — returns `true`
-  - [ ] `send image <phone> <path> "caption"` — returns `true`
-  - [ ] `send image <phone> /nonexistent.jpg` — returns `false`
-  - [ ] `send document <phone> <testDocPath>` — returns `true`
+- [x] **3.1** Create `tests/integration/cli/06-send-commands.test.ts` (6 tests)
+  - [x] `send text <phone> "CLI integration test"` — returns `true`
+  - [x] `send text` (missing args) — returns `false`
+  - [x] `send image <phone> <testImagePath>` — returns `true`
+  - [x] `send image <phone> <path> "caption"` — returns `true`
+  - [x] `send image <phone> /nonexistent.jpg` — returns `false`
+  - [x] `send document <phone> <testDocPath>` — returns `true`
 
-- [ ] **3.2** Create `tests/integration/cli/07-load-commands.test.ts`
-  - [ ] `load messages <jid>` — returns `true`
-  - [ ] `load messages <jid> --count 10` — returns `true`
-  - [ ] `load messages` (missing JID) — returns `false`
+- [x] **3.2** Create `tests/integration/cli/07-load-commands.test.ts` (4 tests)
+  - [x] `load messages <jid>` — returns `true`
+  - [x] `load messages <jid> --count 10` — returns `true`
+  - [x] `load messages` (missing JID) — returns `false`
+  - [x] `load foobar` (unknown subcommand) — returns `false`
 
-- [ ] **3.3** Create `tests/integration/cli/08-profile-commands.test.ts`
-  - [ ] `profile name set "Test Bot"` — returns `true`
-  - [ ] `profile status set "CLI integration test"` — returns `true`
-  - [ ] `profile status set` (empty = clear) — returns `true`
-  - [ ] `profile name set` (missing arg) — returns `false`
+- [x] **3.3** Create `tests/integration/cli/08-profile-commands.test.ts` (6 tests)
+  - [x] `profile name set "Test Bot"` — returns `true`
+  - [x] `profile name set` restores original name
+  - [x] `profile status set "CLI integration test"` — returns `true`
+  - [x] `profile status set ""` (empty = clear) — returns `true`
+  - [x] `profile name set` (missing arg) — returns `false`
+  - [x] `profile foobar` (unknown subcommand) — returns `false`
 
 ### Phase 4: Instance & Business Tests
 
-- [ ] **4.1** Create `tests/integration/cli/09-instance-commands.test.ts`
-  - [ ] `instance list` — returns `true`
-  - [ ] `instance ls` (alias) — returns `true`
-  - [ ] `instance status <instanceId>` — returns `true`
-  - [ ] `instance status nonexistent-xxx` — returns `false`
-  - [ ] `instance foobar` (unknown sub) — returns `false`
+- [x] **4.1** Create `tests/integration/cli/09-instance-commands.test.ts` (5 tests)
+  - [x] `instance list` — returns `true`
+  - [x] `instance ls` (alias) — returns `true`
+  - [x] `instance status <instanceId>` — returns `true` (skips if not connected)
+  - [x] `instance status nonexistent-xxx` — returns `false`
+  - [x] `instance foobar` (unknown sub) — returns `false`
 
-- [ ] **4.2** Create `tests/integration/cli/10-business-commands.test.ts`
-  - [ ] `label list` — returns `true`
-  - [ ] `catalog list` — returns `true` or graceful failure
-  - [ ] `catalog collections` — returns `true` or graceful failure
+- [x] **4.2** Create `tests/integration/cli/10-business-commands.test.ts` (6 tests)
+  - [x] `label list` — returns `true`
+  - [x] `label ls` (alias) — returns `true`
+  - [x] `catalog list` — returns boolean (may fail on non-biz)
+  - [x] `catalog collections` — returns boolean (may fail on non-biz)
+  - [x] `label foobar` (unknown sub) — returns `false`
+  - [x] `catalog foobar` (unknown sub) — returns `false`
 
 ### Phase 5: Finalize
 
-- [ ] **5.1** Run full suite, verify all pass with real connection
-- [ ] **5.2** Verify suite skips gracefully when no session exists
+- [x] **5.1** Run full suite, verify all pass (77/77 tests, 10/10 suites)
+- [x] **5.2** Verify suite skips gracefully when no session exists
 - [ ] **5.3** Update `CLAUDE.md` with CLI test documentation
 - [ ] **5.4** Update `tests/README.md` with CLI test setup instructions
 
