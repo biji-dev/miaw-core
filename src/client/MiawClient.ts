@@ -226,6 +226,7 @@ export class MiawClient extends EventEmitter {
       qrGracePeriod: options.qrGracePeriod || TIMEOUTS.QR_GRACE_PERIOD,
       qrScanTimeout: options.qrScanTimeout || TIMEOUTS.QR_SCAN_TIMEOUT,
       connectionTimeout: options.connectionTimeout || TIMEOUTS.CONNECTION_TIMEOUT,
+      syncFullHistory: options.syncFullHistory !== false,
     };
 
     // Use the initialized logger
@@ -300,15 +301,15 @@ export class MiawClient extends EventEmitter {
         },
         browser: Browsers.macOS("Desktop"),  // Desktop for more history
         generateHighQualityLinkPreview: true,
-        // Enable full history sync to populate stores
-        syncFullHistory: true,
+        // Enable full history sync to populate stores (controlled by syncFullHistory option)
+        syncFullHistory: this.options.syncFullHistory,
         fireInitQueries: true,
         // Debug callback to see if history sync notifications are received
         shouldSyncHistoryMessage: (msg: any) => {
           if (debugMode) {
             logger.debug(`[shouldSyncHistoryMessage] syncType: ${msg.syncType}`);
           }
-          return true; // Always sync
+          return this.options.syncFullHistory;
         },
       });
 
@@ -5475,6 +5476,29 @@ export class MiawClient extends EventEmitter {
     } else {
       this.disableDebug();
     }
+  }
+
+  /**
+   * Enable history sync for next connection
+   */
+  enableSync(): void {
+    this.options.syncFullHistory = true;
+    this.logger.info("History sync enabled (will take effect on next connect)");
+  }
+
+  /**
+   * Disable history sync for next connection
+   */
+  disableSync(): void {
+    this.options.syncFullHistory = false;
+    this.logger.info("History sync disabled (will take effect on next connect)");
+  }
+
+  /**
+   * Check if history sync is enabled
+   */
+  isSyncEnabled(): boolean {
+    return this.options.syncFullHistory;
   }
 
   // TypeScript event emitter type safety

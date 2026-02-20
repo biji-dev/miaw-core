@@ -43,6 +43,7 @@ const commandTree: Record<string, CommandNode> = {
   connect: {},
   disconnect: {},
   debug: { flags: ["on", "off"] },
+  sync: { flags: ["on", "off"] },
   instances: { aliases: ["ls"] },
 
   // Category commands with subcommands
@@ -462,6 +463,21 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       return;
     }
 
+    // Sync toggle commands
+    if (input === "sync" || input === "sync on") {
+      client.enableSync();
+      console.log("✅ History sync enabled");
+      rl.prompt();
+      return;
+    }
+
+    if (input === "sync off") {
+      client.disableSync();
+      console.log("✅ History sync disabled");
+      rl.prompt();
+      return;
+    }
+
     if (input === "instances" || input === "ls") {
       await cmdInstanceList(config.sessionPath);
       rl.prompt();
@@ -624,6 +640,7 @@ REPL-SPECIFIC:
   connect [id]                                Connect to WhatsApp
   disconnect [id]                             Disconnect from WhatsApp
   debug [on|off]                              Toggle debug mode
+  sync [on|off]                               Toggle history sync (default: on)
   instances, ls                               List all instances
   exit, quit                                  Exit REPL
 

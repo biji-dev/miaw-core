@@ -37,6 +37,9 @@ export interface MiawClientOptions {
 
   /** Connection establishment timeout in ms (default: 120000) */
   connectionTimeout?: number;
+
+  /** Enable full history sync on connect (default: true) */
+  syncFullHistory?: boolean;
 }
 
 /**
