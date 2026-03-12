@@ -78,6 +78,7 @@ USAGE:
 GLOBAL FLAGS:
   --instance-id <id>                          Instance ID (default: "default")
   --session-path <path>                       Session directory
+  --proxy <url>                               Proxy URL (http, https, socks4, socks5)
   --json                                      Output as JSON
   --debug                                     Enable verbose logging
 
@@ -131,11 +132,15 @@ async function main() {
   const jsonOutput = flags.json === true;
   const debugMode = flags.debug === true;
 
+  // Extract proxy flag
+  const proxyUrl = flags.proxy as string | undefined;
+
   // Create client configuration
   const clientConfig = {
     instanceId,
     sessionPath,
     debug: debugMode,
+    ...(proxyUrl && { proxy: proxyUrl }),
   };
 
   // No command provided - start REPL
@@ -143,6 +148,7 @@ async function main() {
     console.log(`\n🚀 Starting miaw-cli REPL...`);
     console.log(`📂 Instance: ${instanceId}`);
     console.log(`📂 Session: ${sessionPath}`);
+    if (proxyUrl) console.log(`🌐 Proxy: ${proxyUrl}`);
     console.log(`🔧 Debug: ${debugMode ? "ON" : "OFF"}\n`);
 
     try {

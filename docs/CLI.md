@@ -91,6 +91,7 @@ These flags work with any command:
 |------|-------------|---------|
 | `--instance-id <id>` | Specify instance ID | `default` |
 | `--session-path <path>` | Session directory path | `./sessions-cli` |
+| `--proxy <url>` | Proxy URL (http, https, socks4, socks5) | - |
 | `--json` | Output as JSON instead of tables | - |
 | `--debug` | Enable verbose logging | - |
 | `--help` | Show help message | - |
@@ -103,6 +104,12 @@ npx miaw-cli --instance-id my-bot get profile
 
 # Custom session path
 npx miaw-cli --session-path ./my-sessions get contacts
+
+# Connect through a SOCKS5 proxy
+npx miaw-cli --proxy socks5://proxy.example.com:1080 get groups
+
+# Connect through an HTTP proxy with auth
+npx miaw-cli --proxy http://user:pass@proxy.example.com:8080 send text 6281234567890 "Hello"
 
 # JSON output
 npx miaw-cli get groups --json

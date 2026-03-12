@@ -1,4 +1,24 @@
+import type { Agent } from "node:https";
 import type { MiawLogger } from "./logger.js";
+
+/**
+ * Proxy configuration for WhatsApp connections.
+ * Supports HTTP, HTTPS, SOCKS4, and SOCKS5 proxies.
+ */
+export interface ProxyConfig {
+  /**
+   * Proxy URL
+   * @example "http://proxy.example.com:8080"
+   * @example "socks5://user:pass@proxy.example.com:1080"
+   */
+  url: string;
+
+  /** Optional username for proxy authentication (can also be in URL) */
+  username?: string;
+
+  /** Optional password for proxy authentication (can also be in URL) */
+  password?: string;
+}
 
 /**
  * Configuration options for MiawClient
@@ -40,6 +60,27 @@ export interface MiawClientOptions {
 
   /** Enable full history sync on connect (default: true) */
   syncFullHistory?: boolean;
+
+  /**
+   * Proxy configuration for this instance.
+   * Each instance can have its own proxy for IP rotation.
+   * Pass a string for quick proxy URL, or ProxyConfig object for auth options.
+   * @example "socks5://proxy.example.com:1080"
+   * @example { url: "http://proxy:8080", username: "user", password: "pass" }
+   */
+  proxy?: ProxyConfig | string;
+
+  /**
+   * Custom agent for WebSocket connections (advanced).
+   * Takes priority over proxy config. Must be a Node.js http.Agent.
+   */
+  agent?: Agent;
+
+  /**
+   * Custom agent for HTTP fetch requests - media upload/download (advanced).
+   * Takes priority over proxy config. Must be an undici-compatible Dispatcher.
+   */
+  fetchAgent?: unknown;
 }
 
 /**

@@ -100,6 +100,14 @@ export {
   isBaileysMessageUpsert,
 } from "./utils/type-guards.js";
 
+// Proxy utilities
+export {
+  createProxyAgents,
+  validateProxyConfig,
+} from "./utils/proxy-agent.js";
+export type { ProxyAgents } from "./utils/proxy-agent.js";
+export type { ProxyConfig } from "./types/index.js";
+
 // v1.2.0 Constants
 export { TIMEOUTS, THRESHOLDS } from "./constants/timeouts.js";
 export { CACHE_CONFIG } from "./constants/cache.js";

@@ -17,6 +17,8 @@ export interface ClientConfig {
   instanceId: string;
   sessionPath: string;
   debug?: boolean;
+  /** Proxy URL for this instance (e.g., "socks5://proxy:1080") */
+  proxy?: string;
 }
 
 /**
@@ -75,6 +77,7 @@ export function createClient(config: ClientConfig): MiawClient {
     instanceId: config.instanceId,
     sessionPath: config.sessionPath,
     debug: config.debug || false,
+    ...(config.proxy && { proxy: config.proxy }),
   });
 }
 

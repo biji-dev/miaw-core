@@ -290,6 +290,7 @@ export interface ClientConfig {
   instanceId: string;
   sessionPath: string;
   debug?: boolean;
+  proxy?: string;
 }
 
 /**
