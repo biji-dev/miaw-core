@@ -85,6 +85,10 @@ import {
   validateGroupName,
   validatePhoneNumbers,
 } from "../utils/validation.js";
+import {
+  createProxyAgents,
+  validateProxyConfig,
+} from "../utils/proxy-agent.js";
 
 /**
  * LRU Cache for LID to JID mappings
@@ -175,7 +179,7 @@ class LruCache {
  * Main client class for interacting with WhatsApp
  */
 export class MiawClient extends EventEmitter {
-  private options: Required<MiawClientOptions>;
+  private options: Required<Omit<MiawClientOptions, "proxy" | "agent" | "fetchAgent">> & Pick<MiawClientOptions, "proxy" | "agent" | "fetchAgent">;
   private socket: WASocket | null = null;
   private authHandler: AuthHandler;
   private connectionState: ConnectionState = "disconnected";
@@ -227,6 +231,9 @@ export class MiawClient extends EventEmitter {
       qrScanTimeout: options.qrScanTimeout || TIMEOUTS.QR_SCAN_TIMEOUT,
       connectionTimeout: options.connectionTimeout || TIMEOUTS.CONNECTION_TIMEOUT,
       syncFullHistory: options.syncFullHistory !== false,
+      proxy: options.proxy,
+      agent: options.agent,
+      fetchAgent: options.fetchAgent,
     };
 
     // Use the initialized logger
@@ -288,6 +295,9 @@ export class MiawClient extends EventEmitter {
       // Get latest Baileys version
       const { version } = await fetchLatestBaileysVersion();
 
+      // Resolve proxy agents if configured
+      const proxyAgents = await this.resolveProxyAgents();
+
       // Create socket
       const debugMode = this.options.debug;
       const logger = this.logger;
@@ -311,6 +321,9 @@ export class MiawClient extends EventEmitter {
           }
           return this.options.syncFullHistory;
         },
+        // Proxy support: agent for WebSocket, fetchAgent for media HTTP requests
+        ...(proxyAgents?.wsAgent ? { agent: proxyAgents.wsAgent as import("node:https").Agent } : {}),
+        ...(proxyAgents?.fetchAgent ? { fetchAgent: proxyAgents.fetchAgent as import("node:https").Agent } : {}),
       });
 
       // Register event handlers
@@ -324,6 +337,60 @@ export class MiawClient extends EventEmitter {
       if (this.options.autoReconnect) {
         this.scheduleReconnect();
       }
+    }
+  }
+
+  /**
+   * Resolves proxy agents from configuration.
+   * Direct agent/fetchAgent options take priority over proxy config.
+   */
+  private async resolveProxyAgents(): Promise<{ wsAgent?: unknown; fetchAgent?: unknown } | undefined> {
+    // Direct agent options take priority
+    if (this.options.agent || this.options.fetchAgent) {
+      return {
+        wsAgent: this.options.agent,
+        fetchAgent: this.options.fetchAgent,
+      };
+    }
+
+    // Create agents from proxy config
+    if (this.options.proxy) {
+      if (!validateProxyConfig(this.options.proxy)) {
+        throw new Error(
+          `Invalid proxy configuration: ${typeof this.options.proxy === "string" ? this.options.proxy : this.options.proxy.url}`
+        );
+      }
+
+      const agents = await createProxyAgents(this.options.proxy);
+      this.logger.info("Proxy agent initialized");
+      return agents;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Get current proxy configuration info (URL with credentials masked).
+   * Returns null if no proxy is configured.
+   */
+  getProxyInfo(): { url: string; protocol: string } | null {
+    const proxyUrl = typeof this.options.proxy === "string"
+      ? this.options.proxy
+      : this.options.proxy?.url;
+
+    if (!proxyUrl) return null;
+
+    try {
+      const parsed = new URL(proxyUrl);
+      if (parsed.password) {
+        parsed.password = "****";
+      }
+      return {
+        url: parsed.toString(),
+        protocol: parsed.protocol.replace(":", ""),
+      };
+    } catch {
+      return { url: proxyUrl, protocol: "unknown" };
     }
   }
 

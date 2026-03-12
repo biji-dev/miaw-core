@@ -26,6 +26,7 @@ This document covers all current capabilities of Miaw Core. It will be updated a
 - [Receiving Messages](#receiving-messages)
 - [Connection Management](#connection-management)
 - [Multiple Instances](#multiple-instances)
+- [Proxy Support](#proxy-support)
 - [Session Management](#session-management)
 - [Event Reference](#event-reference)
 - [Error Handling](#error-handling)
@@ -93,6 +94,10 @@ const client = new MiawClient({
   maxReconnectAttempts: 10, // Default: Infinity
   reconnectDelay: 5000, // Default: 3000 (ms)
 
+  // Proxy configuration (v1.3.0+)
+  proxy: "socks5://proxy.example.com:1080", // Proxy URL string
+  // or: proxy: { url: "http://proxy:8080", username: "user", password: "pass" }
+
   // Advanced timeout configurations
   stuckStateTimeout: 30000, // Default: 30000 (ms)
   qrGracePeriod: 30000, // Default: 30000 (ms)
@@ -115,6 +120,9 @@ const client = new MiawClient({
 | `qrGracePeriod`        | `number`  | `30000`        | QR code grace period                                |
 | `qrScanTimeout`        | `number`  | `60000`        | QR code scan timeout                                |
 | `connectionTimeout`    | `number`  | `120000`       | Connection establishment timeout                    |
+| `proxy`                | `string \| ProxyConfig` | _none_ | Proxy URL or config object (see [Proxy Support](#proxy-support)) |
+| `agent`                | `Agent`   | _none_         | Custom WebSocket agent (advanced, overrides proxy)  |
+| `fetchAgent`           | `unknown` | _none_         | Custom fetch dispatcher (advanced, overrides proxy) |
 
 ## Authentication
 
@@ -1231,6 +1239,98 @@ await Promise.all([bot1.connect(), bot2.connect()]);
 bot1.on("message", (msg) => console.log("Bot 1:", msg.text));
 bot2.on("message", (msg) => console.log("Bot 2:", msg.text));
 ```
+
+## Proxy Support
+
+_Added in v1.3.0_
+
+Each MiawClient instance can connect through a proxy for IP rotation, geographic distribution, or privacy. Supports HTTP, HTTPS, SOCKS4, and SOCKS5 proxies.
+
+### Basic Proxy Usage
+
+```typescript
+import { MiawClient } from "miaw-core";
+
+// Using a proxy URL string
+const client = new MiawClient({
+  instanceId: "bot-1",
+  proxy: "socks5://proxy.example.com:1080",
+});
+
+// Using a ProxyConfig object (with separate auth)
+const client2 = new MiawClient({
+  instanceId: "bot-2",
+  proxy: {
+    url: "http://proxy.example.com:8080",
+    username: "user",
+    password: "pass",
+  },
+});
+
+await client.connect(); // Connects through the proxy
+```
+
+### Proxy Info
+
+```typescript
+// Get current proxy info (credentials masked)
+const info = client.getProxyInfo();
+// { url: "socks5://proxy.example.com:1080/", protocol: "socks5" }
+```
+
+### Multiple Instances with Different Proxies
+
+```typescript
+const instances = [
+  { id: "us-bot", proxy: "socks5://us-proxy.example.com:1080" },
+  { id: "eu-bot", proxy: "socks5://eu-proxy.example.com:1080" },
+  { id: "asia-bot", proxy: "http://asia-proxy.example.com:8080" },
+];
+
+for (const { id, proxy } of instances) {
+  const client = new MiawClient({
+    instanceId: id,
+    sessionPath: "./sessions",
+    proxy,
+  });
+  await client.connect();
+}
+```
+
+### Custom Agent (Advanced)
+
+For advanced use cases, you can pass your own agents directly instead of a proxy URL:
+
+```typescript
+import { HttpsProxyAgent } from "https-proxy-agent";
+
+const client = new MiawClient({
+  instanceId: "advanced-bot",
+  agent: new HttpsProxyAgent("http://proxy:8080"),    // WebSocket agent
+  fetchAgent: myCustomDispatcher,                      // undici Dispatcher for media
+});
+```
+
+### Proxy Validation
+
+```typescript
+import { validateProxyConfig } from "miaw-core";
+
+validateProxyConfig("socks5://proxy:1080");  // true
+validateProxyConfig("http://proxy:8080");    // true
+validateProxyConfig("ftp://invalid:21");     // false
+```
+
+### Supported Protocols
+
+| Protocol | WebSocket | Media Upload/Download |
+|----------|-----------|----------------------|
+| `http://`  | Yes | Yes |
+| `https://` | Yes | Yes |
+| `socks4://` | Yes | No (direct connection) |
+| `socks5://` | Yes | No (direct connection) |
+
+> **Note**: SOCKS proxies fully tunnel the WebSocket connection to WhatsApp. However, media uploads/downloads (which use Node.js `fetch()`) fall back to a direct connection when using SOCKS, because Node.js `fetch()` requires an undici-compatible dispatcher which doesn't support SOCKS natively. HTTP/HTTPS proxies work for both.
 
 ## Session Management
 
