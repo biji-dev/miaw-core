@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-06-26
+
+**Baileys upgrade** - Move to the latest Baileys release (7.0.0-rc13).
+
+### Changed
+
+- Upgraded `@whiskeysockets/baileys` from `7.0.0-rc.9` to `7.0.0-rc13` (pinned
+  exactly). Picks up security fixes (GHSA-qvv5-jq5g-4cgg, a protocolMessage parse
+  regression), performance/stability work, and libsignal published to the npm
+  registry. No public API changes.
+
+### Fixed
+
+- LID->phone resolution now reads `Contact.phoneNumber` / `Chat.pnJid` for
+  LID-keyed entries. Baileys rc10 removed the `Contact.jid` field, which the
+  mapping builders still relied on, so mappings derived from contacts/chats were
+  silently dropped.
+- `BaileysMessage.message` is now typed `... | null` to match Baileys (which
+  emits `null` messages for protocol/placeholder entries).
+- Repaired pre-existing unit/integration test fixtures that no longer compiled
+  under strict typing (missing message `type`, incomplete `createProduct` input).
+
 ## [1.2.0] - 2026-01-20
 
 **CLI Major Expansion** - Business features, contact/profile management, and complete messaging commands

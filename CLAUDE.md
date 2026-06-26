@@ -8,8 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Key abstraction**: miaw-core handles all Baileys boilerplate so developers can focus on bot logic instead of connection lifecycle, auth state management, and message parsing.
 
-**Current Version**: 1.1.1
-**Baileys Version**: 7.0.0-rc.9
+**Current Version**: 1.4.1
+**Baileys Version**: 7.0.0-rc13
 **Module System**: ESM-only (`"type": "module"`)
 **Node.js Required**: >= 18.0.0
 
@@ -265,7 +265,7 @@ See [tests/README.md](tests/README.md) for detailed testing guide.
 ## Dependencies
 
 **Core:**
-- `@whiskeysockets/baileys` (v7.0.0-rc.9) - WhatsApp Web protocol
+- `@whiskeysockets/baileys` (v7.0.0-rc13) - WhatsApp Web protocol
 - `pino` - Structured logging
 - `@hapi/boom` - HTTP-friendly error objects
 - `qrcode-terminal` - QR code display in terminal
