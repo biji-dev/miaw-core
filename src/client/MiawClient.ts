@@ -1075,6 +1075,13 @@ export class MiawClient extends EventEmitter {
    * @param msg - Baileys message object
    */
   private addMessageToStore(msg: any): void {
+    // Capture LID<->PN mapping from the history message key (rc13 alt fields)
+    // so @lid from/participant resolve consistently with the live message path.
+    if (msg?.key && !msg.key.fromMe) {
+      this.captureLidPnPair(msg.key.remoteJid, msg.key.remoteJidAlt);
+      this.captureLidPnPair(msg.key.participant, msg.key.participantAlt);
+    }
+
     const normalized = MessageHandler.normalize({ messages: [msg], type: "notify" }, this.logger);
     if (!normalized) return;
 
