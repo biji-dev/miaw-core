@@ -2,7 +2,7 @@
 
 **Last Updated:** June 26, 2026  
 **Baileys Version:** 7.0.0-rc13  
-**Miaw Core Version:** 1.5.0
+**Miaw Core Version:** 1.6.0
 
 ## Overview
 
@@ -42,7 +42,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | Feature                                  | Baileys | Miaw Core | Notes                                 |
 | ---------------------------------------- | ------- | --------- | ------------------------------------- |
 | **QR Code Authentication**               | ✅      | ✅        | Miaw emits `qr` event                 |
-| **Pairing Code (Phone Number)**          | ✅      | ❌        | Request pairing code via phone number |
+| **Pairing Code (Phone Number)**          | ✅      | ✅        | `usePairingCode` + `phoneNumber` (v1.6.0) |
 | **Session Persistence (Multi-file)**     | ✅      | ✅        | `AuthHandler` manages automatically   |
 | **Session Persistence (Single-file)**    | ✅      | ❌        | Multi-file only in Miaw               |
 | **Session Persistence (External Store)** | ✅      | ❌        | Redis, MongoDB, etc.                  |
@@ -66,7 +66,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | -------------------------- | ------- | --------- | -------------------------------------- |
 | **Send Text**              | ✅      | ✅        | `sendText()`                           |
 | **Send with Quote/Reply**  | ✅      | ✅        | `options.quoted`                       |
-| **Send with Mentions**     | ✅      | ❌        | `@mentions` in text                    |
+| **Send with Mentions**     | ✅      | ✅        | `mentions` option (v1.6.0)             |
 | **Send with Link Preview** | ✅      | 🔶        | Auto-generated in Baileys              |
 | **Send Extended Text**     | ✅      | ❌        | Bold, italic, strikethrough, monospace |
 
@@ -80,7 +80,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Send Voice Note (PTT)**   | ✅      | ✅        | `options.ptt: true`         |
 | **Send Video Note (PTV)**   | ✅      | ✅        | `options.ptv: true`         |
 | **Send Document**           | ✅      | ✅        | `sendDocument()`            |
-| **Send Sticker**            | ✅      | ❌        | WebP sticker messages       |
+| **Send Sticker**            | ✅      | ✅        | `sendSticker()` (v1.6.0)    |
 | **Send GIF**                | ✅      | ✅        | `options.gifPlayback: true` |
 | **View Once (Image/Video)** | ✅      | ✅        | `options.viewOnce: true`    |
 | **Media from URL**          | ✅      | ✅        | Pass URL string             |
@@ -92,11 +92,11 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 
 | Feature                    | Baileys | Miaw Core | Notes                                  |
 | -------------------------- | ------- | --------- | -------------------------------------- |
-| **Send Location**          | ✅      | ❌        | Latitude/longitude                     |
+| **Send Location**          | ✅      | ✅        | `sendLocation()` (v1.6.0)              |
 | **Send Live Location**     | ✅      | ❌        | Live location sharing                  |
-| **Send Contact (vCard)**   | ✅      | ❌        | Contact cards                          |
-| **Send Multiple Contacts** | ✅      | ❌        | Multiple vCards                        |
-| **Send Poll**              | ✅      | ❌        | Poll messages                          |
+| **Send Contact (vCard)**   | ✅      | ✅        | `sendContact()` (v1.6.0)               |
+| **Send Multiple Contacts** | ✅      | ✅        | `sendContact()` array (v1.6.0)         |
+| **Send Poll**              | ✅      | ✅        | `sendPoll()` (v1.6.0)                  |
 | **Send Product**           | ✅      | ❌        | Product message                        |
 | **Send Event**             | ✅      | ❌        | Event/calendar messages                |
 | **Send Group Invite**      | ✅      | ❌        | Group invite message                   |
@@ -130,7 +130,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Message Delete Event**     | ✅      | ✅        | `message_delete` event             |
 | **Message Reaction Event**   | ✅      | ✅        | `message_reaction` event           |
 | **History Sync**             | ✅      | 🔶        | Chats/contacts synced to stores    |
-| **Poll Updates**             | ✅      | ❌        | Poll vote events                   |
+| **Poll Updates**             | ✅      | ✅        | `poll_vote` event (v1.6.0)         |
 | **Receipt Events**           | ✅      | ❌        | Delivery/read receipts             |
 | **Call Events**              | ✅      | ❌        | Incoming/outgoing calls            |
 | **Label Association Events** | ✅      | ❌        | Label add/remove events            |
@@ -421,9 +421,9 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 
 | Category                  | Baileys Features | Miaw Core Implemented | Coverage |
 | ------------------------- | ---------------- | --------------------- | -------- |
-| **Connection & Auth**     | 14               | 11                    | 79%      |
-| **Sending Messages**      | 33               | 19                    | 58%      |
-| **Receiving & Events**    | 17               | 12                    | 71%      |
+| **Connection & Auth**     | 14               | 12                    | 86%      |
+| **Sending Messages**      | 33               | 25                    | 76%      |
+| **Receiving & Events**    | 17               | 13                    | 76%      |
 | **Media**                 | 4                | 2                     | 50%      |
 | **Chat Management**       | 11               | 6                     | 55%      |
 | **User & Contacts**       | 10               | 8                     | 80%      |
@@ -439,7 +439,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Calls**                 | 5                | 0                     | 0%       |
 | **Utilities**             | 7                | 4                     | 57%      |
 | **Low-Level**             | 6                | 0                     | 0%       |
-| **TOTAL**                 | ~175             | ~112                  | ~64%     |
+| **TOTAL**                 | ~175             | ~120                  | ~69%     |
 
 ### What Miaw Core Focuses On
 
@@ -520,4 +520,4 @@ These are all backed by methods that exist in Baileys 7.0.0-rc13 and can be wrap
 
 ---
 
-_This analysis was last updated on June 26, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.5.0._
+_This analysis was last updated on June 27, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.6.0._

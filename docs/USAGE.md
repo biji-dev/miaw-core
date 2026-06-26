@@ -141,6 +141,26 @@ client.on("qr", (qr) => {
 });
 ```
 
+### Pairing Code Authentication (v1.6.0)
+
+Connect by entering an 8-character code in WhatsApp (Linked Devices → Link with
+phone number) instead of scanning a QR — ideal for headless/server deploys. QR
+emission is suppressed in this mode.
+
+```typescript
+const client = new MiawClient({
+  instanceId: "bot1",
+  usePairingCode: true,
+  phoneNumber: "6281234567890", // international format, no '+'
+});
+
+client.on("pairing_code", (code) => {
+  console.log("Enter this code in WhatsApp:", code); // e.g. "ABCD1234"
+});
+
+await client.connect();
+```
+
 ### Session Persistence
 
 After first authentication, the session is automatically saved and reused:
@@ -231,6 +251,46 @@ await client.sendText("123456789@g.us", "Hello group!");
 client.on("message", async (msg) => {
   // Reply to the received message
   await client.sendText(msg.from, "This is a reply!", { quoted: msg });
+});
+```
+
+### Mentions (groups)
+
+```typescript
+// @mention members in a group (also reference them as @<number> in the text)
+await client.sendText(groupJid, "Hi @6281234567890!", {
+  mentions: ["6281234567890"],
+});
+```
+
+### Rich Message Types (v1.6.0)
+
+```typescript
+// Location
+await client.sendLocation("6281234567890", -6.2, 106.8, {
+  name: "Jakarta",
+  address: "Indonesia",
+});
+
+// Contact card(s) — pass one object or an array
+await client.sendContact("6281234567890", {
+  fullName: "John Doe",
+  phone: "6285555555555",
+  organization: "Acme Inc",
+});
+
+// Sticker (WebP — file path, URL, or Buffer)
+await client.sendSticker("6281234567890", "./sticker.webp");
+
+// Poll (>= 2 options; selectableCount defaults to 1)
+await client.sendPoll("6281234567890", "Lunch?", ["Pizza", "Sushi"], {
+  selectableCount: 1,
+});
+
+// Read poll votes (aggregated tally)
+client.on("poll_vote", (vote) => {
+  console.log(vote.pollMessageId, vote.results);
+  // results: [{ option: "Pizza", voters: ["...@s.whatsapp.net"] }, ...]
 });
 ```
 

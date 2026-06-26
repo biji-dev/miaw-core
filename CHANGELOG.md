@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-06-27
+
+**Rich messages + pairing-code auth** - The standard message types every
+comparable WhatsApp library ships, plus QR-free authentication. All additive.
+
+### Added
+
+- **Rich message types** (thin `sendMessage` wrappers):
+  - `sendLocation(to, latitude, longitude, opts?)` - share a location
+  - `sendContact(to, contacts, opts?)` - share contact card(s) as vCards
+    (single object or array)
+  - `sendSticker(to, sticker, opts?)` - send a WebP sticker
+  - `sendPoll(to, name, options, opts?)` - send a poll (selectableCount, ≥2 options)
+  - `mentions` option on `sendText` / `sendImage` / `sendVideo` (group @mentions)
+- **Poll-vote reading** - a `messages.update` handler decodes incoming votes
+  (`getAggregateVotesInPollMessage`) and emits a new `poll_vote` event with the
+  aggregated tally.
+- **Pairing-code authentication** - new `usePairingCode` + `phoneNumber` options;
+  on a fresh session miaw requests an 8-char code and emits the new
+  `pairing_code` event (QR suppressed). Headless/server friendly.
+- **CLI**: `send location | contact | poll | sticker` subcommands.
+- New types: `ContactCard`, `SendLocationOptions`, `SendContactOptions`,
+  `SendStickerOptions`, `SendPollOptions`, `PollVoteUpdate`; new events
+  `poll_vote` and `pairing_code`.
+
 ## [1.5.0] - 2026-06-26
 
 **Native LID management** - Adopt Baileys 7.0.0-rc13's native LID infrastructure
