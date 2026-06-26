@@ -99,7 +99,8 @@ export interface BaileysMessage {
   key: BaileysMessageKey;
   messageTimestamp?: number | Long | null;
   pushName?: string | null;
-  message?: BaileysMessageContent;
+  // Baileys may emit a null message (e.g. protocol/placeholder messages)
+  message?: BaileysMessageContent | null;
 }
 
 /**

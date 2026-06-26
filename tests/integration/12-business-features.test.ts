@@ -338,7 +338,9 @@ describe("Business Features (v0.9.0)", () => {
 
       const result = await disconnectedClient.createProduct({
         name: "Test",
+        description: "Test product",
         price: 100,
+        currency: "USD",
       });
 
       expect(result.success).toBe(false);
