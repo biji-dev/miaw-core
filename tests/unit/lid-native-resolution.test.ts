@@ -139,4 +139,58 @@ describe("MiawClient native LID resolution (rc13)", () => {
       expect(client.getLidCacheSize()).toBe(0);
     });
   });
+
+  describe("resolveLidsToPhones (bulk)", () => {
+    it("serves cache hits locally and batches only the misses into one native query", async () => {
+      const getPNsForLIDs = jest
+        .fn<(lids: string[]) => Promise<{ lid: string; pn: string }[] | null>>()
+        .mockResolvedValue([{ lid: "333333333333333@lid", pn: "6283333333333@s.whatsapp.net" }]);
+      const client = makeClientWithStore({ getPNsForLIDs });
+
+      // Pre-seed one mapping so it is a cache hit.
+      client.registerLidMapping(LID, PN);
+
+      const out = await client.resolveLidsToPhones([LID, "333333333333333@lid"]);
+
+      expect(out[LID]).toBe("6281234567890");
+      expect(out["333333333333333@lid"]).toBe("6283333333333");
+      // Only the miss was sent to the native store.
+      expect(getPNsForLIDs).toHaveBeenCalledTimes(1);
+      expect(getPNsForLIDs).toHaveBeenCalledWith(["333333333333333@lid"]);
+    });
+
+    it("marks unresolved LIDs as null", async () => {
+      const getPNsForLIDs = jest
+        .fn<() => Promise<{ lid: string; pn: string }[] | null>>()
+        .mockResolvedValue(null);
+      const client = makeClientWithStore({ getPNsForLIDs });
+
+      const out = await client.resolveLidsToPhones(["999999999999999@lid"]);
+
+      expect(out["999999999999999@lid"]).toBeNull();
+    });
+  });
+
+  describe("getLidForPhone (reverse)", () => {
+    it("reverse-resolves a phone to its LID and seeds the cache", async () => {
+      const getLIDForPN = jest
+        .fn<(pn: string) => Promise<string | null>>()
+        .mockResolvedValue(LID);
+      const client = makeClientWithStore({ getLIDForPN });
+
+      const lid = await client.getLidForPhone("6281234567890");
+
+      expect(lid).toBe(LID);
+      expect(getLIDForPN).toHaveBeenCalledWith(PN);
+      // The reverse mapping (lid -> pn) is now in the local cache.
+      expect(client.resolveLidToJid(LID)).toBe(PN);
+    });
+
+    it("returns null without a connected socket", async () => {
+      const client: any = new MiawClient({ instanceId: "test-lid-rev-nosocket" });
+      jest.spyOn(client, "saveLidMappingsToFile").mockImplementation(() => {});
+
+      expect(await client.getLidForPhone("6281234567890")).toBeNull();
+    });
+  });
 });

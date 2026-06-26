@@ -1063,6 +1063,85 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Resolve multiple LIDs to phone numbers in one call. Cache hits are served
+   * locally; the remaining misses are resolved in a single batched query
+   * against Baileys' native LID store (rc13 `getPNsForLIDs`), and any results
+   * are back-filled into the local cache.
+   * @param lids - LID JIDs (e.g., ['12345@lid', ...])
+   * @returns A map of input LID -> phone number string, or null if unresolved
+   */
+  async resolveLidsToPhones(lids: string[]): Promise<Record<string, string | null>> {
+    const result: Record<string, string | null> = {};
+    const misses: string[] = [];
+
+    // Resolve from the local cache first; collect the misses.
+    for (const lid of lids) {
+      if (!lid?.endsWith("@lid")) {
+        // Not a LID — extract the phone directly when possible.
+        result[lid] = MessageHandler.formatJidToPhone(lid) || null;
+        continue;
+      }
+      const cached = this.resolveLidToJid(lid);
+      if (cached.endsWith("@lid")) {
+        result[lid] = null;
+        misses.push(lid);
+      } else {
+        result[lid] = MessageHandler.formatJidToPhone(cached) || null;
+      }
+    }
+
+    // One batched native lookup for the misses.
+    const store = this.lidStore;
+    if (store && misses.length > 0) {
+      try {
+        const pairs = await store.getPNsForLIDs(misses);
+        if (pairs) {
+          for (const { lid, pn } of pairs) {
+            if (lid && pn) {
+              this.addLidMapping(lid, pn, "NativeStore");
+              result[lid] = MessageHandler.formatJidToPhone(pn) || null;
+            }
+          }
+        }
+      } catch (error) {
+        if (this.options.debug) {
+          this.logger.debug("[LID NativeStore] getPNsForLIDs failed:", error);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Reverse-resolve a phone number to its LID via Baileys' native LID store
+   * (rc13 `getLIDForPN`). On a hit the mapping is also seeded into the local
+   * cache. Requires an active connection.
+   * @param phone - A phone number (e.g., '6281234567890') or phone JID
+   * @returns The LID JID (e.g., '12345@lid') or null if unresolved
+   */
+  async getLidForPhone(phone: string): Promise<string | null> {
+    const store = this.lidStore;
+    if (!store) {
+      return null;
+    }
+    const pnJid = phone.includes("@") ? phone : MessageHandler.formatPhoneToJid(phone);
+    try {
+      const lid = await store.getLIDForPN(pnJid);
+      if (lid) {
+        // Seed the reverse mapping into our cache for future LID -> PN lookups.
+        this.addLidMapping(lid, pnJid, "NativeStore");
+        return lid;
+      }
+    } catch (error) {
+      if (this.options.debug) {
+        this.logger.debug(`[LID NativeStore] getLIDForPN failed for ${pnJid}:`, error);
+      }
+    }
+    return null;
+  }
+
+  /**
    * Update in-memory contacts store
    * @param contacts - Array of contact objects from Baileys
    *
