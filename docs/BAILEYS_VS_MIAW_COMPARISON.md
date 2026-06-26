@@ -1,8 +1,8 @@
 # Baileys vs Miaw Core - Comprehensive Feature Comparison
 
-**Last Updated:** January 2, 2026  
-**Baileys Version:** 7.0.0-rc.9  
-**Miaw Core Version:** 1.1.0
+**Last Updated:** June 26, 2026  
+**Baileys Version:** 7.0.0-rc13  
+**Miaw Core Version:** 1.5.0
 
 ## Overview
 
@@ -53,7 +53,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Multiple Instances**                   | ✅      | ✅        | Full support in both                  |
 | **Browser Config**                       | ✅      | 🔶        | Fixed browser config in Miaw          |
 | **Custom Logger**                        | ✅      | ✅        | Pino-based in both                    |
-| **Proxy Support**                        | ✅      | ❌        | HTTP/SOCKS proxy                      |
+| **Proxy Support**                        | ✅      | ✅        | HTTP/SOCKS via `proxyUrl` config (v1.3.0) |
 | **WebSocket Options**                    | ✅      | ❌        | Custom WS configuration               |
 
 ---
@@ -183,7 +183,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Delete Chat**           | ✅      | ❌        | Delete entire chat        |
 | **Clear Chat**            | ✅      | ❌        | Clear all messages        |
 | **Disappearing Messages** | ✅      | ❌        | Set ephemeral timer       |
-| **Fetch Message History** | ✅      | ❌        | Load older messages       |
+| **Fetch Message History** | ✅      | ✅        | `loadMoreMessages()`      |
 | **Chat Modify**           | ✅      | 🔶        | Used internally           |
 
 ---
@@ -393,7 +393,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | --------------------------------- | ------- | --------- | ----------------------------------- |
 | **JID Encoding/Decoding**         | ✅      | 🔶        | `MessageHandler.formatPhoneToJid()` |
 | **Check JID Type**                | ✅      | 🔶        | Group/user/newsletter/etc.          |
-| **LID to JID Resolution**         | ✅      | ✅        | `resolveLidToJid()`                 |
+| **LID to JID Resolution**         | ✅      | ✅        | `resolveLidToJid()` + async/bulk/reverse via native store (v1.5.0) |
 | **Get Phone from JID**            | ✅      | ✅        | `getPhoneFromJid()`                 |
 | **Generate Message ID**           | ✅      | ❌        | Custom message IDs                  |
 | **Download Content from Message** | ✅      | ✅        | `downloadMedia()`                   |
@@ -421,11 +421,11 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 
 | Category                  | Baileys Features | Miaw Core Implemented | Coverage |
 | ------------------------- | ---------------- | --------------------- | -------- |
-| **Connection & Auth**     | 14               | 10                    | 71%      |
+| **Connection & Auth**     | 14               | 11                    | 79%      |
 | **Sending Messages**      | 33               | 19                    | 58%      |
 | **Receiving & Events**    | 17               | 12                    | 71%      |
 | **Media**                 | 4                | 2                     | 50%      |
-| **Chat Management**       | 11               | 5                     | 45%      |
+| **Chat Management**       | 11               | 6                     | 55%      |
 | **User & Contacts**       | 10               | 8                     | 80%      |
 | **Profile Management**    | 5                | 5                     | 100%     |
 | **Group Management**      | 18               | 14                    | 78%      |
@@ -439,7 +439,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Calls**                 | 5                | 0                     | 0%       |
 | **Utilities**             | 7                | 4                     | 57%      |
 | **Low-Level**             | 6                | 0                     | 0%       |
-| **TOTAL**                 | ~175             | ~110                  | ~63%     |
+| **TOTAL**                 | ~175             | ~112                  | ~64%     |
 
 ### What Miaw Core Focuses On
 
@@ -455,16 +455,17 @@ Miaw Core prioritizes the features that **90% of WhatsApp bots actually need**:
 
 ### What Miaw Core Doesn't Implement (Yet)
 
-These are deliberately excluded or planned for future:
+These are all backed by methods that exist in Baileys 7.0.0-rc13 and can be wrapped. Ordered by the prioritized backlog (see **[ROADMAP.md → Not-Yet-Implemented Baileys Features](./ROADMAP.md)**):
 
-1. ❌ **Privacy Settings** - Rarely needed by bots
-2. ❌ **Status/Stories** - Not common for automation
-3. ❌ **Communities** - Newer feature, less used
-4. ❌ **Calls** - WhatsApp calls via bots are rare
-5. ❌ **Polls** - Can be added if demand exists
-6. ❌ **Location Messages** - Can be added
-7. ❌ **Stickers** - Can be added
-8. ❌ **Interactive Messages** - Buttons/lists deprecated by WhatsApp
+1. ❌ **Chat Management** _(priority)_ - archive, pin, mute, clear, delete chat, star/unstar messages (`chatModify`)
+2. ❌ **Rich Messages** _(priority)_ - location, contact/vCard, poll (+ vote decoding), sticker, group-invite, pin-in-chat, `@mentions`
+3. ❌ **Privacy & Blocklist** - block/unblock, get blocklist, 10 privacy setters (`fetchBlocklist`, `updateBlockStatus`, `update*Privacy`)
+4. ❌ **Group Admin & Disappearing** - announce/restrict, join-approval, member-add mode, ephemeral (`groupSettingUpdate`, `groupRequest*`, `groupToggleEphemeral`)
+5. ❌ **Calls** - reject call, call events, call links (`rejectCall`, `createCallLink`)
+6. ❌ **Business Extras** - update business profile, cover photo, order details, quick replies
+7. ❌ **Status/Stories** - post to `status@broadcast`
+8. ❌ **Communities** - full `community*` layer (largest surface)
+9. 🔶 **Interactive Messages** - buttons/lists/templates deprecated by WhatsApp (low value)
 
 ---
 
@@ -519,4 +520,4 @@ These are deliberately excluded or planned for future:
 
 ---
 
-_This analysis was generated on January 2, 2026, based on Baileys v7.0.0-rc.9 and Miaw Core v1.1.0_
+_This analysis was last updated on June 26, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.5.0._

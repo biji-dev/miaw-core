@@ -39,6 +39,34 @@ const phone = client.getPhoneFromJid("42877077966917@lid");
 client.registerLidMapping("42877077966917@lid", "6281234567890@s.whatsapp.net");
 ```
 
+#### Native-store resolution (Baileys rc13, v1.5.0+)
+
+The synchronous methods above are **cache-only**. For misses, these async
+methods additionally consult Baileys' native LID store
+(`signalRepository.lidMapping`), which can perform a server/USync-backed lookup
+and **back-fills** our cache on success. They require an active connection.
+
+```typescript
+// Async resolve — cache first, then the native store on a miss
+const jid = await client.resolveLidToJidAsync("42877077966917@lid");
+const phone = await client.getPhoneFromJidAsync("42877077966917@lid");
+
+// Bulk: cache hits served locally; misses sent in ONE native query
+const map = await client.resolveLidsToPhones([
+  "42877077966917@lid",
+  "11111111111111@lid",
+]);
+// => { "42877077966917@lid": "6281234567890", "11111111111111@lid": null }
+
+// Reverse: phone number -> LID (also seeds the local cache)
+const lid = await client.getLidForPhone("6281234567890");
+// => "42877077966917@lid" or null
+```
+
+> Inbound messages already use this fallback automatically: if a sender's
+> `@lid` is not yet cached, the native store is consulted while resolving
+> `senderPhone`.
+
 ## Sources of LID Mappings
 
 The LID cache is populated from multiple sources:
@@ -221,12 +249,18 @@ client.on("message", (message) => {
 
 ## Future Improvements
 
-Potential enhancements to LID resolution:
+**Implemented in v1.5.0** — miaw-core now adopts Baileys 7.0.0-rc13's native LID infrastructure:
 
-1. **Baileys PR**: Submit a pull request to Baileys to extract `phoneNumberToLidMappings` from HistorySync
-2. **Fallback lookup**: Implement a contact lookup API that resolves LIDs server-side
-3. **User notification**: Alert users when important contacts have unresolved LIDs
-4. **Bulk resolution**: API to resolve multiple LIDs in a single call
+- ✅ **Native LID store** — `resolveLidToJidAsync()` / `getPhoneFromJidAsync()` fall back to `signalRepository.lidMapping.getPNForLID()` (server/USync-backed) on cache misses, back-filling the local cache. The inbound message path uses this automatically for `senderPhone`.
+- ✅ **`lidPnMappings` ingestion** — the dedicated LID↔PN array on `messaging-history.set` is consumed during history sync.
+- ✅ **Bulk + reverse resolution** — `resolveLidsToPhones([...])` (via `getPNsForLIDs`) and `getLidForPhone()` (via `getLIDForPN`).
+
+> `signalRepository.migrateSession(pn → lid)` is **not** wrapped: Baileys already calls it internally (`enableAutoSessionRecreation` defaults to `true`), so a manual wrapper would be redundant.
+
+Potential further enhancements:
+
+1. **User notification**: Alert users when important contacts have unresolved LIDs
+2. **Proactive seeding**: Resolve all unresolved store LIDs via the native store on connect
 
 ## Related Files
 
@@ -243,3 +277,4 @@ Potential enhancements to LID resolution:
 | v1.1.1 | Fixed CLI group participants LID display |
 | v1.1.2 | Fixed `getContactProfile()` LID resolution |
 | v1.4.1 | Baileys 7.0.0-rc13: read `Contact.phoneNumber` / `Chat.pnJid` and message-key `remoteJidAlt` / `participantAlt` (rc10 removed `Contact.jid`; rc13 no longer sets `senderPn` / `senderLid`) |
+| v1.5.0 | Adopt the rc13 native LID store: async/bulk/reverse resolvers (`resolveLidToJidAsync`, `getPhoneFromJidAsync`, `resolveLidsToPhones`, `getLidForPhone`) + `lidPnMappings` history ingestion |

@@ -21,6 +21,17 @@ export interface ProxyConfig {
 }
 
 /**
+ * A LID (Linked ID) ↔ phone-number mapping pair, as exposed by Baileys'
+ * native LID store and the `messaging-history.set` `lidPnMappings` array.
+ */
+export interface LidMapping {
+  /** Privacy-masked LID JID, e.g. `'42877077966917@lid'` */
+  lid: string;
+  /** Phone-number JID, e.g. `'6281234567890@s.whatsapp.net'` */
+  pn: string;
+}
+
+/**
  * Configuration options for MiawClient
  */
 export interface MiawClientOptions {

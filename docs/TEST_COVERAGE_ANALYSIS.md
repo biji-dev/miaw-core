@@ -1,10 +1,12 @@
 # MiawClient Test Coverage Analysis
 
-**Generated:** January 2, 2026  
+**Generated:** January 2, 2026 · **Last reviewed:** June 26, 2026 (Baileys 7.0.0-rc13, miaw-core v1.4.1)  
 **Source Files Analyzed:**
 
 - `src/client/MiawClient.ts` - Main client implementation
 - `tests/interactive-test.ts` - Interactive manual test suite
+
+> **Note:** The figures below reflect the 92-method API surface as of v1.4.1. The not-yet-implemented Baileys features tracked in [ROADMAP.md → Not-Yet-Implemented Baileys Features](./ROADMAP.md#not-yet-implemented-baileys-features-prioritized) (chat management, rich messages, privacy/blocklist, etc.) are **not** counted here and will need coverage as they land. A full regeneration of this table is out of scope for the rc13 docs refresh.
 
 ## Summary
 

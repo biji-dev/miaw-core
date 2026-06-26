@@ -4,7 +4,7 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 1.4.1
+**Current Version:** 1.5.0
 **Baileys Version:** 7.0.0-rc13
 **Node.js Required:** >= 18.0.0
 **Module System:** ESM-only
@@ -224,120 +224,157 @@ We prioritize features based on:
 
 ---
 
-### v1.0.0 - Production Ready
+### v1.0.0 - Production Ready ✅
 
-**Focus:** First stable release
+**Focus:** First stable release (2025-12-24)
 
-- [ ] **Complete Test Coverage** - Unit and integration tests for all features
-- [ ] **Performance Optimization** - Optimized message handling and reconnection
-- [ ] **Documentation Complete** - Full examples for all features in USAGE.md
-- [ ] **Example Bots** - Multiple real-world example implementations
-- [ ] **Migration Guide** - Guide for upgrading from v0.x
-- [ ] **Stability Guarantee** - No breaking changes in v1.x
-- [ ] **Bug Fixes** - All known issues resolved
+- [x] **Complete Test Coverage** - Unit and integration tests for all features
+- [x] **Documentation Complete** - Full examples for all features in USAGE.md
+- [x] **Example Bots** - 11 basic + 2 real-world example implementations
+- [x] **Migration Guide** - Guide for upgrading from v0.x
+- [x] **Stability Guarantee** - No breaking changes in v1.x
+- [x] **API Stability Review** - `docs/API_STABILITY_REVIEW.md`
 
-**First Stable Release** - Production-ready for critical applications
+**First Stable Release** - Production-ready for critical applications.
 
 ---
 
-## Planned Features - Advanced (> 1.0.0)
+## Released Since v1.0.0
 
-### v1.1.0 - Performance & Reliability
+These shipped after the first stable release (see [CHANGELOG.md](../CHANGELOG.md) for full detail):
 
-**Focus:** Production scalability and performance
+### v1.1.0 - Baileys v7 Migration ✅ (2026-01-02)
 
-#### Custom Storage
+- [x] **ESM-only** - `"type": "module"`, Node.js >= 18 (breaking change)
+- [x] **Baileys v6.7.21 → v7.0.0-rc.9**
+- [x] **Session reconnection fix** - reconnect after QR scan + restart without re-pairing
+
+### v1.2.0 - Code Quality ✅
+
+- [x] **Configurable timeouts** - per-operation timeout options
+- [x] **Validation utilities** - exported phone/JID validators and type guards
+- [x] **Custom logger support** - inject your own Pino-compatible logger
+
+### v1.3.0 - Proxy Support ✅
+
+- [x] **HTTP/SOCKS proxy** - route the WhatsApp connection via `proxyUrl`
+- [x] **`getProxyInfo()`** - inspect the active proxy
+
+### v1.4.0 / v1.4.1 - CLI Expansion + Baileys rc13 ✅ (2026-06-26)
+
+- [x] **CLI major expansion** - video/audio/media-download, labels, catalog, contacts, profile commands (63 commands total)
+- [x] **Baileys v7.0.0-rc.9 → rc13** - security fixes (GHSA-qvv5-jq5g-4cgg), libsignal on npm
+- [x] **LID resolution hardening for rc10–rc13** - reads `Contact.phoneNumber` / `Chat.pnJid` and the rc13 MessageKey alt fields (`remoteJidAlt` / `participantAlt` / `addressingMode`); see [LID_RESOLUTION.md](./LID_RESOLUTION.md)
+
+### v1.5.0 - Native LID Management ✅ (2026-06-26)
+
+- [x] **Native LID store adoption** - `resolveLidToJidAsync` / `getPhoneFromJidAsync` fall back to `signalRepository.lidMapping.getPNForLID` (server-backed) and back-fill the cache; inbound messages use it for `senderPhone`
+- [x] **`lidPnMappings` ingestion** - consume the dedicated LID↔PN array on `messaging-history.set`
+- [x] **Bulk + reverse resolution** - `resolveLidsToPhones([...])` and `getLidForPhone()`
+
+---
+
+## Not-Yet-Implemented Baileys Features (Prioritized)
+
+Every item below is a thin wrapper over a method that **exists in Baileys 7.0.0-rc13** but is not yet exposed by miaw-core. Verified against the installed `@whiskeysockets/baileys` type definitions. Ordered as the backlog for the next implementation round.
+
+### 1. Chat Management (priority) — via `socket.chatModify(mod, jid)`
+
+- [ ] `archiveChat()` / `unarchiveChat()`
+- [ ] `pinChat()` / `unpinChat()`
+- [ ] `muteChat(duration)` / `unmuteChat()`
+- [ ] `markChatRead()` (whole-chat read)
+- [ ] `clearChat()` / `deleteChat()`
+- [ ] `starMessage()` / `unstarMessage()` (`socket.star`)
+
+> `archive` / `clear` / `delete` need last-message key context — wire through the existing `messagesStore`.
+
+### 2. Rich Messages (priority) — via `socket.sendMessage(jid, content)`
+
+- [ ] `sendLocation(to, lat, lng, opts)` → `{ location }`
+- [ ] `sendContact(to, contacts)` → `{ contacts }` (vCard)
+- [ ] `sendPoll(to, name, options, selectableCount)` → `{ poll }`, plus poll-vote decoding (`getAggregateVotesInPollMessage` / `decryptPollVote`)
+- [ ] `sendSticker(to, sticker)` → `{ sticker }`
+- [ ] `sendGroupInvite(to, ...)` → `{ groupInvite }`
+- [ ] `pinMessage()` / `unpinMessage()` → `{ pin: key, type, time }`
+- [ ] `mentions` option on `sendText()` and media captions
+
+### 3. Privacy & Blocklist
+
+- [ ] `blockContact()` / `unblockContact()` (`updateBlockStatus`)
+- [ ] `getBlocklist()` (`fetchBlocklist`)
+- [ ] `getPrivacySettings()` (`fetchPrivacySettings`) + setters: `updateLastSeenPrivacy`, `updateOnlinePrivacy`, `updateProfilePicturePrivacy`, `updateStatusPrivacy`, `updateReadReceiptsPrivacy`, `updateGroupsAddPrivacy`, `updateMessagesPrivacy`, `updateCallPrivacy`, `updateDefaultDisappearingMode`
+
+### 4. Group Admin & Disappearing Messages
+
+- [ ] `setGroupAnnounceOnly()` / `setGroupRestrictInfo()` (`groupSettingUpdate`)
+- [ ] `setGroupMemberAddMode()` (`groupMemberAddMode`)
+- [ ] `setGroupJoinApproval()` (`groupJoinApprovalMode`)
+- [ ] `getGroupJoinRequests()` / `approveGroupJoinRequest()` / `rejectGroupJoinRequest()` (`groupRequestParticipants*`)
+- [ ] `setGroupEphemeral()` (`groupToggleEphemeral`) + 1:1 `setDisappearingMessages()` (`disappearingMessagesInChat`)
+
+### 5. Calls
+
+- [ ] `rejectCall()` (`rejectCall`)
+- [ ] `call` event surfaced from the Baileys `call` event
+- [ ] `createCallLink()` (`createCallLink`)
+
+### 6. Business Extras
+
+- [ ] `updateBusinessProfile()` (`updateBussinesProfile`)
+- [ ] `updateCoverPhoto()` / `removeCoverPhoto()`
+- [ ] `getOrderDetails()` (`getOrderDetails`)
+- [ ] quick replies (`addOrEditQuickReply` / `removeQuickReply`)
+
+### 7. Status / Stories
+
+- [ ] `postTextStatus()` / `postImageStatus()` / `postVideoStatus()` via `sendMessage('status@broadcast', ...)`
+
+### 8. Communities (largest surface, lowest priority)
+
+- [ ] Full `community*` wrapper layer (~22 methods: create, metadata, link/unlink groups, participants, invites)
+
+### 9. Auth & Events
+
+- [ ] `requestPairingCode()` - phone-number pairing as a QR alternative
+- [ ] Surface `message-receipt.update` as a miaw receipt event
+
+---
+
+## Still Backlogged (no Baileys blocker, lower demand)
+
+### Custom Storage
 
 - [ ] **Pluggable Storage Interface** - Abstract storage layer for sessions
-- [ ] **Redis Adapter** - Store sessions in Redis
-- [ ] **MongoDB Adapter** - MongoDB session storage
-- [ ] **PostgreSQL Adapter** - PostgreSQL session storage
+- [ ] **Redis / MongoDB / PostgreSQL Adapters** - external session storage
 
-#### Performance Optimization
+### Performance
 
-- [ ] **Message Queuing** - Queue messages for reliable delivery
-- [ ] **Rate Limiting** - Built-in rate limit handling and automatic retry
-- [ ] **Media Caching** - Cache uploaded media to avoid re-uploads
-- [ ] **Connection Pooling** - Optimize multiple instance management
-- [ ] **Bulk Operations** - Send to multiple recipients efficiently
+- [ ] **Message Queuing**, **Rate Limiting**, **Media Caching**, **Connection Pooling**, **Bulk Operations**
 
----
+### Interactive Messages (deprecated by WhatsApp)
 
-### v1.2.0 - Interactive Message Types
-
-**Focus:** Rich interactive messaging
-
-- [ ] **Send Polls** - Create and send polls
-- [ ] **Button Messages** - Interactive button messages
-- [ ] **List Messages** - Menu/list selection messages
-- [ ] **Link Previews** - Rich link previews with custom thumbnails
+- [ ] **Button / List / Template Messages** - deprecated by WhatsApp; low value
 
 ---
 
 ## Future Considerations
 
-Features available in Baileys but **rarely needed** for most bots. May be added based on community demand:
-
-### Messaging
-
-- **Stickers** - Send/receive sticker messages
-- **Location Sharing** - Share location coordinates
-- **Contact Cards (vCard)** - Share contact information
-- **Voice Notes (PTT)** - Send push-to-talk audio (currently only regular audio supported)
-- **Pin Messages** - Pin messages in chats with expiry options
-- **Star Messages** - Star/unstar important messages
-
-### Chat Management
-
-- **Archive/Unarchive Chat** - Move chats to/from archive
-- **Mute/Unmute Chat** - Disable/enable chat notifications
-- **Mark Chat Unread** - Mark conversations as unread
-- **Disappearing Messages** - Configure message auto-delete timer
-
-### Privacy Controls
-
-- **Last Seen Privacy** - Configure who can see last seen
-- **Online Privacy** - Control who sees online status
-- **Profile Picture Privacy** - Set profile picture visibility
-- **Status Privacy** - Configure who can view status updates
-- **Read Receipts Privacy** - Enable/disable read receipts globally
-- **Groups Add Privacy** - Control who can add bot to groups
-- **Call Privacy** - Configure call permissions
-
-### Advanced Group Features
-
-- **Group Settings** - Announcement mode, locked settings
-- **Join Approval Mode** - Require admin approval for new members
-- **Ephemeral Messages in Groups** - Disappearing messages for groups
-- **Group Request Participants** - Get pending join requests
-
-### Contact Management
-
-- **Block/Unblock Contacts** - Programmatically block contacts
-- **Fetch Blocklist** - Get list of blocked contacts
-
-> Note: Add/Edit/Remove contacts moved to v0.9.0
-
-### Communities
-
-- **Communities Support** - WhatsApp Communities feature
-
-> Note: Newsletter/Channel operations moved to v0.9.0
+> **Baileys-backed gaps** — messaging, chat management, privacy, group admin, calls, business extras, status, and communities — are now tracked concretely in **[Not-Yet-Implemented Baileys Features (Prioritized)](#not-yet-implemented-baileys-features-prioritized)** above. The items below are broader infrastructure ideas with no specific Baileys dependency, added on community demand.
 
 ### Developer Tools
 
-- **Webhook Support** - HTTP webhooks for events
-- **CLI Tools** - Command-line interface for testing
+- **Webhook Support** - HTTP webhooks for events (already provided by the sibling **miaw-api** package)
 - **Mock Client** - Mock MiawClient for unit testing
 - **Event Replay** - Record and replay events for debugging
 - **Metrics & Monitoring** - Built-in metrics collection
 - **Health Check Endpoint** - Status monitoring
 
+> Already shipped (no longer "future"): **CLI Tools** (v1.4.x, 63 commands), **Add/Edit/Remove Contacts** (v0.9.0), **Catalog/Labels** (v0.9.0), **Voice Notes / PTT** (v0.2.0).
+
 ### Business (Advanced)
 
-- **Business Catalogs** - Manage product catalogs
 - **Business Hours** - Configure business operating hours
-- **Business Profile Management** - Full business profile customization
 
 ---
 
@@ -372,9 +409,13 @@ If you need any of these features, please:
 | v0.7.0  | Group management (full admin capabilities)                 | ✅ Released |
 | v0.8.0  | Profile management (customize bot profile)                 | ✅ Released |
 | v0.9.0  | Business & social (labels, catalog, channels, contacts)    | ✅ Released |
-| v1.0.0  | **Production ready** (first stable release)                | 🎯 Goal     |
-| v1.1.0  | Performance & reliability (storage, queuing)               | 💡 Future   |
-| v1.2.0  | Interactive messages (polls, buttons, lists)               | 💡 Future   |
+| v1.0.0  | **Production ready** (first stable release)                | ✅ Released |
+| v1.1.0  | Baileys v7 migration (ESM-only, reconnection fix)          | ✅ Released |
+| v1.2.0  | Code quality (timeouts, validation, custom logger)         | ✅ Released |
+| v1.3.0  | Proxy support (HTTP/SOCKS)                                 | ✅ Released |
+| v1.4.x  | CLI expansion + Baileys rc13 upgrade                       | ✅ Released |
+| v1.5.0  | Native LID management (async/bulk/reverse resolve)         | ✅ Released |
+| next    | Chat management + rich messages (see prioritized backlog)  | 📋 Planned  |
 
 ---
 
@@ -542,7 +583,7 @@ Want to help implement a feature?
 
 ---
 
-**Last Updated:** 2025-12-24
-**Status:** Active Development
-**Next Release:** v1.0.0 (Production Ready)
-**Path to Stable:** v0.1.0 → v0.2.0 ✅ → v0.3.0 ✅ → v0.4.0 ✅ → v0.5.0 ✅ → v0.6.0 ✅ → v0.7.0 ✅ → v0.8.0 ✅ → v0.9.0 ✅ → v1.0.0 (Production Ready)
+**Last Updated:** 2026-06-26
+**Status:** Stable (v1.5.0, Baileys 7.0.0-rc13)
+**Next Release:** Chat management + rich messages — see [Not-Yet-Implemented Baileys Features (Prioritized)](#not-yet-implemented-baileys-features-prioritized)
+**Path So Far:** v0.1.0 → … → v0.9.0 ✅ → v1.0.0 ✅ (Stable) → v1.1.0 ✅ (Baileys v7/ESM) → v1.2.0 ✅ → v1.3.0 ✅ (Proxy) → v1.4.x ✅ (CLI + rc13)

@@ -311,6 +311,9 @@ export class MiawClient extends EventEmitter {
         },
         browser: Browsers.macOS("Desktop"),  // Desktop for more history
         generateHighQualityLinkPreview: true,
+        // Auto-recreate signal sessions on retry and migrate PN<->LID sessions
+        // (Baileys rc13 default; set explicitly to document the LID reliance).
+        enableAutoSessionRecreation: true,
         // Enable full history sync to populate stores (controlled by syncFullHistory option)
         syncFullHistory: this.options.syncFullHistory,
         fireInitQueries: true,
@@ -504,15 +507,18 @@ export class MiawClient extends EventEmitter {
     });
 
     // History sync - populates contacts, chats, and messages from history
-    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest, peerDataRequestSessionId }) => {
+    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, lidPnMappings, isLatest, peerDataRequestSessionId }) => {
       if (this.options.debug) {
         this.logger.debug("\n========== MESSAGING HISTORY SYNC ==========");
-        this.logger.debug(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}`);
+        this.logger.debug(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}, LID maps: ${lidPnMappings?.length ?? 0}`);
         this.logger.debug(`Is Latest: ${isLatest}, SessionId: ${peerDataRequestSessionId || 'none'}`);
         this.logger.debug("============================================\n");
       }
 
-      // Build LID mappings FIRST (before store population)
+      // Build LID mappings FIRST (before store population). Baileys rc13 hands
+      // us a dedicated, high-confidence LID<->PN array on history sync; ingest
+      // it before the contact/chat-derived mappings.
+      this.ingestLidPnMappings(lidPnMappings);
       this.updateLidToJidMapping(contacts);
       this.updateLidFromChats(chats);
 
@@ -607,6 +613,25 @@ export class MiawClient extends EventEmitter {
               const resolvedPhone = this.getPhoneFromJid(normalized.from);
               if (resolvedPhone) {
                 normalized.senderPhone = resolvedPhone;
+              }
+            }
+          }
+
+          // Native-store fallback (Baileys rc13): if the local cache couldn't
+          // resolve the sender's @lid, ask the signal repository's LID store.
+          // resolvePnFromNativeStore returns a normalized phone JID, which we
+          // assign as the resolved sender JID (group -> participant, DM -> from).
+          if (!normalized.senderPhone) {
+            const lidJid = normalized.isGroup ? normalized.participant : normalized.from;
+            if (lidJid?.endsWith("@lid")) {
+              const pn = await this.resolvePnFromNativeStore(lidJid);
+              if (pn) {
+                if (normalized.isGroup) {
+                  normalized.participant = pn;
+                } else {
+                  normalized.from = pn;
+                }
+                normalized.senderPhone = MessageHandler.formatJidToPhone(pn);
               }
             }
           }
@@ -822,7 +847,11 @@ export class MiawClient extends EventEmitter {
     }
   }
 
-  private addLidMapping(lid: string, jid: string, source: "BaileysEvent" | "Contact" | "Chat" | "Message"): void {
+  private addLidMapping(
+    lid: string,
+    jid: string,
+    source: "BaileysEvent" | "Contact" | "Chat" | "Message" | "History" | "NativeStore",
+  ): void {
     if (!lid || !jid) {
       return;
     }
@@ -845,6 +874,68 @@ export class MiawClient extends EventEmitter {
     // Persist to disk if this is a new mapping
     if (isNew) {
       this.saveLidMappingsToFile();
+    }
+  }
+
+  /**
+   * Baileys rc13 native LID<->PN store, exposed on the signal repository.
+   * Provides server-grade resolution (USync-backed, with its own cache) that
+   * complements our local LRU cache. Null when the socket is not connected.
+   */
+  private get lidStore() {
+    return this.socket ? this.socket.signalRepository.lidMapping : null;
+  }
+
+  /**
+   * Resolve a LID to its phone JID via Baileys' native LID store, used as a
+   * fallback when our local cache misses. On a hit the mapping is back-filled
+   * into the local cache (and persisted). Never throws.
+   * @param lidJid - A '@lid' JID
+   * @returns The phone JID (@s.whatsapp.net) or null if unresolved
+   */
+  private async resolvePnFromNativeStore(lidJid: string): Promise<string | null> {
+    if (!lidJid?.endsWith("@lid")) {
+      return null;
+    }
+    const store = this.lidStore;
+    if (!store) {
+      return null;
+    }
+    try {
+      const pn = await store.getPNForLID(lidJid);
+      if (pn) {
+        // The native store returns device-specific JIDs (e.g. '123:0@s.whatsapp.net');
+        // normalize to a clean user JID so cache entries (and normalized.from /
+        // messagesStore keys) match every other resolution path.
+        const normalizedPn = jidNormalizedUser(pn);
+        this.addLidMapping(lidJid, normalizedPn, "NativeStore");
+        return normalizedPn;
+      }
+    } catch (error) {
+      if (this.options.debug) {
+        this.logger.debug(`[LID NativeStore] getPNForLID failed for ${lidJid}:`, error);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Ingest the dedicated LID<->PN mapping array Baileys provides on history
+   * sync (rc13 `messaging-history.set.lidPnMappings`). This is the highest-
+   * confidence mapping source, so it is applied before contact/chat-derived
+   * mappings.
+   * @param mappings - Array of { lid, pn } pairs, or null/undefined
+   */
+  private ingestLidPnMappings(mappings?: ({ lid: string; pn: string } | null)[] | null): void {
+    if (!mappings?.length) {
+      return;
+    }
+    for (const entry of mappings) {
+      // Proto-decoded arrays can contain null/undefined entries; skip them.
+      if (!entry) {
+        continue;
+      }
+      this.addLidMapping(entry.lid, entry.pn, "History");
     }
   }
 
@@ -907,6 +998,35 @@ export class MiawClient extends EventEmitter {
   }
 
   /**
+   * Resolve a LID to its phone JID, consulting Baileys' native LID store
+   * (rc13) when the local cache misses. Unlike the synchronous
+   * {@link resolveLidToJid}, this can perform a server-backed lookup.
+   * @param lid - The LID format JID (e.g., '12345@lid')
+   * @returns The resolved phone JID, or the original input if unresolved
+   */
+  async resolveLidToJidAsync(lid: string): Promise<string> {
+    const resolved = this.resolveLidToJid(lid);
+    // Already resolved from cache, or not a LID at all.
+    if (!resolved.endsWith("@lid")) {
+      return resolved;
+    }
+    const pn = await this.resolvePnFromNativeStore(resolved);
+    return pn || resolved;
+  }
+
+  /**
+   * Get the phone number for any JID, consulting Baileys' native LID store
+   * (rc13) when the local cache misses. Async counterpart of
+   * {@link getPhoneFromJid}.
+   * @param jid - Any JID format
+   * @returns Phone number string or undefined
+   */
+  async getPhoneFromJidAsync(jid: string): Promise<string | undefined> {
+    const resolved = await this.resolveLidToJidAsync(jid);
+    return MessageHandler.formatJidToPhone(resolved);
+  }
+
+  /**
    * Manually register a LID to phone number mapping
    * Useful for persisting mappings across sessions
    * @param lid - The LID (e.g., '12345@lid' or just '12345')
@@ -949,6 +1069,89 @@ export class MiawClient extends EventEmitter {
    */
   clearLidCache(): void {
     this.lidToJidMap.clear();
+  }
+
+  /**
+   * Resolve multiple LIDs to phone numbers in one call. Cache hits are served
+   * locally; the remaining misses are resolved in a single batched query
+   * against Baileys' native LID store (rc13 `getPNsForLIDs`), and any results
+   * are back-filled into the local cache.
+   * @param lids - LID JIDs (e.g., ['12345@lid', ...])
+   * @returns A map of input LID -> phone number string, or null if unresolved
+   */
+  async resolveLidsToPhones(lids: string[]): Promise<Record<string, string | null>> {
+    const result: Record<string, string | null> = {};
+    const misses: string[] = [];
+
+    // Resolve from the local cache first; collect the misses.
+    for (const lid of lids) {
+      if (!lid?.endsWith("@lid")) {
+        // Not a LID — extract the phone directly when possible.
+        result[lid] = MessageHandler.formatJidToPhone(lid) || null;
+        continue;
+      }
+      const cached = this.resolveLidToJid(lid);
+      if (cached.endsWith("@lid")) {
+        result[lid] = null;
+        misses.push(lid);
+      } else {
+        result[lid] = MessageHandler.formatJidToPhone(cached) || null;
+      }
+    }
+
+    // One batched native lookup for the misses.
+    const store = this.lidStore;
+    if (store && misses.length > 0) {
+      try {
+        const pairs = await store.getPNsForLIDs(misses);
+        if (pairs) {
+          for (const { lid, pn } of pairs) {
+            if (lid && pn) {
+              const normalizedPn = jidNormalizedUser(pn);
+              this.addLidMapping(lid, normalizedPn, "NativeStore");
+              result[lid] = MessageHandler.formatJidToPhone(normalizedPn) || null;
+            }
+          }
+        }
+      } catch (error) {
+        if (this.options.debug) {
+          this.logger.debug("[LID NativeStore] getPNsForLIDs failed:", error);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Reverse-resolve a phone number to its LID via Baileys' native LID store
+   * (rc13 `getLIDForPN`). On a hit the mapping is also seeded into the local
+   * cache. Requires an active connection.
+   * @param phone - A phone number (e.g., '6281234567890') or phone JID
+   * @returns The LID JID (e.g., '12345@lid') or null if unresolved
+   */
+  async getLidForPhone(phone: string): Promise<string | null> {
+    const store = this.lidStore;
+    if (!store) {
+      return null;
+    }
+    const pnJid = phone.includes("@") ? phone : MessageHandler.formatPhoneToJid(phone);
+    try {
+      const lid = await store.getLIDForPN(pnJid);
+      if (lid) {
+        // Normalize the (possibly device-specific) LID before caching so it
+        // matches the bare LID form that arrives in message keys.
+        const normalizedLid = jidNormalizedUser(lid);
+        // Seed the reverse mapping into our cache for future LID -> PN lookups.
+        this.addLidMapping(normalizedLid, pnJid, "NativeStore");
+        return normalizedLid;
+      }
+    } catch (error) {
+      if (this.options.debug) {
+        this.logger.debug(`[LID NativeStore] getLIDForPN failed for ${pnJid}:`, error);
+      }
+    }
+    return null;
   }
 
   /**
