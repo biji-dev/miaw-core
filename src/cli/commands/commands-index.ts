@@ -30,6 +30,10 @@ export {
   cmdSendDocument,
   cmdSendVideo,
   cmdSendAudio,
+  cmdSendLocation,
+  cmdSendContact,
+  cmdSendPoll,
+  cmdSendSticker,
 } from "./send.js";
 
 export { cmdMediaDownload } from "./media.js";

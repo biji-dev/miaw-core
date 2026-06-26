@@ -55,8 +55,8 @@ const commandTree: Record<string, CommandNode> = {
     flags: ["--limit", "--json", "--filter"],
   },
   send: {
-    subcommands: ["text", "image", "document", "video", "audio"],
-    flags: ["--caption", "--gif", "--ptv", "--ptt"],
+    subcommands: ["text", "image", "document", "video", "audio", "location", "contact", "poll", "sticker"],
+    flags: ["--caption", "--gif", "--ptv", "--ptt", "--name", "--address", "--org", "--select"],
   },
   media: {
     subcommands: ["download"],
@@ -649,7 +649,7 @@ COMMANDS (use "help <command>" for details):
   instance    Manage WhatsApp instances (create, connect, disconnect, etc.)
   get         Fetch data (profile, contacts, groups, chats, messages, labels)
   load        Load older messages from chat history
-  send        Send messages (text, image, document, video, audio)
+  send        Send messages (text, image, document, video, audio, location, contact, poll, sticker)
   media       Media operations (download)
   group       Group management (info, participants, invites, settings)
   check       Check if phone numbers are on WhatsApp
