@@ -568,16 +568,20 @@ export class MiawClient extends EventEmitter {
           continue; // Don't process as regular message
         }
 
-        // Build LID to JID mapping from incoming messages
-        // Incoming messages have remoteJid (phone) and senderLid (LID)
-        // Note: senderLid may exist at runtime but isn't in Baileys v7 types
+        // Build LID<->PN mapping from incoming message keys. Baileys rc13 keys
+        // carry the alternate JID (remoteJidAlt for DMs, participantAlt for
+        // groups): when the primary id is a privacy LID, the alt holds the phone
+        // JID (and vice versa). Capture whichever side is the @lid.
         const msgKey = msg.key as {
-          senderLid?: string;
           fromMe?: boolean;
           remoteJid?: string | null;
+          remoteJidAlt?: string | null;
+          participant?: string | null;
+          participantAlt?: string | null;
         };
-        if (!msgKey.fromMe && msgKey.senderLid && msgKey.remoteJid) {
-          this.addLidMapping(msgKey.senderLid, msgKey.remoteJid, "Message");
+        if (!msgKey.fromMe) {
+          this.captureLidPnPair(msgKey.remoteJid, msgKey.remoteJidAlt);
+          this.captureLidPnPair(msgKey.participant, msgKey.participantAlt);
         }
 
         const normalized = MessageHandler.normalize({ messages: [msg as any], type: "notify" }, this.logger);
@@ -803,6 +807,21 @@ export class MiawClient extends EventEmitter {
    * @param jid - The JID to map to (phone number)
    * @param source - Source of the mapping for debug logs
    */
+  /**
+   * Capture a LID<->PN mapping from a (primary, alternate) JID pair.
+   * Baileys rc13 message keys expose alternate addressing (remoteJidAlt /
+   * participantAlt); whichever side is a privacy LID (@lid) is mapped to the
+   * phone (@s.whatsapp.net) side.
+   */
+  private captureLidPnPair(a?: string | null, b?: string | null): void {
+    if (!a || !b) return;
+    if (a.endsWith("@lid") && b.endsWith("@s.whatsapp.net")) {
+      this.addLidMapping(a, b, "Message");
+    } else if (b.endsWith("@lid") && a.endsWith("@s.whatsapp.net")) {
+      this.addLidMapping(b, a, "Message");
+    }
+  }
+
   private addLidMapping(lid: string, jid: string, source: "BaileysEvent" | "Contact" | "Chat" | "Message"): void {
     if (!lid || !jid) {
       return;
@@ -834,13 +853,15 @@ export class MiawClient extends EventEmitter {
    */
   private updateLidToJidMapping(contacts: any[]): void {
     for (const contact of contacts) {
-      // Contact has both lid and jid - create mapping
+      // id is a phone JID and lid is present - map lid -> phone
       if (contact.lid && contact.id && !contact.id.endsWith("@lid")) {
         this.addLidMapping(contact.lid, contact.id, "Contact");
       }
-      // Also check if id is the LID and jid field exists
-      if (contact.id?.endsWith("@lid") && contact.jid) {
-        this.addLidMapping(contact.id, contact.jid, "Contact");
+      // id is the LID - map id -> phone. Baileys rc10 removed Contact.jid in
+      // favour of Contact.phoneNumber; keep .jid as a fallback for older data.
+      const contactPn = contact.phoneNumber || contact.jid;
+      if (contact.id?.endsWith("@lid") && contactPn) {
+        this.addLidMapping(contact.id, contactPn, "Contact");
       }
     }
   }
@@ -850,13 +871,15 @@ export class MiawClient extends EventEmitter {
    */
   private updateLidFromChats(chats: any[]): void {
     for (const chat of chats) {
-      // Chat may have both id (could be phone or LID) and lidJid
+      // id is a phone JID and lidJid is present - map lid -> phone
       if (chat.lidJid && chat.id && !chat.id.endsWith("@lid")) {
         this.addLidMapping(chat.lidJid, chat.id, "Chat");
       }
-      // Reverse: if id is LID and we have a phone JID
-      if (chat.id?.endsWith("@lid") && chat.jid) {
-        this.addLidMapping(chat.id, chat.jid, "Chat");
+      // id is the LID - map id -> phone. Chats carry the phone JID on pnJid
+      // (Baileys rc10); keep the removed .jid field as a fallback for older data.
+      const chatPn = chat.pnJid || chat.jid;
+      if (chat.id?.endsWith("@lid") && chatPn) {
+        this.addLidMapping(chat.id, chatPn, "Chat");
       }
     }
   }
@@ -1052,6 +1075,13 @@ export class MiawClient extends EventEmitter {
    * @param msg - Baileys message object
    */
   private addMessageToStore(msg: any): void {
+    // Capture LID<->PN mapping from the history message key (rc13 alt fields)
+    // so @lid from/participant resolve consistently with the live message path.
+    if (msg?.key && !msg.key.fromMe) {
+      this.captureLidPnPair(msg.key.remoteJid, msg.key.remoteJidAlt);
+      this.captureLidPnPair(msg.key.participant, msg.key.participantAlt);
+    }
+
     const normalized = MessageHandler.normalize({ messages: [msg], type: "notify" }, this.logger);
     if (!normalized) return;
 

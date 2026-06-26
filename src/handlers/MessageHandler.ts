@@ -39,11 +39,18 @@ export class MessageHandler {
 
       const isGroup = message.key.remoteJid?.endsWith("@g.us") || false;
 
-      // Extract phone number and name from message key
-      // For groups: use participant info, for DM: use sender info
+      // Extract sender phone from the message key. Baileys rc13 carries the
+      // phone (PN) either directly on the primary JID or on the alternate JID
+      // (remoteJidAlt for DMs, participantAlt for groups) when the primary is a
+      // privacy LID. senderPn/participantPn are kept as a fast path for callers
+      // that still supply them (older session data).
       const senderPhone = isGroup
-        ? message.key.participantPn
-        : message.key.senderPn;
+        ? message.key.participantPn ??
+          MessageHandler.formatJidToPhone(message.key.participant ?? "") ??
+          MessageHandler.formatJidToPhone(message.key.participantAlt ?? "")
+        : message.key.senderPn ??
+          MessageHandler.formatJidToPhone(message.key.remoteJid ?? "") ??
+          MessageHandler.formatJidToPhone(message.key.remoteJidAlt ?? "");
       const senderName = message.pushName;
 
       // Extract text content and type based on message type

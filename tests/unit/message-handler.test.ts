@@ -146,15 +146,17 @@ describe("MessageHandler", () => {
 
   describe("normalize", () => {
     it("should return null for empty message object", () => {
+      // @ts-expect-error - intentionally invalid input to verify runtime null handling
       expect(MessageHandler.normalize({})).toBeNull();
     });
 
     it("should return null for message without messages array", () => {
+      // @ts-expect-error - intentionally invalid input to verify runtime null handling
       expect(MessageHandler.normalize({ foo: "bar" })).toBeNull();
     });
 
     it("should return null for empty messages array", () => {
-      expect(MessageHandler.normalize({ messages: [] })).toBeNull();
+      expect(MessageHandler.normalize({ messages: [], type: "notify" })).toBeNull();
     });
 
     it("should normalize text message", () => {
@@ -174,6 +176,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -208,6 +211,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -238,6 +242,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -275,6 +280,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -310,6 +316,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -342,6 +349,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -374,6 +382,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -409,6 +418,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -435,6 +445,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -442,6 +453,59 @@ describe("MessageHandler", () => {
       expect(result?.from).toBe("group123@g.us");
       expect(result?.senderPhone).toBe("1234567890");
       expect(result?.participant).toBe("1234567890@s.whatsapp.net");
+    });
+
+    it("should resolve DM sender phone from remoteJidAlt when remoteJid is a LID (rc13)", () => {
+      const baileysMessage = {
+        messages: [
+          {
+            key: {
+              id: "msg-lid-dm",
+              remoteJid: "111222333@lid",
+              remoteJidAlt: "6281234567890@s.whatsapp.net",
+              addressingMode: "lid",
+              fromMe: false,
+            },
+            pushName: "Privacy User",
+            message: {
+              conversation: "Hi from LID",
+            },
+            messageTimestamp: 1234567890,
+          },
+        ],
+        type: "notify" as const,
+      };
+
+      const result = MessageHandler.normalize(baileysMessage);
+      expect(result?.senderPhone).toBe("6281234567890");
+      expect(result?.text).toBe("Hi from LID");
+    });
+
+    it("should resolve group sender phone from participantAlt when participant is a LID (rc13)", () => {
+      const baileysMessage = {
+        messages: [
+          {
+            key: {
+              id: "msg-lid-group",
+              remoteJid: "group123@g.us",
+              participant: "444555666@lid",
+              participantAlt: "6289876543210@s.whatsapp.net",
+              addressingMode: "lid",
+              fromMe: false,
+            },
+            pushName: "Privacy User",
+            message: {
+              conversation: "Group LID message",
+            },
+            messageTimestamp: 1234567890,
+          },
+        ],
+        type: "notify" as const,
+      };
+
+      const result = MessageHandler.normalize(baileysMessage);
+      expect(result?.isGroup).toBe(true);
+      expect(result?.senderPhone).toBe("6289876543210");
     });
 
     it("should handle own message", () => {
@@ -461,6 +525,7 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -484,6 +549,7 @@ describe("MessageHandler", () => {
             },
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(baileysMessage);
@@ -512,8 +578,10 @@ describe("MessageHandler", () => {
             messageTimestamp: 1234567890,
           },
         ],
+        type: "notify" as const,
       };
 
+      // @ts-expect-error - unknownMessage is an intentionally unmodeled message type
       const result = MessageHandler.normalize(baileysMessage);
       expect(result?.type).toBe("unknown");
       expect(result?.text).toBeUndefined();
@@ -530,6 +598,7 @@ describe("MessageHandler", () => {
             message: null,
           },
         ],
+        type: "notify" as const,
       };
 
       const result = MessageHandler.normalize(badMessage);

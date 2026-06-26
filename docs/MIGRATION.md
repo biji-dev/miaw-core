@@ -4,12 +4,47 @@ This guide helps you migrate between versions of Miaw Core.
 
 ## Table of Contents
 
+- [v1.4.0 to v1.4.1](#v140-to-v141)
 - [v1.1.x to v1.2.0](#v11x-to-v120)
 - [v1.0.x to v1.1.0](#v10x-to-v110)
 - [v0.9.x to v1.0.0](#v09x-to-v100)
 - [v0.8.x to v0.9.0](#v08x-to-v090)
 - [v0.7.x to v0.8.0](#v07x-to-v080)
 - [Breaking Changes Summary](#breaking-changes-summary)
+
+---
+
+## v1.4.0 to v1.4.1
+
+**Status:** Released — 2026-06-26
+**Breaking Changes:** None ✅
+
+v1.4.1 upgrades the Baileys dependency from `7.0.0-rc.9` to `7.0.0-rc13` (the latest
+release). It is a drop-in upgrade — no application code changes are required.
+
+### What changed
+
+- **Baileys `7.0.0-rc.9` → `7.0.0-rc13`** (pinned exactly). Brings security fixes
+  (GHSA-qvv5-jq5g-4cgg, a protocolMessage parse-regression fix), performance and
+  stability work, and libsignal published to the npm registry.
+- **LID → phone resolution updated for the rc10+ field changes.** Baileys rc10
+  removed `Contact.jid` (now `Contact.phoneNumber`) and rc13 stopped setting
+  `senderPn` / `participantPn` / `senderLid` on message keys (now `remoteJidAlt` /
+  `participantAlt` + `addressingMode`). miaw-core reads the modern fields, so
+  `senderPhone` keeps resolving for privacy-masked (`@lid`) senders. See
+  [LID_RESOLUTION.md](./LID_RESOLUTION.md).
+
+### Do I need to change anything?
+
+No. The public API is unchanged, and persisted `lid-mappings.json` files remain
+compatible.
+
+### Known issue
+
+- Newsletter **creation** may return `success` with an empty `newsletterId` on rc13:
+  Baileys currently fails to parse the create response (`invalid mex newsletter
+  notification content`) even though the newsletter is created server-side. Tracked
+  upstream.
 
 ---
 
@@ -466,9 +501,10 @@ If you encounter issues during migration:
 
 ## Version Compatibility
 
-| Miaw Core | Node.js  | Baileys | Status               |
-| --------- | -------- | ------- | -------------------- |
-| 1.0.0     | >=18.0.0 | 6.7.21+ | Stable (Coming Soon) |
+| Miaw Core | Node.js  | Baileys    | Status               |
+| --------- | -------- | ---------- | -------------------- |
+| 1.4.1     | >=18.0.0 | 7.0.0-rc13 | Stable               |
+| 1.0.0     | >=18.0.0 | 6.7.21+    | Stable (Coming Soon) |
 | 0.9.x     | >=18.0.0 | 6.7.21+ | Stable               |
 | 0.8.x     | >=18.0.0 | 6.7.21+ | Stable               |
 | 0.7.x     | >=18.0.0 | 6.7.21+ | Stable               |

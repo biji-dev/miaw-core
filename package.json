@@ -1,6 +1,6 @@
 {
   "name": "miaw-core",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Simplified WhatsApp API wrapper for Baileys - Multiple Instance of Awesome WhatsApp",
   "type": "module",
   "main": "dist/index.js",
@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "@whiskeysockets/baileys": "7.0.0-rc13",
     "cli-table3": "^0.6.5",
     "https-proxy-agent": "^8.0.0",
     "pino": "^8.19.0",

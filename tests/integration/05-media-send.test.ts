@@ -7,6 +7,10 @@ import { createTestClient, waitForEvent, TEST_CONFIG, sleep } from '../setup.js'
 import { MiawClient } from '../../src/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// ESM has no __dirname; derive it from import.meta.url
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('Media Sending', () => {
   let client: MiawClient;

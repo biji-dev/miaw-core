@@ -4,12 +4,12 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 1.1.0
-**Baileys Version:** 7.0.0-rc.9
+**Current Version:** 1.4.1
+**Baileys Version:** 7.0.0-rc13
 **Node.js Required:** >= 18.0.0
 **Module System:** ESM-only
 **Status:** Stable Release
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-06-26
 
 ---
 
@@ -380,7 +380,7 @@ If you need any of these features, please:
 
 ## Baileys Compatibility
 
-This roadmap is aligned with **@whiskeysockets/baileys v6.7.21+**:
+This roadmap is aligned with **@whiskeysockets/baileys v7.0.0-rc13**:
 
 - ✅ All planned features are supported by Baileys
 - ✅ Features verified against current Baileys API
