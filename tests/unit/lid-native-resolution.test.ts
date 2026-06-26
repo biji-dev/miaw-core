@@ -115,4 +115,28 @@ describe("MiawClient native LID resolution (rc13)", () => {
       expect(await client.resolveLidToJidAsync(LID)).toBe(LID);
     });
   });
+
+  describe("lidPnMappings ingestion (history sync)", () => {
+    it("adds each { lid, pn } pair from history sync to the cache", () => {
+      const client = makeClientWithStore({});
+
+      client.ingestLidPnMappings([
+        { lid: LID, pn: PN },
+        { lid: "222222222222222@lid", pn: "6280000000000@s.whatsapp.net" },
+      ]);
+
+      expect(client.resolveLidToJid(LID)).toBe(PN);
+      expect(client.resolveLidToJid("222222222222222@lid")).toBe("6280000000000@s.whatsapp.net");
+      expect(client.getLidCacheSize()).toBe(2);
+    });
+
+    it("is a no-op for undefined or empty input", () => {
+      const client = makeClientWithStore({});
+
+      client.ingestLidPnMappings(undefined);
+      client.ingestLidPnMappings([]);
+
+      expect(client.getLidCacheSize()).toBe(0);
+    });
+  });
 });

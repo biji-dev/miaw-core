@@ -507,15 +507,18 @@ export class MiawClient extends EventEmitter {
     });
 
     // History sync - populates contacts, chats, and messages from history
-    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, isLatest, peerDataRequestSessionId }) => {
+    this.socket.ev.on("messaging-history.set", ({ chats, contacts, messages, lidPnMappings, isLatest, peerDataRequestSessionId }) => {
       if (this.options.debug) {
         this.logger.debug("\n========== MESSAGING HISTORY SYNC ==========");
-        this.logger.debug(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}`);
+        this.logger.debug(`Contacts: ${contacts.length}, Chats: ${chats.length}, Messages: ${messages.length}, LID maps: ${lidPnMappings?.length ?? 0}`);
         this.logger.debug(`Is Latest: ${isLatest}, SessionId: ${peerDataRequestSessionId || 'none'}`);
         this.logger.debug("============================================\n");
       }
 
-      // Build LID mappings FIRST (before store population)
+      // Build LID mappings FIRST (before store population). Baileys rc13 hands
+      // us a dedicated, high-confidence LID<->PN array on history sync; ingest
+      // it before the contact/chat-derived mappings.
+      this.ingestLidPnMappings(lidPnMappings);
       this.updateLidToJidMapping(contacts);
       this.updateLidFromChats(chats);
 
@@ -909,6 +912,22 @@ export class MiawClient extends EventEmitter {
       }
     }
     return null;
+  }
+
+  /**
+   * Ingest the dedicated LID<->PN mapping array Baileys provides on history
+   * sync (rc13 `messaging-history.set.lidPnMappings`). This is the highest-
+   * confidence mapping source, so it is applied before contact/chat-derived
+   * mappings.
+   * @param mappings - Array of { lid, pn } pairs, or null/undefined
+   */
+  private ingestLidPnMappings(mappings?: { lid: string; pn: string }[] | null): void {
+    if (!mappings?.length) {
+      return;
+    }
+    for (const { lid, pn } of mappings) {
+      this.addLidMapping(lid, pn, "History");
+    }
   }
 
   /**
