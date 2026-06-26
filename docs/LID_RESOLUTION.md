@@ -52,7 +52,25 @@ The LID cache is populated from multiple sources:
 | `contacts.update` | Contact updates with LID changes |
 | `chats.upsert` | New chats with LID information |
 | `chats.update` | Chat updates with LID changes |
-| `messages.upsert` | Message sender LID mappings |
+| `messages.upsert` | Message sender LID mappings (from the rc13 key alt fields — see below) |
+
+#### Baileys rc13 key/field changes
+
+Baileys v7 (rc10+) reworked how the phone (PN) and LID identifiers are carried.
+miaw-core reads the modern fields and falls back to the legacy ones for older
+session data:
+
+| Source object | Phone (PN) field | LID field |
+|---------------|------------------|-----------|
+| `Contact` | `phoneNumber` (replaces the removed `jid`) | `lid` |
+| `Chat` (`proto.IConversation`) | `pnJid` | `lidJid` |
+| Message `key` | `remoteJidAlt` (DMs) / `participantAlt` (groups), with `addressingMode` = `lid`\|`pn` | `remoteJid` / `participant` when those are `@lid` |
+
+For each inbound message, whichever side of the (`remoteJid`, `remoteJidAlt`) and
+(`participant`, `participantAlt`) pairs is a `@lid` is mapped to the `@s.whatsapp.net`
+side, so `senderPhone` resolves even for privacy-masked senders. The legacy
+`senderPn` / `participantPn` / `senderLid` key fields are no longer set by Baileys
+and are kept only as a fallback.
 
 ### 2. Persisted Storage
 
@@ -224,3 +242,4 @@ Potential enhancements to LID resolution:
 | v1.1.0 | Added LID persistence to file |
 | v1.1.1 | Fixed CLI group participants LID display |
 | v1.1.2 | Fixed `getContactProfile()` LID resolution |
+| v1.4.1 | Baileys 7.0.0-rc13: read `Contact.phoneNumber` / `Chat.pnJid` and message-key `remoteJidAlt` / `participantAlt` (rc10 removed `Contact.jid`; rc13 no longer sets `senderPn` / `senderLid`) |

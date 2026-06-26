@@ -32,8 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   emits `null` messages for protocol/placeholder entries).
 - Repaired pre-existing unit/integration test fixtures that no longer compiled
   under strict typing (missing message `type`, incomplete `createProduct` input).
+- `05-media-send` integration suite used `__dirname`, which is undefined under the
+  ESM/ts-jest setup, so the suite failed to run. Derived it from `import.meta.url`.
 
-## [1.2.0] - 2026-01-20
+### Verified
+
+- Live integration run against Baileys rc13: messaging, media send/download,
+  contacts, groups, presence, business, profile, and inbound `senderPhone`
+  resolution (including the rc13 alt-field path) confirmed working. Unit suite
+  113/113. Known live-only gaps: newsletter create id (upstream), and tests that
+  require an inbound message / second party.
 
 **CLI Major Expansion** - Business features, contact/profile management, and complete messaging commands
 

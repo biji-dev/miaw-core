@@ -177,9 +177,9 @@ npm run test:watch
 npm run test:coverage
 ```
 
-## Current Capabilities (v1.1.0)
+## Current Capabilities (v1.4.1)
 
-Built on **Baileys v7.0.0-rc.9** - the latest WhatsApp Web protocol implementation.
+Built on **Baileys v7.0.0-rc13** - the latest WhatsApp Web protocol implementation.
 
 ### Core Features
 
@@ -278,8 +278,8 @@ MIT
 
 ## Credits
 
-Built on top of [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys) v7.0.0-rc.9
+Built on top of [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys) v7.0.0-rc13
 
 ---
 
-**Version:** 1.1.0 | **Baileys:** 7.0.0-rc.9 | **Status:** Stable | **Updated:** 2026-01-03
+**Version:** 1.4.1 | **Baileys:** 7.0.0-rc13 | **Status:** Stable | **Updated:** 2026-06-26
