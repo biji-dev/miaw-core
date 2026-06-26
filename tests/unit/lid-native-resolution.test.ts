@@ -24,7 +24,16 @@ jest.unstable_mockModule("@whiskeysockets/baileys", () => ({
   Browsers: { macOS: jest.fn(() => ["macOS", "Desktop", "1.0"]) },
   useMultiFileAuthState: jest.fn(),
   downloadMediaMessage: jest.fn(),
-  jidNormalizedUser: jest.fn((jid: string) => jid),
+  // Realistic stand-in: strip the device suffix (`user:device@server` ->
+  // `user@server`), matching Baileys' real jidNormalizedUser closely enough to
+  // exercise the native-store normalization path.
+  jidNormalizedUser: jest.fn((jid: string) => {
+    if (!jid) return jid;
+    const at = jid.indexOf("@");
+    if (at < 0) return jid;
+    const user = jid.slice(0, at).split(":")[0];
+    return `${user}@${jid.slice(at + 1)}`;
+  }),
 }));
 
 // Dynamic import after mocking
@@ -94,6 +103,18 @@ describe("MiawClient native LID resolution (rc13)", () => {
 
       expect(await client.resolveLidToJidAsync(LID)).toBe(LID);
     });
+
+    it("normalizes device-suffixed JIDs returned by the native store", async () => {
+      // Baileys' getPNForLID returns device-specific JIDs (e.g. '...:0@...').
+      const getPNForLID = jest
+        .fn<(lid: string) => Promise<string | null>>()
+        .mockResolvedValue("6281234567890:0@s.whatsapp.net");
+      const client = makeClientWithStore({ getPNForLID });
+
+      // The ':0' device suffix is stripped before returning and caching.
+      expect(await client.resolveLidToJidAsync(LID)).toBe(PN);
+      expect(client.resolveLidToJid(LID)).toBe(PN);
+    });
   });
 
   describe("getPhoneFromJidAsync", () => {
@@ -138,13 +159,23 @@ describe("MiawClient native LID resolution (rc13)", () => {
 
       expect(client.getLidCacheSize()).toBe(0);
     });
+
+    it("skips null/undefined entries within the array", () => {
+      const client = makeClientWithStore({});
+
+      client.ingestLidPnMappings([{ lid: LID, pn: PN }, null, undefined]);
+
+      expect(client.getLidCacheSize()).toBe(1);
+      expect(client.resolveLidToJid(LID)).toBe(PN);
+    });
   });
 
   describe("resolveLidsToPhones (bulk)", () => {
     it("serves cache hits locally and batches only the misses into one native query", async () => {
       const getPNsForLIDs = jest
         .fn<(lids: string[]) => Promise<{ lid: string; pn: string }[] | null>>()
-        .mockResolvedValue([{ lid: "333333333333333@lid", pn: "6283333333333@s.whatsapp.net" }]);
+        // Device-suffixed PN, as the real native store returns.
+        .mockResolvedValue([{ lid: "333333333333333@lid", pn: "6283333333333:0@s.whatsapp.net" }]);
       const client = makeClientWithStore({ getPNsForLIDs });
 
       // Pre-seed one mapping so it is a cache hit.
@@ -154,6 +185,8 @@ describe("MiawClient native LID resolution (rc13)", () => {
 
       expect(out[LID]).toBe("6281234567890");
       expect(out["333333333333333@lid"]).toBe("6283333333333");
+      // The cache stores the normalized (device-stripped) JID.
+      expect(client.resolveLidToJid("333333333333333@lid")).toBe("6283333333333@s.whatsapp.net");
       // Only the miss was sent to the native store.
       expect(getPNsForLIDs).toHaveBeenCalledTimes(1);
       expect(getPNsForLIDs).toHaveBeenCalledWith(["333333333333333@lid"]);

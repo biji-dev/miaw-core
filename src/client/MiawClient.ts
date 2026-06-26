@@ -619,16 +619,17 @@ export class MiawClient extends EventEmitter {
 
           // Native-store fallback (Baileys rc13): if the local cache couldn't
           // resolve the sender's @lid, ask the signal repository's LID store.
-          // On a hit the cache is back-filled, so we re-resolve the display JIDs.
+          // resolvePnFromNativeStore returns a normalized phone JID, which we
+          // assign as the resolved sender JID (group -> participant, DM -> from).
           if (!normalized.senderPhone) {
             const lidJid = normalized.isGroup ? normalized.participant : normalized.from;
             if (lidJid?.endsWith("@lid")) {
               const pn = await this.resolvePnFromNativeStore(lidJid);
               if (pn) {
-                if (normalized.isGroup && normalized.participant) {
-                  normalized.participant = this.resolveLidToJid(normalized.participant);
-                } else if (normalized.from) {
-                  normalized.from = this.resolveLidToJid(normalized.from);
+                if (normalized.isGroup) {
+                  normalized.participant = pn;
+                } else {
+                  normalized.from = pn;
                 }
                 normalized.senderPhone = MessageHandler.formatJidToPhone(pn);
               }
@@ -903,8 +904,12 @@ export class MiawClient extends EventEmitter {
     try {
       const pn = await store.getPNForLID(lidJid);
       if (pn) {
-        this.addLidMapping(lidJid, pn, "NativeStore");
-        return pn;
+        // The native store returns device-specific JIDs (e.g. '123:0@s.whatsapp.net');
+        // normalize to a clean user JID so cache entries (and normalized.from /
+        // messagesStore keys) match every other resolution path.
+        const normalizedPn = jidNormalizedUser(pn);
+        this.addLidMapping(lidJid, normalizedPn, "NativeStore");
+        return normalizedPn;
       }
     } catch (error) {
       if (this.options.debug) {
@@ -921,12 +926,16 @@ export class MiawClient extends EventEmitter {
    * mappings.
    * @param mappings - Array of { lid, pn } pairs, or null/undefined
    */
-  private ingestLidPnMappings(mappings?: { lid: string; pn: string }[] | null): void {
+  private ingestLidPnMappings(mappings?: ({ lid: string; pn: string } | null)[] | null): void {
     if (!mappings?.length) {
       return;
     }
-    for (const { lid, pn } of mappings) {
-      this.addLidMapping(lid, pn, "History");
+    for (const entry of mappings) {
+      // Proto-decoded arrays can contain null/undefined entries; skip them.
+      if (!entry) {
+        continue;
+      }
+      this.addLidMapping(entry.lid, entry.pn, "History");
     }
   }
 
@@ -1098,8 +1107,9 @@ export class MiawClient extends EventEmitter {
         if (pairs) {
           for (const { lid, pn } of pairs) {
             if (lid && pn) {
-              this.addLidMapping(lid, pn, "NativeStore");
-              result[lid] = MessageHandler.formatJidToPhone(pn) || null;
+              const normalizedPn = jidNormalizedUser(pn);
+              this.addLidMapping(lid, normalizedPn, "NativeStore");
+              result[lid] = MessageHandler.formatJidToPhone(normalizedPn) || null;
             }
           }
         }
@@ -1129,9 +1139,12 @@ export class MiawClient extends EventEmitter {
     try {
       const lid = await store.getLIDForPN(pnJid);
       if (lid) {
+        // Normalize the (possibly device-specific) LID before caching so it
+        // matches the bare LID form that arrives in message keys.
+        const normalizedLid = jidNormalizedUser(lid);
         // Seed the reverse mapping into our cache for future LID -> PN lookups.
-        this.addLidMapping(lid, pnJid, "NativeStore");
-        return lid;
+        this.addLidMapping(normalizedLid, pnJid, "NativeStore");
+        return normalizedLid;
       }
     } catch (error) {
       if (this.options.debug) {

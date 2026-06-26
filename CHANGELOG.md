@@ -23,8 +23,14 @@ unchanged.
   `getLIDForPN`, seeding the local cache.
 - Inbound `messages.upsert` now falls back to the native store when a sender's
   `@lid` is not yet cached, improving `senderPhone` resolution.
+- `LidMapping` type exported for typing native LID mappings / `lidPnMappings`.
 
 ### Changed
+
+- JIDs returned by the native store (which are device-specific, e.g.
+  `6281234567890:0@s.whatsapp.net`) are normalized via `jidNormalizedUser`
+  before caching, so `message.from` and `messagesStore` keys stay consistent
+  with every other resolution path.
 
 - History sync now ingests the dedicated `lidPnMappings` array Baileys provides
   on `messaging-history.set` (previously ignored) as a high-confidence source.

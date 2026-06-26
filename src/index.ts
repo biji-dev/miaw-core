@@ -106,7 +106,7 @@ export {
   validateProxyConfig,
 } from "./utils/proxy-agent.js";
 export type { ProxyAgents } from "./utils/proxy-agent.js";
-export type { ProxyConfig } from "./types/index.js";
+export type { ProxyConfig, LidMapping } from "./types/index.js";
 
 // v1.2.0 Constants
 export { TIMEOUTS, THRESHOLDS } from "./constants/timeouts.js";
