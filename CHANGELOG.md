@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   LID-keyed entries. Baileys rc10 removed the `Contact.jid` field, which the
   mapping builders still relied on, so mappings derived from contacts/chats were
   silently dropped.
+- Message LID->phone resolution now uses the rc13 message-key alt fields
+  (`remoteJidAlt` / `participantAlt` / `addressingMode`). rc13 no longer sets
+  `senderPn` / `participantPn` / `senderLid` on keys, so for privacy/LID accounts
+  the per-message mapping never fired and `senderPhone` came back empty. Applied
+  on both the live (`messages.upsert`) and history-sync paths, and in
+  `MessageHandler.normalize`.
 - `BaileysMessage.message` is now typed `... | null` to match Baileys (which
   emits `null` messages for protocol/placeholder entries).
 - Repaired pre-existing unit/integration test fixtures that no longer compiled
