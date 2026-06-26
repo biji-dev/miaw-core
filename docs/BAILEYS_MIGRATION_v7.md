@@ -4,6 +4,8 @@
 > **Date Completed:** 2025-01-10
 > **Current Version:** Baileys v7.0.0-rc.9
 
+> **Update (2026-06-26):** The current pinned baseline is **Baileys 7.0.0-rc13** (shipped in miaw-core v1.4.1). The rc.9 → rc13 bump is a drop-in upgrade with no public API change, but it did require LID-resolution fixes: rc10 removed `Contact.jid`, and rc13 stopped setting `senderPn` / `participantPn` / `senderLid` on message keys in favor of the alt fields `remoteJidAlt` / `participantAlt` / `addressingMode`. See [CHANGELOG.md](../CHANGELOG.md) (v1.4.1) and [LID_RESOLUTION.md](./LID_RESOLUTION.md) for the handling. The rc.9 migration history below is retained for reference.
+
 ## Current Issue
 
 After scanning QR code and app exits, the session cannot reconnect on restart and requires re-pairing. This is a known issue in v6.7.21 related to session/authentication state handling.

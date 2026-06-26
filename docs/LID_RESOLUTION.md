@@ -223,10 +223,11 @@ client.on("message", (message) => {
 
 Potential enhancements to LID resolution:
 
-1. **Baileys PR**: Submit a pull request to Baileys to extract `phoneNumberToLidMappings` from HistorySync
-2. **Fallback lookup**: Implement a contact lookup API that resolves LIDs server-side
-3. **User notification**: Alert users when important contacts have unresolved LIDs
-4. **Bulk resolution**: API to resolve multiple LIDs in a single call
+1. **Use Baileys' native LID store (rc13)** — Baileys 7.0.0-rc13 ships its own authoritative LID↔PN store inside the signal repository: `socket.signalRepository.lidMapping` (a `LIDMappingStore`) exposing `getPNForLID(lid)`, `getLIDForPN(pn)`, and the bulk `getPNsForLIDs` / `getLIDsForPNs`. History sync now also carries `lidPnMappings` on `messaging-history.set`, and `signalRepository.migrateSession(fromJid, toJid)` migrates a PN session to its LID. miaw-core currently maintains a **separate** LRU cache and does not consult this native store. Delegating to / back-filling from `signalRepository.lidMapping.getPNForLID()` would give server-grade resolution and reduce the "unresolved LID" gaps below. This is the recommended next step for LID management.
+2. **Baileys PR**: Submit a pull request to Baileys to extract `phoneNumberToLidMappings` from HistorySync
+3. **Fallback lookup**: Implement a contact lookup API that resolves LIDs server-side
+4. **User notification**: Alert users when important contacts have unresolved LIDs
+5. **Bulk resolution**: API to resolve multiple LIDs in a single call
 
 ## Related Files
 
