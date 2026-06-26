@@ -2,7 +2,7 @@
 
 **Last Updated:** June 26, 2026  
 **Baileys Version:** 7.0.0-rc13  
-**Miaw Core Version:** 1.4.1
+**Miaw Core Version:** 1.5.0
 
 ## Overview
 
@@ -393,7 +393,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | --------------------------------- | ------- | --------- | ----------------------------------- |
 | **JID Encoding/Decoding**         | ✅      | 🔶        | `MessageHandler.formatPhoneToJid()` |
 | **Check JID Type**                | ✅      | 🔶        | Group/user/newsletter/etc.          |
-| **LID to JID Resolution**         | ✅      | ✅        | `resolveLidToJid()`                 |
+| **LID to JID Resolution**         | ✅      | ✅        | `resolveLidToJid()` + async/bulk/reverse via native store (v1.5.0) |
 | **Get Phone from JID**            | ✅      | ✅        | `getPhoneFromJid()`                 |
 | **Generate Message ID**           | ✅      | ❌        | Custom message IDs                  |
 | **Download Content from Message** | ✅      | ✅        | `downloadMedia()`                   |
@@ -520,4 +520,4 @@ These are all backed by methods that exist in Baileys 7.0.0-rc13 and can be wrap
 
 ---
 
-_This analysis was last updated on June 26, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.4.1._
+_This analysis was last updated on June 26, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.5.0._

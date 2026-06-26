@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-06-26
+
+**Native LID management** - Adopt Baileys 7.0.0-rc13's native LID infrastructure
+(`signalRepository.lidMapping`) as a resolution layer behind the existing LRU
+cache. Fully additive — synchronous `resolveLidToJid` / `getPhoneFromJid` are
+unchanged.
+
+### Added
+
+- `resolveLidToJidAsync()` / `getPhoneFromJidAsync()` - async LID resolution that
+  consults Baileys' native LID store (`getPNForLID`, server/USync-backed) on a
+  local cache miss and back-fills the cache.
+- `resolveLidsToPhones(lids)` - bulk resolution: cache hits served locally, the
+  remaining misses sent in a single `getPNsForLIDs` query.
+- `getLidForPhone(phone)` - reverse resolution (phone number → LID) via
+  `getLIDForPN`, seeding the local cache.
+- Inbound `messages.upsert` now falls back to the native store when a sender's
+  `@lid` is not yet cached, improving `senderPhone` resolution.
+
+### Changed
+
+- History sync now ingests the dedicated `lidPnMappings` array Baileys provides
+  on `messaging-history.set` (previously ignored) as a high-confidence source.
+- `makeWASocket` sets `enableAutoSessionRecreation: true` explicitly (already the
+  rc13 default) to document reliance on Baileys' automatic PN↔LID session
+  migration; no behavior change.
+
+### Notes
+
+- `signalRepository.migrateSession` is intentionally **not** wrapped — Baileys
+  already calls it internally on message decode, so a manual method would be
+  redundant.
+
 ## [1.4.1] - 2026-06-26
 
 **Baileys upgrade** - Move to the latest Baileys release (7.0.0-rc13).

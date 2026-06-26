@@ -1459,9 +1459,21 @@ client.on("message", (msg) => {
   console.log("Sender phone:", msg.senderPhone);
 });
 
-// Manual LID resolution
+// Manual LID resolution (synchronous, cache-only)
 const phoneJid = client.resolveLidToJid("123456@lid");
 const phone = client.getPhoneFromJid("123456@lid");
+
+// Async resolution — falls back to Baileys' native LID store on a cache miss
+// (server-backed, back-fills the cache). Requires an active connection.
+const jid = await client.resolveLidToJidAsync("123456@lid");
+const phone2 = await client.getPhoneFromJidAsync("123456@lid");
+
+// Bulk: resolve many LIDs in one native query (cache hits served locally)
+const map = await client.resolveLidsToPhones(["123456@lid", "789012@lid"]);
+// => { "123456@lid": "6281234567890", "789012@lid": null }
+
+// Reverse: phone number -> LID
+const lid = await client.getLidForPhone("6281234567890"); // "123456@lid" | null
 
 // Register LID mapping (useful for persistence)
 client.registerLidMapping("123456@lid", "6281234567890@s.whatsapp.net");

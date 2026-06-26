@@ -4,7 +4,7 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 1.4.1
+**Current Version:** 1.5.0
 **Baileys Version:** 7.0.0-rc13
 **Node.js Required:** >= 18.0.0
 **Module System:** ESM-only
@@ -266,6 +266,12 @@ These shipped after the first stable release (see [CHANGELOG.md](../CHANGELOG.md
 - [x] **Baileys v7.0.0-rc.9 → rc13** - security fixes (GHSA-qvv5-jq5g-4cgg), libsignal on npm
 - [x] **LID resolution hardening for rc10–rc13** - reads `Contact.phoneNumber` / `Chat.pnJid` and the rc13 MessageKey alt fields (`remoteJidAlt` / `participantAlt` / `addressingMode`); see [LID_RESOLUTION.md](./LID_RESOLUTION.md)
 
+### v1.5.0 - Native LID Management ✅ (2026-06-26)
+
+- [x] **Native LID store adoption** - `resolveLidToJidAsync` / `getPhoneFromJidAsync` fall back to `signalRepository.lidMapping.getPNForLID` (server-backed) and back-fill the cache; inbound messages use it for `senderPhone`
+- [x] **`lidPnMappings` ingestion** - consume the dedicated LID↔PN array on `messaging-history.set`
+- [x] **Bulk + reverse resolution** - `resolveLidsToPhones([...])` and `getLidForPhone()`
+
 ---
 
 ## Not-Yet-Implemented Baileys Features (Prioritized)
@@ -408,6 +414,7 @@ If you need any of these features, please:
 | v1.2.0  | Code quality (timeouts, validation, custom logger)         | ✅ Released |
 | v1.3.0  | Proxy support (HTTP/SOCKS)                                 | ✅ Released |
 | v1.4.x  | CLI expansion + Baileys rc13 upgrade                       | ✅ Released |
+| v1.5.0  | Native LID management (async/bulk/reverse resolve)         | ✅ Released |
 | next    | Chat management + rich messages (see prioritized backlog)  | 📋 Planned  |
 
 ---
@@ -577,6 +584,6 @@ Want to help implement a feature?
 ---
 
 **Last Updated:** 2026-06-26
-**Status:** Stable (v1.4.1, Baileys 7.0.0-rc13)
+**Status:** Stable (v1.5.0, Baileys 7.0.0-rc13)
 **Next Release:** Chat management + rich messages — see [Not-Yet-Implemented Baileys Features (Prioritized)](#not-yet-implemented-baileys-features-prioritized)
 **Path So Far:** v0.1.0 → … → v0.9.0 ✅ → v1.0.0 ✅ (Stable) → v1.1.0 ✅ (Baileys v7/ESM) → v1.2.0 ✅ → v1.3.0 ✅ (Proxy) → v1.4.x ✅ (CLI + rc13)
