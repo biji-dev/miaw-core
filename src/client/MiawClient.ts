@@ -568,16 +568,20 @@ export class MiawClient extends EventEmitter {
           continue; // Don't process as regular message
         }
 
-        // Build LID to JID mapping from incoming messages
-        // Incoming messages have remoteJid (phone) and senderLid (LID)
-        // Note: senderLid may exist at runtime but isn't in Baileys v7 types
+        // Build LID<->PN mapping from incoming message keys. Baileys rc13 keys
+        // carry the alternate JID (remoteJidAlt for DMs, participantAlt for
+        // groups): when the primary id is a privacy LID, the alt holds the phone
+        // JID (and vice versa). Capture whichever side is the @lid.
         const msgKey = msg.key as {
-          senderLid?: string;
           fromMe?: boolean;
           remoteJid?: string | null;
+          remoteJidAlt?: string | null;
+          participant?: string | null;
+          participantAlt?: string | null;
         };
-        if (!msgKey.fromMe && msgKey.senderLid && msgKey.remoteJid) {
-          this.addLidMapping(msgKey.senderLid, msgKey.remoteJid, "Message");
+        if (!msgKey.fromMe) {
+          this.captureLidPnPair(msgKey.remoteJid, msgKey.remoteJidAlt);
+          this.captureLidPnPair(msgKey.participant, msgKey.participantAlt);
         }
 
         const normalized = MessageHandler.normalize({ messages: [msg as any], type: "notify" }, this.logger);
@@ -803,6 +807,21 @@ export class MiawClient extends EventEmitter {
    * @param jid - The JID to map to (phone number)
    * @param source - Source of the mapping for debug logs
    */
+  /**
+   * Capture a LID<->PN mapping from a (primary, alternate) JID pair.
+   * Baileys rc13 message keys expose alternate addressing (remoteJidAlt /
+   * participantAlt); whichever side is a privacy LID (@lid) is mapped to the
+   * phone (@s.whatsapp.net) side.
+   */
+  private captureLidPnPair(a?: string | null, b?: string | null): void {
+    if (!a || !b) return;
+    if (a.endsWith("@lid") && b.endsWith("@s.whatsapp.net")) {
+      this.addLidMapping(a, b, "Message");
+    } else if (b.endsWith("@lid") && a.endsWith("@s.whatsapp.net")) {
+      this.addLidMapping(b, a, "Message");
+    }
+  }
+
   private addLidMapping(lid: string, jid: string, source: "BaileysEvent" | "Contact" | "Chat" | "Message"): void {
     if (!lid || !jid) {
       return;

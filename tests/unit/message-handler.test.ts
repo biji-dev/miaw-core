@@ -455,6 +455,59 @@ describe("MessageHandler", () => {
       expect(result?.participant).toBe("1234567890@s.whatsapp.net");
     });
 
+    it("should resolve DM sender phone from remoteJidAlt when remoteJid is a LID (rc13)", () => {
+      const baileysMessage = {
+        messages: [
+          {
+            key: {
+              id: "msg-lid-dm",
+              remoteJid: "111222333@lid",
+              remoteJidAlt: "6281234567890@s.whatsapp.net",
+              addressingMode: "lid",
+              fromMe: false,
+            },
+            pushName: "Privacy User",
+            message: {
+              conversation: "Hi from LID",
+            },
+            messageTimestamp: 1234567890,
+          },
+        ],
+        type: "notify" as const,
+      };
+
+      const result = MessageHandler.normalize(baileysMessage);
+      expect(result?.senderPhone).toBe("6281234567890");
+      expect(result?.text).toBe("Hi from LID");
+    });
+
+    it("should resolve group sender phone from participantAlt when participant is a LID (rc13)", () => {
+      const baileysMessage = {
+        messages: [
+          {
+            key: {
+              id: "msg-lid-group",
+              remoteJid: "group123@g.us",
+              participant: "444555666@lid",
+              participantAlt: "6289876543210@s.whatsapp.net",
+              addressingMode: "lid",
+              fromMe: false,
+            },
+            pushName: "Privacy User",
+            message: {
+              conversation: "Group LID message",
+            },
+            messageTimestamp: 1234567890,
+          },
+        ],
+        type: "notify" as const,
+      };
+
+      const result = MessageHandler.normalize(baileysMessage);
+      expect(result?.isGroup).toBe(true);
+      expect(result?.senderPhone).toBe("6289876543210");
+    });
+
     it("should handle own message", () => {
       const baileysMessage = {
         messages: [

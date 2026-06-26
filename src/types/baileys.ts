@@ -21,8 +21,15 @@ export interface BaileysMessageKey {
   fromMe?: boolean | null;
   id?: string | null;
   participant?: string | null;
-  participantPn?: string | null;  // Privacy-masked participant number
-  senderPn?: string | null;        // Privacy-masked sender number
+  // Baileys rc13 addressing: the alternate JID for the other format. When the
+  // primary id is a privacy LID (@lid), the *Alt holds the phone JID
+  // (@s.whatsapp.net) and vice versa. addressingMode is 'lid' | 'pn'.
+  remoteJidAlt?: string | null;    // alternate JID for DMs
+  participantAlt?: string | null;  // alternate JID for group participants
+  addressingMode?: string | null;
+  // Legacy fields kept for backward compatibility with older session data.
+  participantPn?: string | null;
+  senderPn?: string | null;
 }
 
 /**
