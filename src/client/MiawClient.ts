@@ -834,13 +834,15 @@ export class MiawClient extends EventEmitter {
    */
   private updateLidToJidMapping(contacts: any[]): void {
     for (const contact of contacts) {
-      // Contact has both lid and jid - create mapping
+      // id is a phone JID and lid is present - map lid -> phone
       if (contact.lid && contact.id && !contact.id.endsWith("@lid")) {
         this.addLidMapping(contact.lid, contact.id, "Contact");
       }
-      // Also check if id is the LID and jid field exists
-      if (contact.id?.endsWith("@lid") && contact.jid) {
-        this.addLidMapping(contact.id, contact.jid, "Contact");
+      // id is the LID - map id -> phone. Baileys rc10 removed Contact.jid in
+      // favour of Contact.phoneNumber; keep .jid as a fallback for older data.
+      const contactPn = contact.phoneNumber || contact.jid;
+      if (contact.id?.endsWith("@lid") && contactPn) {
+        this.addLidMapping(contact.id, contactPn, "Contact");
       }
     }
   }
@@ -850,13 +852,15 @@ export class MiawClient extends EventEmitter {
    */
   private updateLidFromChats(chats: any[]): void {
     for (const chat of chats) {
-      // Chat may have both id (could be phone or LID) and lidJid
+      // id is a phone JID and lidJid is present - map lid -> phone
       if (chat.lidJid && chat.id && !chat.id.endsWith("@lid")) {
         this.addLidMapping(chat.lidJid, chat.id, "Chat");
       }
-      // Reverse: if id is LID and we have a phone JID
-      if (chat.id?.endsWith("@lid") && chat.jid) {
-        this.addLidMapping(chat.id, chat.jid, "Chat");
+      // id is the LID - map id -> phone. Chats carry the phone JID on pnJid
+      // (Baileys rc10); keep the removed .jid field as a fallback for older data.
+      const chatPn = chat.pnJid || chat.jid;
+      if (chat.id?.endsWith("@lid") && chatPn) {
+        this.addLidMapping(chat.id, chatPn, "Chat");
       }
     }
   }
