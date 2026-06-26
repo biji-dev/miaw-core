@@ -7,6 +7,7 @@ import makeWASocket, {
   AnyMessageContent,
   downloadMediaMessage,
   jidNormalizedUser,
+  getAggregateVotesInPollMessage,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { EventEmitter } from "node:events";
@@ -71,6 +72,13 @@ import {
   FetchChatMessagesResult,
   FetchAllChatsResult,
   ChatInfo,
+  // v1.6.0 Rich messages
+  ContactCard,
+  SendLocationOptions,
+  SendContactOptions,
+  SendStickerOptions,
+  SendPollOptions,
+  PollVoteUpdate,
 } from "../types/index.js";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -671,6 +679,21 @@ export class MiawClient extends EventEmitter {
       }
     });
 
+    // Poll votes (messages.update carries pollUpdates when someone votes)
+    this.socket.ev.on("messages.update", (updates) => {
+      for (const { key, update } of updates) {
+        const pollUpdates = (update as { pollUpdates?: unknown[] }).pollUpdates;
+        if (!pollUpdates?.length) {
+          continue;
+        }
+        this.handlePollVote(key, pollUpdates).catch((err) => {
+          if (this.options.debug) {
+            this.logger.debug("Failed to process poll vote:", err);
+          }
+        });
+      }
+    });
+
     // Presence updates
     this.socket.ev.on("presence.update", (presence) => {
       const jid = presence.id;
@@ -765,6 +788,7 @@ export class MiawClient extends EventEmitter {
     this.socket.ev.removeAllListeners("messaging-history.set");
     this.socket.ev.removeAllListeners("messages.upsert");
     this.socket.ev.removeAllListeners("messages.reaction");
+    this.socket.ev.removeAllListeners("messages.update");
     this.socket.ev.removeAllListeners("presence.update");
     this.socket.ev.removeAllListeners("labels.edit");
     this.socket.ev.removeAllListeners("labels.association");
@@ -1495,7 +1519,14 @@ export class MiawClient extends EventEmitter {
         ? { quoted: options.quoted.raw }
         : undefined;
 
-      const result = await this.socket.sendMessage(jid, { text }, sendOptions);
+      const content = { text } as AnyMessageContent & { mentions?: string[] };
+      if (options?.mentions?.length) {
+        content.mentions = options.mentions.map((m) =>
+          MessageHandler.formatPhoneToJid(m)
+        );
+      }
+
+      const result = await this.socket.sendMessage(jid, content, sendOptions);
 
       return {
         success: true,
@@ -1535,11 +1566,16 @@ export class MiawClient extends EventEmitter {
       const jid = MessageHandler.formatPhoneToJid(to);
 
       // Build image message payload
-      const imageContent: AnyMessageContent = {
+      const imageContent = {
         image: Buffer.isBuffer(image) ? image : { url: image },
         caption: options?.caption,
         viewOnce: options?.viewOnce,
-      };
+      } as AnyMessageContent & { mentions?: string[] };
+      if (options?.mentions?.length) {
+        imageContent.mentions = options.mentions.map((m) =>
+          MessageHandler.formatPhoneToJid(m)
+        );
+      }
 
       // Build send options (for quoting/replying)
       const sendOptions = options?.quoted?.raw
@@ -1660,13 +1696,18 @@ export class MiawClient extends EventEmitter {
       const jid = MessageHandler.formatPhoneToJid(to);
 
       // Build video message payload
-      const videoContent: AnyMessageContent = {
+      const videoContent = {
         video: Buffer.isBuffer(video) ? video : { url: video },
         caption: options?.caption,
         viewOnce: options?.viewOnce,
         gifPlayback: options?.gifPlayback,
         ptv: options?.ptv,
-      };
+      } as AnyMessageContent & { mentions?: string[] };
+      if (options?.mentions?.length) {
+        videoContent.mentions = options.mentions.map((m) =>
+          MessageHandler.formatPhoneToJid(m)
+        );
+      }
 
       // Build send options (for quoting/replying)
       const sendOptions = options?.quoted?.raw
@@ -1751,6 +1792,245 @@ export class MiawClient extends EventEmitter {
         error: (error as Error).message,
       };
     }
+  }
+
+  /**
+   * Send a location message
+   * @param to - Recipient phone number or JID
+   * @param latitude - Latitude in decimal degrees
+   * @param longitude - Longitude in decimal degrees
+   * @param options - Optional name/address and quoted message
+   */
+  async sendLocation(
+    to: string,
+    latitude: number,
+    longitude: number,
+    options?: SendLocationOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+      const content: AnyMessageContent = {
+        location: {
+          degreesLatitude: latitude,
+          degreesLongitude: longitude,
+          name: options?.name,
+          address: options?.address,
+        },
+      };
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
+
+      const result = await this.socket.sendMessage(jid, content, sendOptions);
+      return { success: true, messageId: result?.key?.id || undefined };
+    } catch (error) {
+      this.logger.error("Failed to send location:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Build a vCard (version 3.0) string from a contact card.
+   */
+  private buildVCard(contact: ContactCard): string {
+    const phoneJid = MessageHandler.formatPhoneToJid(contact.phone);
+    const waid = MessageHandler.formatJidToPhone(phoneJid) || contact.phone;
+    const lines = ["BEGIN:VCARD", "VERSION:3.0", `FN:${contact.fullName}`];
+    if (contact.organization) {
+      lines.push(`ORG:${contact.organization}`);
+    }
+    lines.push(`TEL;type=CELL;type=VOICE;waid=${waid}:+${waid}`);
+    lines.push("END:VCARD");
+    return lines.join("\n");
+  }
+
+  /**
+   * Send one or more contact cards (vCards)
+   * @param to - Recipient phone number or JID
+   * @param contacts - A single contact card or an array of them
+   * @param options - Optional quoted message
+   */
+  async sendContact(
+    to: string,
+    contacts: ContactCard | ContactCard[],
+    options?: SendContactOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
+      }
+
+      const list = Array.isArray(contacts) ? contacts : [contacts];
+      if (list.length === 0) {
+        return { success: false, error: "No contacts provided" };
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+      const content: AnyMessageContent = {
+        contacts: {
+          displayName:
+            list.length === 1 ? list[0].fullName : `${list.length} contacts`,
+          contacts: list.map((c) => ({ vcard: this.buildVCard(c) })),
+        },
+      };
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
+
+      const result = await this.socket.sendMessage(jid, content, sendOptions);
+      return { success: true, messageId: result?.key?.id || undefined };
+    } catch (error) {
+      this.logger.error("Failed to send contact:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Send a sticker (WebP image)
+   * @param to - Recipient phone number or JID
+   * @param sticker - WebP sticker source (file path, URL, or Buffer)
+   * @param options - Optional quoted message
+   */
+  async sendSticker(
+    to: string,
+    sticker: MediaSource,
+    options?: SendStickerOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+      const content: AnyMessageContent = {
+        sticker: Buffer.isBuffer(sticker) ? sticker : { url: sticker },
+      };
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
+
+      const result = await this.socket.sendMessage(jid, content, sendOptions);
+      return { success: true, messageId: result?.key?.id || undefined };
+    } catch (error) {
+      this.logger.error("Failed to send sticker:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Send a poll
+   * @param to - Recipient phone number or JID
+   * @param name - Poll question/title
+   * @param pollOptions - Answer options (2-12)
+   * @param options - selectableCount (default 1) and quoted message
+   */
+  async sendPoll(
+    to: string,
+    name: string,
+    pollOptions: string[],
+    options?: SendPollOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot send message. Connection state: ${this.connectionState}`
+        );
+      }
+      if (!pollOptions || pollOptions.length < 2) {
+        return { success: false, error: "A poll needs at least 2 options" };
+      }
+
+      const jid = MessageHandler.formatPhoneToJid(to);
+      const content: AnyMessageContent = {
+        poll: {
+          name,
+          values: pollOptions,
+          selectableCount: options?.selectableCount ?? 1,
+        },
+      };
+      const sendOptions = options?.quoted?.raw
+        ? { quoted: options.quoted.raw }
+        : undefined;
+
+      const result = await this.socket.sendMessage(jid, content, sendOptions);
+      return { success: true, messageId: result?.key?.id || undefined };
+    } catch (error) {
+      this.logger.error("Failed to send poll:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Decode a poll vote update and emit `poll_vote` with the aggregated tally.
+   * Requires the original poll-creation message to be in `messagesStore` (so its
+   * encryption secret is available). Best-effort; never throws to the caller.
+   */
+  private async handlePollVote(
+    key: { id?: string | null; remoteJid?: string | null },
+    pollUpdates: any[]
+  ): Promise<void> {
+    const chatId = key.remoteJid || "";
+    const pollMessageId = key.id || "";
+    if (!chatId || !pollMessageId) {
+      return;
+    }
+
+    // Find the original poll-creation message we stored.
+    const stored = (this.messagesStore.get(chatId) || []).find(
+      (m) => m.id === pollMessageId || m.raw?.key?.id === pollMessageId
+    );
+    if (!stored?.raw?.message) {
+      return;
+    }
+
+    // Accumulate incoming vote updates onto the stored message (in-memory) so
+    // the aggregate reflects the running tally across multiple update events.
+    const raw = stored.raw;
+    raw.pollUpdates = [...(raw.pollUpdates || []), ...pollUpdates];
+
+    const aggregated = getAggregateVotesInPollMessage(
+      { message: raw.message, pollUpdates: raw.pollUpdates },
+      this.socket?.user?.id
+    );
+
+    const vote: PollVoteUpdate = {
+      pollMessageId,
+      chatId,
+      results: (aggregated || []).map((a) => ({
+        option: a.name,
+        voters: a.voters,
+      })),
+    };
+
+    if (this.options.debug) {
+      this.logger.debug("\n========== POLL VOTE ==========");
+      this.logger.debug(JSON.stringify(vote, null, 2));
+      this.logger.debug("===============================\n");
+    }
+
+    this.emit("poll_vote", vote);
   }
 
   /**

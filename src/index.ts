@@ -62,6 +62,13 @@ export type {
   FetchChatMessagesResult,
   FetchAllChatsResult,
   ChatInfo,
+  // v1.6.0 Rich messages
+  ContactCard,
+  SendLocationOptions,
+  SendContactOptions,
+  SendStickerOptions,
+  SendPollOptions,
+  PollVoteUpdate,
 } from "./types/index.js";
 
 // v1.2.0 Logger types (for custom logger implementations)
