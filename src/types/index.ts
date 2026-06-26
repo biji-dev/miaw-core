@@ -92,6 +92,20 @@ export interface MiawClientOptions {
    * Takes priority over proxy config. Must be an undici-compatible Dispatcher.
    */
   fetchAgent?: unknown;
+
+  /**
+   * Authenticate with a pairing code instead of a QR code (headless/server
+   * friendly). Requires `phoneNumber`. On a fresh session the `pairing_code`
+   * event is emitted with an 8-character code to enter in WhatsApp
+   * (Linked Devices → Link with phone number). Default: false.
+   */
+  usePairingCode?: boolean;
+
+  /**
+   * Phone number in international format without '+' (e.g. '6281234567890'),
+   * used when `usePairingCode` is true.
+   */
+  phoneNumber?: string;
 }
 
 /**

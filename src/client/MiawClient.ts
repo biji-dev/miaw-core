@@ -187,7 +187,7 @@ class LruCache {
  * Main client class for interacting with WhatsApp
  */
 export class MiawClient extends EventEmitter {
-  private options: Required<Omit<MiawClientOptions, "proxy" | "agent" | "fetchAgent">> & Pick<MiawClientOptions, "proxy" | "agent" | "fetchAgent">;
+  private options: Required<Omit<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber">> & Pick<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber">;
   private socket: WASocket | null = null;
   private authHandler: AuthHandler;
   private connectionState: ConnectionState = "disconnected";
@@ -242,6 +242,8 @@ export class MiawClient extends EventEmitter {
       proxy: options.proxy,
       agent: options.agent,
       fetchAgent: options.fetchAgent,
+      usePairingCode: options.usePairingCode,
+      phoneNumber: options.phoneNumber,
     };
 
     // Use the initialized logger
@@ -340,6 +342,10 @@ export class MiawClient extends EventEmitter {
       // Register event handlers
       this.registerSocketEvents(saveCreds);
 
+      // Pairing-code auth (alternative to QR): on a fresh session, request an
+      // 8-char code for the configured phone number and emit it.
+      this.maybeRequestPairingCode(Boolean(state.creds.registered));
+
       this.logger.info("Connection initiated");
     } catch (error) {
       this.logger.error("Failed to connect:", error);
@@ -349,6 +355,33 @@ export class MiawClient extends EventEmitter {
         this.scheduleReconnect();
       }
     }
+  }
+
+  /**
+   * Request a pairing code when pairing-code auth is configured and the session
+   * is not yet registered. Non-blocking; emits `pairing_code` on success.
+   * @param registered - Whether the current session creds are already registered
+   */
+  private maybeRequestPairingCode(registered: boolean): void {
+    if (
+      !this.options.usePairingCode ||
+      !this.options.phoneNumber ||
+      registered ||
+      !this.socket
+    ) {
+      return;
+    }
+    this.socket
+      .requestPairingCode(this.options.phoneNumber)
+      .then((code) => {
+        if (this.options.debug) {
+          this.logger.debug(`Pairing code: ${code}`);
+        }
+        this.emit("pairing_code", code);
+      })
+      .catch((err) => {
+        this.logger.error("Failed to request pairing code:", err);
+      });
   }
 
   /**
@@ -415,8 +448,8 @@ export class MiawClient extends EventEmitter {
     this.socket.ev.on("connection.update", async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
-      // Handle QR code
-      if (qr) {
+      // Handle QR code (suppressed when authenticating via pairing code)
+      if (qr && !this.options.usePairingCode) {
         this.updateConnectionState("qr_required");
         this.emit("qr", qr);
       }
