@@ -34,6 +34,7 @@ jest.unstable_mockModule("@whiskeysockets/baileys", () => ({
     const user = jid.slice(0, at).split(":")[0];
     return `${user}@${jid.slice(at + 1)}`;
   }),
+  getAggregateVotesInPollMessage: jest.fn(),
 }));
 
 // Dynamic import after mocking

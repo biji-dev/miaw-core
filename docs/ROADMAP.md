@@ -4,7 +4,7 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 1.5.0
+**Current Version:** 1.6.0
 **Baileys Version:** 7.0.0-rc13
 **Node.js Required:** >= 18.0.0
 **Module System:** ESM-only
@@ -272,6 +272,14 @@ These shipped after the first stable release (see [CHANGELOG.md](../CHANGELOG.md
 - [x] **`lidPnMappings` ingestion** - consume the dedicated LID↔PN array on `messaging-history.set`
 - [x] **Bulk + reverse resolution** - `resolveLidsToPhones([...])` and `getLidForPhone()`
 
+### v1.6.0 - Rich Messages + Pairing-Code Auth ✅ (2026-06-27)
+
+- [x] **Rich message types** - `sendLocation`, `sendContact` (vCard, single/array), `sendSticker`, `sendPoll`
+- [x] **Mentions** - `mentions` option on `sendText` / `sendImage` / `sendVideo`
+- [x] **Poll-vote reading** - `poll_vote` event with the aggregated tally
+- [x] **Pairing-code auth** - `usePairingCode` + `phoneNumber` options + `pairing_code` event (QR-free)
+- [x] **CLI** - `send location | contact | poll | sticker`
+
 ---
 
 ## Not-Yet-Implemented Baileys Features (Prioritized)
@@ -289,15 +297,12 @@ Every item below is a thin wrapper over a method that **exists in Baileys 7.0.0-
 
 > `archive` / `clear` / `delete` need last-message key context — wire through the existing `messagesStore`.
 
-### 2. Rich Messages (priority) — via `socket.sendMessage(jid, content)`
+### 2. Remaining message types — via `socket.sendMessage(jid, content)`
 
-- [ ] `sendLocation(to, lat, lng, opts)` → `{ location }`
-- [ ] `sendContact(to, contacts)` → `{ contacts }` (vCard)
-- [ ] `sendPoll(to, name, options, selectableCount)` → `{ poll }`, plus poll-vote decoding (`getAggregateVotesInPollMessage` / `decryptPollVote`)
-- [ ] `sendSticker(to, sticker)` → `{ sticker }`
+> ✅ Shipped in **v1.6.0**: `sendLocation`, `sendContact` (vCard), `sendPoll` + poll-vote reading, `sendSticker`, `mentions`. Remaining:
+
 - [ ] `sendGroupInvite(to, ...)` → `{ groupInvite }`
 - [ ] `pinMessage()` / `unpinMessage()` → `{ pin: key, type, time }`
-- [ ] `mentions` option on `sendText()` and media captions
 
 ### 3. Privacy & Blocklist
 
@@ -336,7 +341,8 @@ Every item below is a thin wrapper over a method that **exists in Baileys 7.0.0-
 
 ### 9. Auth & Events
 
-- [ ] `requestPairingCode()` - phone-number pairing as a QR alternative
+> ✅ Shipped in **v1.6.0**: `requestPairingCode()` (pairing-code auth). Remaining:
+
 - [ ] Surface `message-receipt.update` as a miaw receipt event
 
 ---
@@ -415,7 +421,8 @@ If you need any of these features, please:
 | v1.3.0  | Proxy support (HTTP/SOCKS)                                 | ✅ Released |
 | v1.4.x  | CLI expansion + Baileys rc13 upgrade                       | ✅ Released |
 | v1.5.0  | Native LID management (async/bulk/reverse resolve)         | ✅ Released |
-| next    | Chat management + rich messages (see prioritized backlog)  | 📋 Planned  |
+| v1.6.0  | Rich messages (location/contact/poll/sticker/mentions) + pairing code | ✅ Released |
+| next    | Chat management; then status, business extras, communities | 📋 Planned  |
 
 ---
 
@@ -584,6 +591,6 @@ Want to help implement a feature?
 ---
 
 **Last Updated:** 2026-06-26
-**Status:** Stable (v1.5.0, Baileys 7.0.0-rc13)
+**Status:** Stable (v1.6.0, Baileys 7.0.0-rc13)
 **Next Release:** Chat management + rich messages — see [Not-Yet-Implemented Baileys Features (Prioritized)](#not-yet-implemented-baileys-features-prioritized)
 **Path So Far:** v0.1.0 → … → v0.9.0 ✅ → v1.0.0 ✅ (Stable) → v1.1.0 ✅ (Baileys v7/ESM) → v1.2.0 ✅ → v1.3.0 ✅ (Proxy) → v1.4.x ✅ (CLI + rc13)

@@ -23,6 +23,7 @@ jest.unstable_mockModule("@whiskeysockets/baileys", () => ({
   useMultiFileAuthState: jest.fn(),
   downloadMediaMessage: jest.fn(),
   jidNormalizedUser: jest.fn((jid: string) => jid),
+  getAggregateVotesInPollMessage: jest.fn(),
 }));
 
 // Dynamic import after mocking

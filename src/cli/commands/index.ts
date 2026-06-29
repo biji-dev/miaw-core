@@ -29,6 +29,10 @@ import {
   cmdSendDocument,
   cmdSendVideo,
   cmdSendAudio,
+  cmdSendLocation,
+  cmdSendContact,
+  cmdSendPoll,
+  cmdSendSticker,
   // Media commands
   cmdMediaDownload,
   // Group commands
@@ -259,13 +263,56 @@ export async function runCommand(
           path: parsedArgs._[2],
           ptt: parsedArgs.ptt,
         });
+      case "location":
+        if (parsedArgs._.length < 4) {
+          console.log("❌ Usage: miaw-cli send location <phone> <lat> <lng> [--name <n>] [--address <a>]");
+          return false;
+        }
+        return await cmdSendLocation(client, {
+          phone: parsedArgs._[1],
+          latitude: parseFloat(parsedArgs._[2]),
+          longitude: parseFloat(parsedArgs._[3]),
+          name: parsedArgs.name,
+          address: parsedArgs.address,
+        });
+      case "contact":
+        if (parsedArgs._.length < 4) {
+          console.log("❌ Usage: miaw-cli send contact <phone> <fullName> <contactPhone> [--org <o>]");
+          return false;
+        }
+        return await cmdSendContact(client, {
+          phone: parsedArgs._[1],
+          fullName: parsedArgs._[2],
+          contactPhone: parsedArgs._[3],
+          org: parsedArgs.org,
+        });
+      case "poll":
+        if (parsedArgs._.length < 4) {
+          console.log("❌ Usage: miaw-cli send poll <phone> <name> <option1> <option2> [...] [--select <n>]");
+          return false;
+        }
+        return await cmdSendPoll(client, {
+          phone: parsedArgs._[1],
+          name: parsedArgs._[2],
+          options: parsedArgs._.slice(3),
+          selectableCount: parsedArgs.select ? parseInt(parsedArgs.select, 10) : undefined,
+        });
+      case "sticker":
+        if (parsedArgs._.length < 3) {
+          console.log("❌ Usage: miaw-cli send sticker <phone> <path-or-url>");
+          return false;
+        }
+        return await cmdSendSticker(client, {
+          phone: parsedArgs._[1],
+          path: parsedArgs._[2],
+        });
       default:
         if (!subCommand) {
           console.log("Usage: send <command> <phone> <message|path>");
-          console.log("Commands: text, image, document, video, audio");
+          console.log("Commands: text, image, document, video, audio, location, contact, poll, sticker");
         } else {
           console.log(`❌ Unknown send command: ${subCommand}`);
-          console.log("Commands: text, image, document, video, audio");
+          console.log("Commands: text, image, document, video, audio, location, contact, poll, sticker");
         }
         return false;
     }

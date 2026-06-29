@@ -92,6 +92,20 @@ export interface MiawClientOptions {
    * Takes priority over proxy config. Must be an undici-compatible Dispatcher.
    */
   fetchAgent?: unknown;
+
+  /**
+   * Authenticate with a pairing code instead of a QR code (headless/server
+   * friendly). Requires `phoneNumber`. On a fresh session the `pairing_code`
+   * event is emitted with an 8-character code to enter in WhatsApp
+   * (Linked Devices → Link with phone number). Default: false.
+   */
+  usePairingCode?: boolean;
+
+  /**
+   * Phone number in international format without '+' (e.g. '6281234567890'),
+   * used when `usePairingCode` is true.
+   */
+  phoneNumber?: string;
 }
 
 /**
@@ -279,6 +293,12 @@ export interface MiawClientEvents {
   /** Emitted when a message receives a reaction */
   message_reaction: (reaction: MessageReaction) => void;
 
+  /** Emitted when someone votes on a poll (carries the aggregated tally) */
+  poll_vote: (vote: PollVoteUpdate) => void;
+
+  /** Emitted when a pairing code is generated (pairing-code auth) */
+  pairing_code: (code: string) => void;
+
   /** Emitted when a contact's presence changes (online/offline/typing) */
   presence: (update: PresenceUpdate) => void;
 
@@ -304,6 +324,13 @@ export interface MiawClientEvents {
 export interface SendTextOptions {
   /** Quote/reply to a specific message (pass the MiawMessage to reply to) */
   quoted?: MiawMessage;
+
+  /**
+   * Phone numbers / JIDs to @mention. Only meaningful in groups. The mentioned
+   * users must also be referenced as `@<number>` in the text to render.
+   * @example ["6281234567890"]
+   */
+  mentions?: string[];
 }
 
 /**
@@ -325,6 +352,9 @@ export interface SendImageOptions {
 
   /** Send as view-once message (disappears after viewing) */
   viewOnce?: boolean;
+
+  /** Phone numbers / JIDs to @mention in the caption (groups only) */
+  mentions?: string[];
 }
 
 /**
@@ -362,6 +392,9 @@ export interface SendVideoOptions {
 
   /** Send as video note (circular video, like Telegram) */
   ptv?: boolean;
+
+  /** Phone numbers / JIDs to @mention in the caption (groups only) */
+  mentions?: string[];
 }
 
 /**
@@ -390,6 +423,76 @@ export interface SendMessageResult {
 
   /** Error message if failed */
   error?: string;
+}
+
+/**
+ * A contact to share, rendered as a WhatsApp contact card (vCard).
+ */
+export interface ContactCard {
+  /** Full display name shown on the card */
+  fullName: string;
+
+  /** Phone number in international format without '+' (e.g. '6281234567890') */
+  phone: string;
+
+  /** Optional organization / company name */
+  organization?: string;
+}
+
+/**
+ * Options for sending a location message
+ */
+export interface SendLocationOptions {
+  /** Optional location name/title */
+  name?: string;
+
+  /** Optional street address */
+  address?: string;
+
+  /** Quote/reply to a specific message */
+  quoted?: MiawMessage;
+}
+
+/**
+ * Options for sending a contact card
+ */
+export interface SendContactOptions {
+  /** Quote/reply to a specific message */
+  quoted?: MiawMessage;
+}
+
+/**
+ * Options for sending a sticker (WebP)
+ */
+export interface SendStickerOptions {
+  /** Quote/reply to a specific message */
+  quoted?: MiawMessage;
+}
+
+/**
+ * Options for sending a poll
+ */
+export interface SendPollOptions {
+  /** How many options a voter may select (default: 1) */
+  selectableCount?: number;
+
+  /** Quote/reply to a specific message */
+  quoted?: MiawMessage;
+}
+
+/**
+ * A poll vote update, emitted via the `poll_vote` event when someone votes.
+ * Carries the current aggregated tally for the poll.
+ */
+export interface PollVoteUpdate {
+  /** ID of the poll-creation message */
+  pollMessageId: string;
+
+  /** Chat JID the poll lives in */
+  chatId: string;
+
+  /** Aggregated tally: each option with the voter JIDs that selected it */
+  results: Array<{ option: string; voters: string[] }>;
 }
 
 /**
