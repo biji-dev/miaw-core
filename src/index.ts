@@ -62,6 +62,8 @@ export type {
   FetchChatMessagesResult,
   FetchAllChatsResult,
   ChatInfo,
+  // v1.7.0 Chat management
+  ChatOperationResult,
   // v1.6.0 Rich messages
   ContactCard,
   SendLocationOptions,

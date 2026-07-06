@@ -493,6 +493,39 @@ await client.deleteMessageForMe(msg, true); // deleteMedia = true (default)
 await client.deleteMessageForMe(msg, false); // keep media files
 ```
 
+## Chat Management (v1.7.0)
+
+Manage chats via `chatModify`. Chat-level methods take a JID or phone number and
+return `{ success, error? }`.
+
+```typescript
+// Archive / pin / mute (durationMs defaults to 8 hours)
+await client.archiveChat("6281234567890");
+await client.unarchiveChat("6281234567890");
+await client.pinChat("6281234567890");
+await client.unpinChat("6281234567890");
+await client.muteChat("6281234567890", 8 * 60 * 60 * 1000);
+await client.unmuteChat("6281234567890");
+
+// Mark a whole chat read/unread (distinct from per-message markAsRead)
+await client.markChatRead("6281234567890");
+await client.markChatUnread("6281234567890");
+
+// Clear messages (keep chat) or delete the chat entirely
+await client.clearChat("6281234567890");
+await client.deleteChat("6281234567890");
+
+// Star / unstar a message (takes a received MiawMessage)
+client.on("message", async (msg) => {
+  await client.starMessage(msg);
+  await client.unstarMessage(msg);
+});
+```
+
+> **Note:** `archiveChat`, `clearChat`, `deleteChat`, and `markChatRead` need the
+> chat's last message, taken from the in-memory message store — they are most
+> reliable after messages for that chat have been received or synced.
+
 ## Contact & Validation
 
 ### Check WhatsApp Registration

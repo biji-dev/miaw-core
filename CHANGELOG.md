@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-07-07
+
+**Chat management** - Inbox-style automation via `socket.chatModify`. All additive.
+
+### Added
+
+- Chat operations (take a JID or phone number), returning `ChatOperationResult`:
+  - `archiveChat` / `unarchiveChat`
+  - `pinChat` / `unpinChat`
+  - `muteChat(jid, durationMs?)` / `unmuteChat` (default 8h; stored as an absolute
+    mute-end timestamp)
+  - `markChatRead` / `markChatUnread` (whole-chat; distinct from per-message
+    `markAsRead`)
+  - `clearChat` / `deleteChat`
+- Message operations: `starMessage(message)` / `unstarMessage(message)`.
+- **CLI**: `chat archive|unarchive|pin|unpin|mute|unmute|read|unread|clear|delete <jid|phone>`.
+- New `ChatOperationResult` type; `isMuted?` added to `ChatInfo`.
+
+### Notes
+
+- `archive` / `clear` / `delete` / `markChatRead` require the chat's last message
+  (`lastMessages`), pulled from the in-memory message store — less reliable for a
+  chat with no synced/received messages yet.
+- `star` / `unstar` are library-only (they operate on a message object, not a JID).
+
 ## [1.6.1] - 2026-07-07
 
 **Fresh-login fix + connection hardening** - Restores QR/pairing registration
