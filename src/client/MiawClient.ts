@@ -1,7 +1,10 @@
 import makeWASocket, {
   DisconnectReason,
   WASocket,
+  WAVersion,
   fetchLatestBaileysVersion,
+  fetchLatestWaWebVersion,
+  DEFAULT_CONNECTION_CONFIG,
   makeCacheableSignalKeyStore,
   Browsers,
   AnyMessageContent,
@@ -84,7 +87,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { AuthHandler } from "../handlers/AuthHandler.js";
 import { MessageHandler } from "../handlers/MessageHandler.js";
-import { TIMEOUTS } from "../constants/timeouts.js";
+import { TIMEOUTS, THRESHOLDS } from "../constants/timeouts.js";
 import { CACHE_CONFIG } from "../constants/cache.js";
 import {
   validatePhoneNumber,
@@ -187,7 +190,7 @@ class LruCache {
  * Main client class for interacting with WhatsApp
  */
 export class MiawClient extends EventEmitter {
-  private options: Required<Omit<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber">> & Pick<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber">;
+  private options: Required<Omit<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber" | "browser">> & Pick<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber" | "browser">;
   private socket: WASocket | null = null;
   private authHandler: AuthHandler;
   private connectionState: ConnectionState = "disconnected";
@@ -195,6 +198,8 @@ export class MiawClient extends EventEmitter {
   private connectionWatchdogTimer: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  // Cached WA Web version (resolved once, reused across reconnects)
+  private cachedVersion: WAVersion | null = null;
   private loggingOut = false;
   private logger: MiawLogger;
   private lidToJidMap: LruCache = new LruCache();
@@ -244,6 +249,7 @@ export class MiawClient extends EventEmitter {
       fetchAgent: options.fetchAgent,
       usePairingCode: options.usePairingCode,
       phoneNumber: options.phoneNumber,
+      browser: options.browser,
     };
 
     // Use the initialized logger
@@ -302,8 +308,8 @@ export class MiawClient extends EventEmitter {
       // Store auth state for logout access (needed when disconnected)
       this.authState = { creds: state.creds };
 
-      // Get latest Baileys version
-      const { version } = await fetchLatestBaileysVersion();
+      // Resolve the WA Web version (prefers the real current version to avoid 428)
+      const version = await this.resolveWAVersion();
 
       // Resolve proxy agents if configured
       const proxyAgents = await this.resolveProxyAgents();
@@ -319,7 +325,11 @@ export class MiawClient extends EventEmitter {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, this.logger),
         },
-        browser: Browsers.macOS("Desktop"),  // Desktop for more history
+        // "Desktop" identities (webSubPlatform DARWIN/WIN32) are rejected by
+        // WhatsApp with a 428 before any QR since ~2026-06-29; browser
+        // identities ("Chrome", etc.) still pair. Configurable via options.
+        // See https://github.com/WhiskeySockets/Baileys/issues/2671 and /issues/2677
+        browser: this.options.browser ?? Browsers.macOS("Chrome"),
         generateHighQualityLinkPreview: true,
         // Auto-recreate signal sessions on retry and migrate PN<->LID sessions
         // (Baileys rc13 default; set explicitly to document the LID reliance).
@@ -355,6 +365,59 @@ export class MiawClient extends EventEmitter {
         this.scheduleReconnect();
       }
     }
+  }
+
+  /**
+   * Resolve the WhatsApp Web version to connect with.
+   *
+   * Prefers the REAL current WA Web version (queried from web.whatsapp.com/sw.js
+   * via fetchLatestWaWebVersion). Baileys' bundled/GitHub-master version is often
+   * stale, and a stale client version is a known trigger for WhatsApp rejecting
+   * the fresh-registration handshake with statusCode 428 before any QR is issued.
+   * Falls back to fetchLatestBaileysVersion, then to the version bundled with
+   * Baileys. Every network call is guarded by a short timeout so connect() can
+   * never hang on version resolution, and the result is cached so reconnects
+   * don't refetch.
+   */
+  private async resolveWAVersion(): Promise<WAVersion> {
+    if (this.cachedVersion) {
+      return this.cachedVersion;
+    }
+
+    const withTimeout = <T>(p: Promise<T>): Promise<T | null> =>
+      Promise.race([
+        p.catch(() => null),
+        new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), TIMEOUTS.VERSION_FETCH_TIMEOUT)
+        ),
+      ]);
+
+    // 1) Real current WA Web version — the actual fix for the 428 bug.
+    const waWeb = await withTimeout(fetchLatestWaWebVersion());
+    if (waWeb && !waWeb.error) {
+      this.logger.info(`Using WA Web version ${waWeb.version.join(".")}`);
+      this.cachedVersion = waWeb.version;
+      return waWeb.version;
+    }
+
+    // 2) Baileys' published version (or its bundled default on internal error).
+    const baileys = await withTimeout(fetchLatestBaileysVersion());
+    if (baileys) {
+      this.logger.info(
+        `Using Baileys version ${baileys.version.join(".")}` +
+          (waWeb?.error ? " (WA Web version fetch failed)" : "")
+      );
+      this.cachedVersion = baileys.version;
+      return baileys.version;
+    }
+
+    // 3) Both fetches timed out/threw — use the version bundled with Baileys.
+    const fallback = DEFAULT_CONNECTION_CONFIG.version;
+    this.logger.warn(
+      `WA version fetch failed; using bundled version ${fallback.join(".")}`
+    );
+    this.cachedVersion = fallback;
+    return fallback;
   }
 
   /**
@@ -1410,7 +1473,7 @@ export class MiawClient extends EventEmitter {
 
     this.logger.info("Disconnected:", reason, "Code:", statusCode);
     this.updateConnectionState("disconnected");
-    this.emit("disconnected", reason);
+    this.emit("disconnected", reason, statusCode);
 
     // Reset label sync state so next connection will trigger fresh sync
     this.initialLabelSyncPromise = null;
@@ -1437,9 +1500,25 @@ export class MiawClient extends EventEmitter {
    * Schedule reconnection attempt
    */
   private scheduleReconnect(): void {
-    if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
-      this.logger.error("Max reconnection attempts reached");
-      this.emit("error", new Error("Max reconnection attempts reached"));
+    // Sessions that have never registered (fresh QR/pairing logins) are capped at
+    // a small number of attempts: if WhatsApp rejects the registration handshake
+    // (e.g. statusCode 428) before issuing a QR, retrying ~40 times/2min just
+    // hammers registration and can get the IP rate-limited. Established sessions
+    // keep the configured (possibly Infinite) limit but now with backoff.
+    const registered = Boolean(this.authState?.creds?.registered);
+    const maxAttempts = registered
+      ? this.options.maxReconnectAttempts
+      : Math.min(
+          this.options.maxReconnectAttempts,
+          THRESHOLDS.PRELOGIN_MAX_RECONNECT_ATTEMPTS
+        );
+
+    if (this.reconnectAttempts >= maxAttempts) {
+      const message = registered
+        ? "Max reconnection attempts reached"
+        : `Could not register with WhatsApp after ${this.reconnectAttempts} attempts (no QR issued)`;
+      this.logger.error(message);
+      this.emit("error", new Error(message));
       return;
     }
 
@@ -1448,13 +1527,23 @@ export class MiawClient extends EventEmitter {
     }
 
     this.reconnectAttempts++;
+
+    // Exponential backoff: reconnectDelay, 2x, 4x, ... capped at RECONNECT_MAX_DELAY.
+    // Prevents a persistent rejection from producing a tight retry storm.
+    const delay = Math.min(
+      this.options.reconnectDelay * 2 ** (this.reconnectAttempts - 1),
+      TIMEOUTS.RECONNECT_MAX_DELAY
+    );
+
     // Emit event but don't set state - let connect() handle the state transition
     this.emit("reconnecting", this.reconnectAttempts);
 
     this.reconnectTimer = setTimeout(() => {
-      this.logger.info(`Reconnecting... Attempt ${this.reconnectAttempts}`);
+      this.logger.info(
+        `Reconnecting... Attempt ${this.reconnectAttempts} (delay ${delay}ms)`
+      );
       this.connect();  // This will set state to "connecting"
-    }, this.options.reconnectDelay);
+    }, delay);
   }
 
   /**

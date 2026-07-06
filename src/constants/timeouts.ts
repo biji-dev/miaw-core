@@ -10,6 +10,12 @@ export const TIMEOUTS = {
   /** Default reconnection delay (3 seconds) */
   RECONNECT_DELAY: 3_000,
 
+  /** Maximum reconnection backoff delay cap (60 seconds) */
+  RECONNECT_MAX_DELAY: 60_000,
+
+  /** Max time to wait for a WA version fetch before falling back (8 seconds) */
+  VERSION_FETCH_TIMEOUT: 8_000,
+
   /** Socket initialization wait (500 milliseconds) */
   SOCKET_INIT_WAIT: 500,
 
@@ -47,4 +53,11 @@ export const TIMEOUTS = {
 export const THRESHOLDS = {
   /** Stuck state count threshold (30 polling intervals) */
   STUCK_STATE_COUNT: 30,
+
+  /**
+   * Max reconnect attempts before surfacing an error when the session has never
+   * registered (fresh QR/pairing login). Prevents an unbounded registration
+   * storm when WhatsApp rejects the handshake (e.g. statusCode 428) before a QR.
+   */
+  PRELOGIN_MAX_RECONNECT_ATTEMPTS: 5,
 } as const;

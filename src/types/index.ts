@@ -73,6 +73,20 @@ export interface MiawClientOptions {
   syncFullHistory?: boolean;
 
   /**
+   * Browser identity tuple sent to WhatsApp: [os, browserName, version].
+   * Default: Baileys' Browsers.macOS("Chrome").
+   *
+   * Do NOT use a "Desktop" browser name: since ~2026-06-29 WhatsApp rejects
+   * the legacy Desktop identity (webSubPlatform DARWIN/WIN32) with a 428
+   * before issuing a QR. Browser identities ("Chrome", etc.) still pair.
+   * Note: the linked device is labeled with this tuple on the phone (e.g.
+   * "Chrome (Mac OS)"), and browser identities may receive shallower history
+   * sync than the old Desktop identity.
+   * @see https://github.com/WhiskeySockets/Baileys/issues/2671
+   */
+  browser?: [string, string, string];
+
+  /**
    * Proxy configuration for this instance.
    * Each instance can have its own proxy for IP rotation.
    * Pass a string for quick proxy URL, or ProxyConfig object for auth options.
@@ -305,8 +319,8 @@ export interface MiawClientEvents {
   /** Emitted when connection state changes */
   connection: (state: ConnectionState) => void;
 
-  /** Emitted when client is disconnected */
-  disconnected: (reason?: string) => void;
+  /** Emitted when client is disconnected (statusCode is the Baileys DisconnectReason code, if any) */
+  disconnected: (reason?: string, statusCode?: number) => void;
 
   /** Emitted when client is attempting to reconnect */
   reconnecting: (attempt: number) => void;
