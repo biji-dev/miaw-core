@@ -2,7 +2,7 @@
 
 **Last Updated:** June 26, 2026  
 **Baileys Version:** 7.0.0-rc13  
-**Miaw Core Version:** 1.6.0
+**Miaw Core Version:** 1.7.0
 
 ## Overview
 
@@ -115,7 +115,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Send Reaction**       | ✅      | ✅        | `sendReaction()`                      |
 | **Remove Reaction**     | ✅      | ✅        | `removeReaction()`                    |
 | **Pin Message**         | ✅      | ❌        | Pin to chat/group                     |
-| **Star Message**        | ✅      | ❌        | Star/favorite message                 |
+| **Star Message**        | ✅      | ✅        | `starMessage()` (v1.7.0)               |
 
 ---
 
@@ -177,14 +177,15 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Send Recording**        | ✅      | ✅        | `sendRecording()`         |
 | **Stop Typing**           | ✅      | ✅        | `stopTyping()`            |
 | **Set Presence**          | ✅      | ✅        | `setPresence()`           |
-| **Archive Chat**          | ✅      | ❌        | Archive/unarchive         |
-| **Mute Chat**             | ✅      | ❌        | Mute/unmute notifications |
-| **Pin Chat**              | ✅      | ❌        | Pin chat to top           |
-| **Delete Chat**           | ✅      | ❌        | Delete entire chat        |
-| **Clear Chat**            | ✅      | ❌        | Clear all messages        |
+| **Archive Chat**          | ✅      | ✅        | `archiveChat()` (v1.7.0)  |
+| **Mute Chat**             | ✅      | ✅        | `muteChat()` (v1.7.0)     |
+| **Pin Chat**              | ✅      | ✅        | `pinChat()` (v1.7.0)      |
+| **Delete Chat**           | ✅      | ✅        | `deleteChat()` (v1.7.0)   |
+| **Clear Chat**            | ✅      | ✅        | `clearChat()` (v1.7.0)    |
 | **Disappearing Messages** | ✅      | ❌        | Set ephemeral timer       |
 | **Fetch Message History** | ✅      | ✅        | `loadMoreMessages()`      |
-| **Chat Modify**           | ✅      | 🔶        | Used internally           |
+| **Chat Modify**           | ✅      | ✅        | Exposed via chat ops (v1.7.0) |
+| **Mark Chat Read/Unread** | ✅      | ✅        | `markChatRead()` (v1.7.0) |
 
 ---
 
@@ -422,10 +423,10 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | Category                  | Baileys Features | Miaw Core Implemented | Coverage |
 | ------------------------- | ---------------- | --------------------- | -------- |
 | **Connection & Auth**     | 14               | 12                    | 86%      |
-| **Sending Messages**      | 33               | 25                    | 76%      |
+| **Sending Messages**      | 33               | 26                    | 79%      |
 | **Receiving & Events**    | 17               | 13                    | 76%      |
 | **Media**                 | 4                | 2                     | 50%      |
-| **Chat Management**       | 11               | 6                     | 55%      |
+| **Chat Management**       | 11               | 10                    | 91%      |
 | **User & Contacts**       | 10               | 8                     | 80%      |
 | **Profile Management**    | 5                | 5                     | 100%     |
 | **Group Management**      | 18               | 14                    | 78%      |
@@ -439,7 +440,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Calls**                 | 5                | 0                     | 0%       |
 | **Utilities**             | 7                | 4                     | 57%      |
 | **Low-Level**             | 6                | 0                     | 0%       |
-| **TOTAL**                 | ~175             | ~120                  | ~69%     |
+| **TOTAL**                 | ~175             | ~125                  | ~71%     |
 
 ### What Miaw Core Focuses On
 
@@ -457,7 +458,7 @@ Miaw Core prioritizes the features that **90% of WhatsApp bots actually need**:
 
 These are all backed by methods that exist in Baileys 7.0.0-rc13 and can be wrapped. Ordered by the prioritized backlog (see **[ROADMAP.md → Not-Yet-Implemented Baileys Features](./ROADMAP.md)**):
 
-1. ❌ **Chat Management** _(priority)_ - archive, pin, mute, clear, delete chat, star/unstar messages (`chatModify`)
+1. ✅ **Chat Management** _(v1.7.0)_ - archive, pin, mute, mark read/unread, clear, delete chat, star/unstar messages (`chatModify`)
 2. ❌ **Rich Messages** _(priority)_ - location, contact/vCard, poll (+ vote decoding), sticker, group-invite, pin-in-chat, `@mentions`
 3. ❌ **Privacy & Blocklist** - block/unblock, get blocklist, 10 privacy setters (`fetchBlocklist`, `updateBlockStatus`, `update*Privacy`)
 4. ❌ **Group Admin & Disappearing** - announce/restrict, join-approval, member-add mode, ephemeral (`groupSettingUpdate`, `groupRequest*`, `groupToggleEphemeral`)
@@ -520,4 +521,4 @@ These are all backed by methods that exist in Baileys 7.0.0-rc13 and can be wrap
 
 ---
 
-_This analysis was last updated on June 27, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.6.0._
+_This analysis was last updated on July 7, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.7.0._

@@ -4,7 +4,7 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 1.6.0
+**Current Version:** 1.7.0
 **Baileys Version:** 7.0.0-rc13
 **Node.js Required:** >= 18.0.0
 **Module System:** ESM-only
@@ -280,22 +280,31 @@ These shipped after the first stable release (see [CHANGELOG.md](../CHANGELOG.md
 - [x] **Pairing-code auth** - `usePairingCode` + `phoneNumber` options + `pairing_code` event (QR-free)
 - [x] **CLI** - `send location | contact | poll | sticker`
 
+### v1.6.1 - Fresh-login fix + connection hardening ✅ (2026-07-07)
+
+- [x] **Browser-tuple 428 fix** - default identity → `Browsers.macOS("Chrome")`; new `browser` option (WhatsApp rejects the legacy Desktop tuple)
+- [x] **Connection hardening** - surface registration rejections instead of a 120s hang; exponential reconnect backoff; stop the 440 loop; prefer `fetchLatestWaWebVersion`
+
+### v1.7.0 - Chat Management ✅ (2026-07-07)
+
+- [x] **Chat ops** (via `chatModify`) - `archiveChat`/`unarchiveChat`, `pinChat`/`unpinChat`, `muteChat`/`unmuteChat`, `markChatRead`/`markChatUnread`, `clearChat`, `deleteChat`
+- [x] **Message ops** - `starMessage` / `unstarMessage`
+- [x] **CLI** - `chat archive|unarchive|pin|unpin|mute|unmute|read|unread|clear|delete`
+
 ---
 
 ## Not-Yet-Implemented Baileys Features (Prioritized)
 
 Every item below is a thin wrapper over a method that **exists in Baileys 7.0.0-rc13** but is not yet exposed by miaw-core. Verified against the installed `@whiskeysockets/baileys` type definitions. Ordered as the backlog for the next implementation round.
 
-### 1. Chat Management (priority) — via `socket.chatModify(mod, jid)`
+### 1. Chat Management — ✅ shipped in v1.7.0
 
-- [ ] `archiveChat()` / `unarchiveChat()`
-- [ ] `pinChat()` / `unpinChat()`
-- [ ] `muteChat(duration)` / `unmuteChat()`
-- [ ] `markChatRead()` (whole-chat read)
-- [ ] `clearChat()` / `deleteChat()`
-- [ ] `starMessage()` / `unstarMessage()` (`socket.star`)
-
-> `archive` / `clear` / `delete` need last-message key context — wire through the existing `messagesStore`.
+- [x] `archiveChat()` / `unarchiveChat()`
+- [x] `pinChat()` / `unpinChat()`
+- [x] `muteChat(durationMs?)` / `unmuteChat()`
+- [x] `markChatRead()` / `markChatUnread()` (whole-chat)
+- [x] `clearChat()` / `deleteChat()`
+- [x] `starMessage()` / `unstarMessage()` (`socket.chatModify` star)
 
 ### 2. Remaining message types — via `socket.sendMessage(jid, content)`
 
@@ -422,7 +431,9 @@ If you need any of these features, please:
 | v1.4.x  | CLI expansion + Baileys rc13 upgrade                       | ✅ Released |
 | v1.5.0  | Native LID management (async/bulk/reverse resolve)         | ✅ Released |
 | v1.6.0  | Rich messages (location/contact/poll/sticker/mentions) + pairing code | ✅ Released |
-| next    | Chat management; then status, business extras, communities | 📋 Planned  |
+| v1.6.1  | Fresh-login 428 fix + connection hardening                 | ✅ Released |
+| v1.7.0  | Chat management (archive/pin/mute/read/clear/delete/star)  | ✅ Released |
+| next    | Status posting + business extras; then communities         | 📋 Planned  |
 
 ---
 
@@ -591,6 +602,6 @@ Want to help implement a feature?
 ---
 
 **Last Updated:** 2026-06-26
-**Status:** Stable (v1.6.0, Baileys 7.0.0-rc13)
+**Status:** Stable (v1.7.0, Baileys 7.0.0-rc13)
 **Next Release:** Chat management + rich messages — see [Not-Yet-Implemented Baileys Features (Prioritized)](#not-yet-implemented-baileys-features-prioritized)
 **Path So Far:** v0.1.0 → … → v0.9.0 ✅ → v1.0.0 ✅ (Stable) → v1.1.0 ✅ (Baileys v7/ESM) → v1.2.0 ✅ → v1.3.0 ✅ (Proxy) → v1.4.x ✅ (CLI + rc13)
