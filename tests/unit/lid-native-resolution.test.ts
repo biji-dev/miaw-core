@@ -20,6 +20,10 @@ jest.unstable_mockModule("@whiskeysockets/baileys", () => ({
   fetchLatestBaileysVersion: jest
     .fn<() => Promise<any>>()
     .mockResolvedValue({ version: [2, 2413, 1] }),
+  fetchLatestWaWebVersion: jest
+    .fn<() => Promise<unknown>>()
+    .mockResolvedValue({ version: [2, 2413, 1], isLatest: true }),
+  DEFAULT_CONNECTION_CONFIG: { version: [2, 2413, 1] },
   makeCacheableSignalKeyStore: jest.fn(),
   Browsers: { macOS: jest.fn(() => ["macOS", "Desktop", "1.0"]) },
   useMultiFileAuthState: jest.fn(),
