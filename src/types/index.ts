@@ -305,8 +305,8 @@ export interface MiawClientEvents {
   /** Emitted when connection state changes */
   connection: (state: ConnectionState) => void;
 
-  /** Emitted when client is disconnected */
-  disconnected: (reason?: string) => void;
+  /** Emitted when client is disconnected (statusCode is the Baileys DisconnectReason code, if any) */
+  disconnected: (reason?: string, statusCode?: number) => void;
 
   /** Emitted when client is attempting to reconnect */
   reconnecting: (attempt: number) => void;

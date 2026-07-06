@@ -111,33 +111,63 @@ export async function waitForConnection(
   });
 }
 
+/** Outcome of waiting for the first QR / ready / disconnect event */
+type QRWaitResult =
+  | { type: "qr" }
+  | { type: "ready" }
+  | { type: "disconnected"; reason?: string; statusCode?: number }
+  | { type: "timeout" };
+
 /**
- * Wait for initial QR code or ready event
+ * Wait for the initial QR code, ready, or an early disconnect/error.
+ *
+ * Unlike a bare qr/ready wait, this also settles on `disconnected`/`error` so a
+ * connection that WhatsApp rejects before issuing a QR (e.g. statusCode 428)
+ * surfaces immediately instead of blocking for the full CONNECTION_TIMEOUT.
+ *
  * @param client - MiawClient instance
- * @returns "qr" if QR was shown, "ready" if connected, "timeout" if timed out
  */
-async function waitForQROrReady(client: MiawClient): Promise<"qr" | "ready" | "timeout"> {
-  return new Promise<"qr" | "ready" | "timeout">((resolve) => {
+async function waitForQROrReady(client: MiawClient): Promise<QRWaitResult> {
+  return new Promise<QRWaitResult>((resolve) => {
+    let settled = false;
+
+    const settle = (result: QRWaitResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      client.off("qr", onQr);
+      client.off("ready", onReady);
+      client.off("disconnected", onDisconnected);
+      client.off("error", onError);
+      resolve(result);
+    };
+
     const timeout = setTimeout(() => {
       console.log("\n⏱️  Timeout while waiting for QR/ready event");
-      resolve("timeout");
+      settle({ type: "timeout" });
     }, TIMEOUTS.CONNECTION_TIMEOUT);
 
     const onQr = (qr: string) => {
-      clearTimeout(timeout);
       console.log("\n📱 Scan the QR code below with WhatsApp:");
       qrcode.generate(qr, { small: true });
       console.log();
-      resolve("qr");
+      settle({ type: "qr" });
     };
 
-    const onReady = () => {
-      clearTimeout(timeout);
-      resolve("ready");
-    };
+    const onReady = () => settle({ type: "ready" });
 
-    client.once("qr", onQr);
-    client.once("ready", onReady);
+    const onDisconnected = (reason?: string, statusCode?: number) =>
+      settle({ type: "disconnected", reason, statusCode });
+
+    // MiawClient emits "error" when the pre-login reconnect cap is hit. Listening
+    // here also prevents EventEmitter's throw-on-unhandled-"error".
+    const onError = (err: Error) =>
+      settle({ type: "disconnected", reason: err.message });
+
+    client.on("qr", onQr);
+    client.on("ready", onReady);
+    client.on("disconnected", onDisconnected);
+    client.on("error", onError);
   });
 }
 
@@ -259,28 +289,45 @@ export async function handleQRConnection(
     return { success: true };
   }
 
-  // Wait for QR or ready
+  // Wait for QR, ready, or an early disconnect/error
   const result = await waitForQROrReady(client);
 
-  if (result === "timeout") {
+  if (result.type === "disconnected") {
+    // A close before QR/ready is terminal for this attempt — surface it now
+    // instead of waiting out the full connection timeout.
+    if (client.getConnectionState() === "connected") {
+      console.log("✅ Connected successfully!");
+      return { success: true };
+    }
+    // Stop MiawClient's background auto-reconnect loop (clears the reconnect timer).
+    await client.disconnect();
+    const reason =
+      result.statusCode != null
+        ? `Connection closed (${result.statusCode}: ${result.reason ?? "unknown"})`
+        : result.reason ?? "Connection closed before QR";
+    return { success: false, reason };
+  }
+
+  if (result.type === "timeout") {
     // Check actual state before giving up
     const finalState = client.getConnectionState();
     if (finalState === "connected") {
       console.log("✅ Connected successfully!");
       return { success: true };
     }
+    await client.disconnect();
     return {
       success: false,
       reason: `Timeout waiting for connection (state: ${finalState})`,
     };
   }
 
-  if (result === "ready") {
+  if (result.type === "ready") {
     console.log("✅ Connected successfully!");
     return { success: true };
   }
 
-  // QR was shown, wait for ready with polling check as fallback
+  // result.type === "qr": QR was shown, wait for ready with polling check as fallback
   console.log("⏳ Waiting for connection...");
 
   // First check if already connected (could have connected during QR display)
