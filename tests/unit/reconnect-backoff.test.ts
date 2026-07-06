@@ -11,7 +11,7 @@ import { jest, describe, beforeEach, afterEach, it, expect } from "@jest/globals
 jest.unstable_mockModule("@whiskeysockets/baileys", () => ({
   default: jest.fn(),
   makeWASocket: jest.fn(),
-  DisconnectReason: { loggedOut: 401, connectionClosed: 428 },
+  DisconnectReason: { loggedOut: 401, connectionClosed: 428, connectionReplaced: 440 },
   fetchLatestBaileysVersion: jest
     .fn<() => Promise<unknown>>()
     .mockResolvedValue({ version: [2, 3000, 1] }),
@@ -107,5 +107,43 @@ describe("scheduleReconnect backoff + pre-login cap", () => {
     expect(client.reconnectAttempts).toBe(
       THRESHOLDS.PRELOGIN_MAX_RECONNECT_ATTEMPTS + 3
     );
+  });
+
+  it("treats a paired session (creds.me set) as established even when registered is false", () => {
+    // rc13 can leave creds.registered false on a working, paired session; the
+    // presence of creds.me means it has logged in, so the pre-login cap must not apply.
+    const client = makeClient();
+    client.authState = {
+      creds: { registered: false, me: { id: "628123@s.whatsapp.net" } },
+    };
+    const errorSpy = jest.fn();
+    client.on("error", errorSpy);
+
+    for (let i = 0; i < THRESHOLDS.PRELOGIN_MAX_RECONNECT_ATTEMPTS + 3; i++) {
+      client.scheduleReconnect();
+      if (client.reconnectTimer) clearTimeout(client.reconnectTimer);
+    }
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(client.reconnectAttempts).toBe(
+      THRESHOLDS.PRELOGIN_MAX_RECONNECT_ATTEMPTS + 3
+    );
+  });
+});
+
+describe("handleDisconnect reconnect decision", () => {
+  const disconnect = (client: any, statusCode: number) =>
+    client.handleDisconnect({ error: { output: { statusCode } } });
+
+  it("does NOT auto-reconnect when replaced by another connection (440)", () => {
+    const client = makeClient();
+    client.authState = { creds: { me: { id: "628@s.whatsapp.net" } } };
+    // false = don't reconnect (avoids the mutual-replacement 440 loop)
+    expect(disconnect(client, 440)).toBe(false);
+  });
+
+  it("auto-reconnects on a transient close (428)", () => {
+    const client = makeClient();
+    client.authState = { creds: { me: { id: "628@s.whatsapp.net" } } };
+    expect(disconnect(client, 428)).toBe(true);
   });
 });

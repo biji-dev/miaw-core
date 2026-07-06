@@ -1493,6 +1493,16 @@ export class MiawClient extends EventEmitter {
       return false;
     }
 
+    // Don't auto-reconnect when replaced by another connection: reconnecting
+    // would just re-replace the other session, producing a 440 loop. The session
+    // stays valid — the app can call connect() to deliberately reclaim it.
+    if (statusCode === DisconnectReason.connectionReplaced) {
+      this.logger.warn(
+        "Connection replaced by another session; not auto-reconnecting (call connect() to reclaim)"
+      );
+      return false;
+    }
+
     return true;
   }
 
@@ -1505,7 +1515,13 @@ export class MiawClient extends EventEmitter {
     // (e.g. statusCode 428) before issuing a QR, retrying ~40 times/2min just
     // hammers registration and can get the IP rate-limited. Established sessions
     // keep the configured (possibly Infinite) limit but now with backoff.
-    const registered = Boolean(this.authState?.creds?.registered);
+    //
+    // `creds.registered` can read false on a working rc13 session, but `creds.me`
+    // is only set once a session has successfully paired — so treat either as an
+    // established (post-login) session that should keep retrying.
+    const registered = Boolean(
+      this.authState?.creds?.registered || this.authState?.creds?.me
+    );
     const maxAttempts = registered
       ? this.options.maxReconnectAttempts
       : Math.min(
