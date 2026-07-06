@@ -36,6 +36,19 @@ export {
   cmdSendSticker,
 } from "./send.js";
 
+export {
+  cmdChatArchive,
+  cmdChatUnarchive,
+  cmdChatPin,
+  cmdChatUnpin,
+  cmdChatMute,
+  cmdChatUnmute,
+  cmdChatRead,
+  cmdChatUnread,
+  cmdChatClear,
+  cmdChatDelete,
+} from "./chat.js";
+
 export { cmdMediaDownload } from "./media.js";
 
 export {

@@ -33,6 +33,17 @@ import {
   cmdSendContact,
   cmdSendPoll,
   cmdSendSticker,
+  // Chat management commands
+  cmdChatArchive,
+  cmdChatUnarchive,
+  cmdChatPin,
+  cmdChatUnpin,
+  cmdChatMute,
+  cmdChatUnmute,
+  cmdChatRead,
+  cmdChatUnread,
+  cmdChatClear,
+  cmdChatDelete,
   // Media commands
   cmdMediaDownload,
   // Group commands
@@ -314,6 +325,55 @@ export async function runCommand(
           console.log(`❌ Unknown send command: ${subCommand}`);
           console.log("Commands: text, image, document, video, audio, location, contact, poll, sticker");
         }
+        return false;
+    }
+  }
+
+  // Chat management commands
+  if (command === "chat") {
+    const subCommand = parsedArgs._[0] || "";
+    const jid = parsedArgs._[1] || "";
+
+    if (subCommand && subCommand !== "help" && !jid) {
+      console.log(`❌ Usage: miaw-cli chat ${subCommand} <jid|phone>`);
+      return false;
+    }
+
+    switch (subCommand) {
+      case "archive":
+        return await cmdChatArchive(client, { jid });
+      case "unarchive":
+        return await cmdChatUnarchive(client, { jid });
+      case "pin":
+        return await cmdChatPin(client, { jid });
+      case "unpin":
+        return await cmdChatUnpin(client, { jid });
+      case "mute":
+        return await cmdChatMute(client, {
+          jid,
+          duration: parsedArgs.duration
+            ? parseInt(parsedArgs.duration, 10)
+            : undefined,
+        });
+      case "unmute":
+        return await cmdChatUnmute(client, { jid });
+      case "read":
+        return await cmdChatRead(client, { jid });
+      case "unread":
+        return await cmdChatUnread(client, { jid });
+      case "clear":
+        return await cmdChatClear(client, { jid });
+      case "delete":
+        return await cmdChatDelete(client, { jid });
+      default:
+        if (subCommand) {
+          console.log(`❌ Unknown chat command: ${subCommand}`);
+        } else {
+          console.log("Usage: chat <command> <jid|phone> [--duration <ms> for mute]");
+        }
+        console.log(
+          "Commands: archive, unarchive, pin, unpin, mute, unmute, read, unread, clear, delete"
+        );
         return false;
     }
   }
