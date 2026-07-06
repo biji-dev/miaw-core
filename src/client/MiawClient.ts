@@ -8,6 +8,8 @@ import makeWASocket, {
   makeCacheableSignalKeyStore,
   Browsers,
   AnyMessageContent,
+  ChatModification,
+  LastMessageList,
   downloadMediaMessage,
   jidNormalizedUser,
   getAggregateVotesInPollMessage,
@@ -75,6 +77,8 @@ import {
   FetchChatMessagesResult,
   FetchAllChatsResult,
   ChatInfo,
+  // v1.7.0 Chat management
+  ChatOperationResult,
   // v1.6.0 Rich messages
   ContactCard,
   SendLocationOptions,
@@ -3709,6 +3713,198 @@ export class MiawClient extends EventEmitter {
     } catch (error) {
       this.logger.error("Failed to delete message for me:", error);
       return false;
+    }
+  }
+
+  // ============================================
+  // Chat Management (v1.7.0) — via socket.chatModify
+  // ============================================
+
+  /**
+   * Last-message list for a chat, required by archive/clear/delete/markRead
+   * chatModify operations. Derived from the in-memory messagesStore; returns
+   * an empty list (with a debug note) if no message has been stored yet, in
+   * which case those operations are less reliable.
+   */
+  private getLastMessages(jid: string): LastMessageList {
+    const msgs = this.messagesStore.get(jid);
+    const last = msgs && msgs.length > 0 ? msgs[msgs.length - 1] : undefined;
+    if (!last?.raw?.key) {
+      if (this.options.debug) {
+        this.logger.debug(
+          `[chat] No stored last message for ${jid}; archive/clear/delete/markRead may be unreliable.`
+        );
+      }
+      return [];
+    }
+    return [
+      {
+        key: last.raw.key,
+        messageTimestamp: last.raw.messageTimestamp ?? last.timestamp,
+      },
+    ];
+  }
+
+  /** Merge a flag patch into the cached ChatInfo (optimistic UI update). */
+  private updateChatFlag(jidOrPhone: string, patch: Partial<ChatInfo>): void {
+    const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+    const existing = this.chatsStore.get(jid);
+    if (existing) {
+      this.chatsStore.set(jid, { ...existing, ...patch });
+    }
+  }
+
+  /** Shared guard + chatModify runner for chat-level operations. */
+  private async runChatModify(
+    jidOrPhone: string,
+    buildMod: (jid: string) => ChatModification
+  ): Promise<ChatOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot modify chat. Connection state: ${this.connectionState}`
+        );
+      }
+      const jid = MessageHandler.formatPhoneToJid(jidOrPhone);
+      await this.socket.chatModify(buildMod(jid), jid);
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Chat modify failed:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** Archive a chat. */
+  async archiveChat(jidOrPhone: string): Promise<ChatOperationResult> {
+    const res = await this.runChatModify(jidOrPhone, (jid) => ({
+      archive: true,
+      lastMessages: this.getLastMessages(jid),
+    }));
+    if (res.success) this.updateChatFlag(jidOrPhone, { isArchived: true });
+    return res;
+  }
+
+  /** Unarchive a chat. */
+  async unarchiveChat(jidOrPhone: string): Promise<ChatOperationResult> {
+    const res = await this.runChatModify(jidOrPhone, (jid) => ({
+      archive: false,
+      lastMessages: this.getLastMessages(jid),
+    }));
+    if (res.success) this.updateChatFlag(jidOrPhone, { isArchived: false });
+    return res;
+  }
+
+  /** Pin a chat to the top. */
+  async pinChat(jidOrPhone: string): Promise<ChatOperationResult> {
+    const res = await this.runChatModify(jidOrPhone, () => ({ pin: true }));
+    if (res.success) this.updateChatFlag(jidOrPhone, { isPinned: true });
+    return res;
+  }
+
+  /** Unpin a chat. */
+  async unpinChat(jidOrPhone: string): Promise<ChatOperationResult> {
+    const res = await this.runChatModify(jidOrPhone, () => ({ pin: false }));
+    if (res.success) this.updateChatFlag(jidOrPhone, { isPinned: false });
+    return res;
+  }
+
+  /**
+   * Mute a chat.
+   * @param jidOrPhone - Chat JID or phone number
+   * @param durationMs - How long to mute for, in ms (default: 8 hours). Baileys
+   *   stores this as an absolute mute-end timestamp (`Date.now() + durationMs`).
+   */
+  async muteChat(
+    jidOrPhone: string,
+    durationMs: number = 8 * 60 * 60 * 1000
+  ): Promise<ChatOperationResult> {
+    const res = await this.runChatModify(jidOrPhone, () => ({
+      mute: Date.now() + durationMs,
+    }));
+    if (res.success) this.updateChatFlag(jidOrPhone, { isMuted: true });
+    return res;
+  }
+
+  /** Unmute a chat. */
+  async unmuteChat(jidOrPhone: string): Promise<ChatOperationResult> {
+    const res = await this.runChatModify(jidOrPhone, () => ({ mute: null }));
+    if (res.success) this.updateChatFlag(jidOrPhone, { isMuted: false });
+    return res;
+  }
+
+  /**
+   * Mark a whole chat as read (app-state level). Distinct from
+   * {@link markAsRead}, which sends a read receipt for a single message.
+   */
+  async markChatRead(jidOrPhone: string): Promise<ChatOperationResult> {
+    return this.runChatModify(jidOrPhone, (jid) => ({
+      markRead: true,
+      lastMessages: this.getLastMessages(jid),
+    }));
+  }
+
+  /** Mark a whole chat as unread. */
+  async markChatUnread(jidOrPhone: string): Promise<ChatOperationResult> {
+    return this.runChatModify(jidOrPhone, (jid) => ({
+      markRead: false,
+      lastMessages: this.getLastMessages(jid),
+    }));
+  }
+
+  /** Clear all messages in a chat (keeps the chat). */
+  async clearChat(jidOrPhone: string): Promise<ChatOperationResult> {
+    return this.runChatModify(jidOrPhone, (jid) => ({
+      clear: true,
+      lastMessages: this.getLastMessages(jid),
+    }));
+  }
+
+  /** Delete a chat entirely. */
+  async deleteChat(jidOrPhone: string): Promise<ChatOperationResult> {
+    return this.runChatModify(jidOrPhone, (jid) => ({
+      delete: true,
+      lastMessages: this.getLastMessages(jid),
+    }));
+  }
+
+  /** Star a message. */
+  async starMessage(message: MiawMessage): Promise<ChatOperationResult> {
+    return this.setMessageStar(message, true);
+  }
+
+  /** Remove a star from a message. */
+  async unstarMessage(message: MiawMessage): Promise<ChatOperationResult> {
+    return this.setMessageStar(message, false);
+  }
+
+  private async setMessageStar(
+    message: MiawMessage,
+    star: boolean
+  ): Promise<ChatOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot star message. Connection state: ${this.connectionState}`
+        );
+      }
+      const key = message.raw?.key;
+      if (!key?.id || !key?.remoteJid) {
+        throw new Error("Message does not contain raw Baileys key data.");
+      }
+      await this.socket.chatModify(
+        { star: { messages: [{ id: key.id, fromMe: !!key.fromMe }], star } },
+        key.remoteJid
+      );
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to star/unstar message:", error);
+      return { success: false, error: (error as Error).message };
     }
   }
 

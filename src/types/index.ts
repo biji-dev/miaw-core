@@ -1097,6 +1097,18 @@ export interface ChatInfo {
   isArchived?: boolean;
   /** Whether chat is pinned */
   isPinned?: boolean;
+  /** Whether chat is muted */
+  isMuted?: boolean;
+}
+
+/**
+ * Result of a chat-management operation (archive, pin, mute, etc.)
+ */
+export interface ChatOperationResult {
+  /** Whether the operation succeeded */
+  success: boolean;
+  /** Error message if it failed */
+  error?: string;
 }
 
 /**
