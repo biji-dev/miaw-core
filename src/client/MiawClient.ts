@@ -190,7 +190,7 @@ class LruCache {
  * Main client class for interacting with WhatsApp
  */
 export class MiawClient extends EventEmitter {
-  private options: Required<Omit<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber">> & Pick<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber">;
+  private options: Required<Omit<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber" | "browser">> & Pick<MiawClientOptions, "proxy" | "agent" | "fetchAgent" | "usePairingCode" | "phoneNumber" | "browser">;
   private socket: WASocket | null = null;
   private authHandler: AuthHandler;
   private connectionState: ConnectionState = "disconnected";
@@ -249,6 +249,7 @@ export class MiawClient extends EventEmitter {
       fetchAgent: options.fetchAgent,
       usePairingCode: options.usePairingCode,
       phoneNumber: options.phoneNumber,
+      browser: options.browser,
     };
 
     // Use the initialized logger
@@ -324,7 +325,11 @@ export class MiawClient extends EventEmitter {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, this.logger),
         },
-        browser: Browsers.macOS("Desktop"),  // Desktop for more history
+        // "Desktop" identities (webSubPlatform DARWIN/WIN32) are rejected by
+        // WhatsApp with a 428 before any QR since ~2026-06-29; browser
+        // identities ("Chrome", etc.) still pair. Configurable via options.
+        // See https://github.com/WhiskeySockets/Baileys/issues/2671 and /issues/2677
+        browser: this.options.browser ?? Browsers.macOS("Chrome"),
         generateHighQualityLinkPreview: true,
         // Auto-recreate signal sessions on retry and migrate PN<->LID sessions
         // (Baileys rc13 default; set explicitly to document the LID reliance).

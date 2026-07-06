@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-07-07
+
+**Fresh-login fix + connection hardening** - Restores QR/pairing registration
+after WhatsApp's ~2026-06-29 server-side change, and makes connection failures
+fast and honest instead of a silent 120s timeout.
+
+### Fixed
+
+- **Fresh registration rejected with 428 (no QR)**: WhatsApp now rejects the
+  legacy "Desktop" client identity (`webSubPlatform` DARWIN/WIN32) during
+  registration. The default browser tuple changed from
+  `Browsers.macOS("Desktop")` to `Browsers.macOS("Chrome")`, which still pairs.
+  Already-paired sessions reconnect without re-pairing. Note: the linked device
+  now shows as "Chrome (Mac OS)" on the phone, and history sync may be
+  shallower than the old Desktop identity delivered.
+  ([Baileys #2671](https://github.com/WhiskeySockets/Baileys/issues/2671),
+  [#2677](https://github.com/WhiskeySockets/Baileys/issues/2677))
+- **CLI hid connection failures**: a connection closed before QR/ready now
+  surfaces immediately (e.g. `Connection closed (428: connectionClosed)`)
+  instead of blocking for the full 120s connection timeout and reporting a
+  misleading `state: connecting`.
+- **Reconnect storm**: reconnection now uses exponential backoff
+  (3s → 6s → … capped at 60s) instead of a flat 3s, and never-registered
+  sessions stop after 5 attempts with an `error` event — previously a
+  persistent pre-QR rejection fired ~40 registration attempts per 2 minutes
+  and risked rate-limiting the IP.
+- **Stale WA version**: version resolution now prefers the real current
+  WhatsApp Web version (`fetchLatestWaWebVersion`) with fallback to
+  `fetchLatestBaileysVersion` and the bundled default, guarded by an 8s
+  timeout and cached across reconnects.
+
+### Added
+
+- New `browser` option on `MiawClientOptions` (`[os, browserName, version]`)
+  to override the client identity tuple without a library release.
+- `disconnected` event now carries the Baileys `DisconnectReason` status code
+  as a second argument: `(reason?: string, statusCode?: number)`.
+
 ## [1.6.0] - 2026-06-27
 
 **Rich messages + pairing-code auth** - The standard message types every
