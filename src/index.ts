@@ -73,6 +73,14 @@ export type {
   PollVoteUpdate,
   // v1.8.0 Status / Stories
   PostStatusOptions,
+  // v1.8.0 Business extras
+  BusinessProfileUpdate,
+  BusinessHours,
+  BusinessHoursDay,
+  CoverPhotoResult,
+  OrderInfo,
+  OrderProductInfo,
+  QuickReplyInput,
 } from "./types/index.js";
 
 // v1.2.0 Logger types (for custom logger implementations)

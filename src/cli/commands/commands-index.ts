@@ -51,6 +51,12 @@ export {
 
 export { cmdStatusText, cmdStatusImage, cmdStatusVideo } from "./status.js";
 
+export {
+  cmdBusinessProfile,
+  cmdBusinessCoverSet,
+  cmdBusinessCoverRemove,
+} from "./business.js";
+
 export { cmdMediaDownload } from "./media.js";
 
 export {

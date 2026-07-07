@@ -578,6 +578,88 @@ export interface BusinessProfile {
 }
 
 /**
+ * A business day's opening hours (v1.8.0, mirrors Baileys' HoursDay).
+ */
+export interface BusinessHoursDay {
+  /** Day of week */
+  day: "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
+  /** Opening mode */
+  mode: "specific_hours" | "open_24h" | "appointment_only";
+  /** Open time in minutes from midnight (only for 'specific_hours'), as string */
+  openTimeInMinutes?: string;
+  /** Close time in minutes from midnight (only for 'specific_hours'), as string */
+  closeTimeInMinutes?: string;
+}
+
+/**
+ * Business opening hours (v1.8.0).
+ */
+export interface BusinessHours {
+  /** IANA timezone, e.g. 'Asia/Jakarta' */
+  timezone: string;
+  /** Per-day hours */
+  days: BusinessHoursDay[];
+}
+
+/**
+ * Fields to update on the business profile (v1.8.0). Note: `websites` is an
+ * array, and category is read-only (not updatable via this API).
+ */
+export interface BusinessProfileUpdate {
+  address?: string;
+  websites?: string[];
+  email?: string;
+  description?: string;
+  hours?: BusinessHours;
+}
+
+/**
+ * Result of setting a business cover photo (v1.8.0).
+ */
+export interface CoverPhotoResult {
+  success: boolean;
+  /** ID of the uploaded cover photo (use with removeCoverPhoto) */
+  coverPhotoId?: string;
+  error?: string;
+}
+
+/**
+ * A product line in a business order (v1.8.0).
+ */
+export interface OrderProductInfo {
+  id?: string;
+  name?: string;
+  imageUrl?: string;
+  quantity?: number;
+  currency?: string;
+  price?: number;
+}
+
+/**
+ * Business order details, from getOrderDetails (v1.8.0).
+ */
+export interface OrderInfo {
+  /** Order currency */
+  currency?: string;
+  /** Order total */
+  total?: number;
+  /** Products in the order */
+  products: OrderProductInfo[];
+}
+
+/**
+ * Input for a business quick reply (v1.8.0).
+ */
+export interface QuickReplyInput {
+  /** Shortcut keyword (e.g. '/hello') */
+  shortcut: string;
+  /** The reply message text */
+  message: string;
+  /** Optional trigger keywords */
+  keywords?: string[];
+}
+
+/**
  * Full contact profile information (extends ContactInfo with additional data)
  */
 export interface ContactProfile extends ContactInfo {
