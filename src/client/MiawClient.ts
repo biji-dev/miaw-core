@@ -665,7 +665,13 @@ export class MiawClient extends EventEmitter {
 
     // Messages
     this.socket.ev.on("messages.upsert", async (m) => {
-      if (m.type !== "notify") return;
+      // Baileys only ever emits type 'notify' (live) or 'append' (our own
+      // sends + offline/reconnect backlog). The type is a live-vs-backlog
+      // signal, NOT a direction signal, so we must process BOTH to capture
+      // outbound messages (sent by us or from the user's phone) and any
+      // messages that arrive in the offline backlog on reconnect. Direction is
+      // decided later via `fromMe`; storeMessage() dedups re-delivered messages.
+      if (m.type !== "notify" && m.type !== "append") return;
 
       for (const msg of m.messages) {
         // Debug: Log raw Baileys message structure
@@ -744,15 +750,16 @@ export class MiawClient extends EventEmitter {
             }
           }
 
-          // Store message in messagesStore
-          const chatJid = normalized.from;
-          if (!this.messagesStore.has(chatJid)) {
-            this.messagesStore.set(chatJid, []);
+          // Store message in messagesStore (deduped by id). Outbound messages
+          // (fromMe) — our own sends and messages sent from the user's phone —
+          // are stored so getChatMessages / CLI `get messages` include them,
+          // but are NOT emitted on "message" so existing bots don't reply to
+          // their own sends. Emit only newly-stored INBOUND messages, so
+          // reconnect re-delivery of already-stored messages never re-fires.
+          const isNew = this.storeMessage(normalized);
+          if (isNew && !normalized.fromMe) {
+            this.emit("message", normalized);
           }
-          this.messagesStore.get(chatJid)!.push(normalized);
-          this.saveMessagesToFile();
-
-          this.emit("message", normalized);
         }
       }
     });
@@ -1420,12 +1427,9 @@ export class MiawClient extends EventEmitter {
       normalized.participant = this.resolveLidToJid(normalized.participant);
     }
 
-    const chatJid = normalized.from;
-    if (!this.messagesStore.has(chatJid)) {
-      this.messagesStore.set(chatJid, []);
-    }
-    this.messagesStore.get(chatJid)!.push(normalized);
-    this.saveMessagesToFile();
+    // Store (deduped by id). The history-sync path never emits "message"; it
+    // only populates the store.
+    this.storeMessage(normalized);
   }
 
   /**
@@ -3137,6 +3141,35 @@ export class MiawClient extends EventEmitter {
       this.options.instanceId,
       "messages.json"
     );
+  }
+
+  /**
+   * Store a normalized message in the in-memory store (and persist to disk),
+   * deduplicating by message id.
+   *
+   * Both the live `messages.upsert` handler and the history-sync path funnel
+   * through here, so a message re-delivered via multiple routes (our own send
+   * echo, offline/reconnect backlog, or history sync) is stored only once.
+   *
+   * @param normalized - Normalized message to store
+   * @returns true if the message was newly stored; false if it was a duplicate
+   */
+  private storeMessage(normalized: MiawMessage): boolean {
+    const chatJid = normalized.from;
+    const bucket = this.messagesStore.get(chatJid);
+
+    if (bucket) {
+      // Dedup by id. An empty id (missing key.id) can't be deduped -> append.
+      if (normalized.id && bucket.some((m) => m.id === normalized.id)) {
+        return false;
+      }
+      bucket.push(normalized);
+    } else {
+      this.messagesStore.set(chatJid, [normalized]);
+    }
+
+    this.saveMessagesToFile();
+    return true;
   }
 
   /**

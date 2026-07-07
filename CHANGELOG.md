@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-07-07
+
+**Outbound message capture** - Messages you send now appear in the message store
+and `get messages`.
+
+### Fixed
+
+- **Outbound messages missing from `getChatMessages` / CLI `get messages`**: the
+  `messages.upsert` handler dropped every upsert whose type was not `notify`, but
+  Baileys tags our own sends — and any message flushed from the offline/reconnect
+  backlog — as `append`. The upsert `type` is a live-vs-backlog signal, **not** a
+  direction signal (direction is `key.fromMe`). Both `notify` and `append` are now
+  processed, so messages you send (via miaw/CLI **or** from your phone / another
+  linked device) are stored under the chat and returned by `getChatMessages`
+  (shown as "Me" in the CLI `get messages` output). As a side effect, this also
+  stops **inbound** messages that arrive in the offline backlog on reconnect from
+  being silently dropped.
+- Stored messages are now **deduplicated by id** on insert, so a message
+  re-delivered via multiple routes (our send echo, reconnect backlog, history
+  sync) is stored only once.
+
+### Notes
+
+- Outbound (`fromMe`) messages are **stored but not emitted** on the `message`
+  event, so existing bots don't reply to their own sends. The `message` event now
+  fires only for newly-stored **inbound** messages. Behavior change: a message you
+  send live from your phone previously emitted `message`; it is now stored silently
+  (still visible via `getChatMessages` / `get messages`). No new events were added.
+
 ## [1.7.0] - 2026-07-07
 
 **Chat management** - Inbox-style automation via `socket.chatModify`. All additive.
