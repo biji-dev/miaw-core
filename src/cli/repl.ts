@@ -35,7 +35,7 @@ interface CommandNode {
 const commandTree: Record<string, CommandNode> = {
   // REPL-specific commands
   help: {
-    subcommands: ["instance", "get", "load", "send", "media", "chat", "story", "group", "check", "contact", "profile", "label", "business", "catalog"],
+    subcommands: ["instance", "get", "load", "send", "media", "chat", "story", "group", "community", "check", "contact", "profile", "label", "business", "catalog"],
   },
   status: {},
   exit: { aliases: ["quit"] },
@@ -78,6 +78,17 @@ const commandTree: Record<string, CommandNode> = {
       cover: ["set", "remove"],
     },
     flags: ["--address", "--email", "--description", "--websites"],
+  },
+  community: {
+    subcommands: [
+      "list", "info", "create", "leave", "name", "description",
+      "linked", "link", "unlink", "group", "members", "invite",
+    ],
+    nestedSubcommands: {
+      members: ["add", "remove", "promote", "demote"],
+      invite: ["link", "accept", "revoke", "info"],
+    },
+    flags: ["--json"],
   },
   group: {
     subcommands: [
@@ -688,6 +699,7 @@ COMMANDS (use "help <command>" for details):
   chat        Chat management (archive, pin, mute, read, clear, delete)
   story       Post status/story (text, image, video)
   group       Group management (info, participants, invites, settings)
+  community   Community management (create, link groups, members, invites)
   check       Check if phone numbers are on WhatsApp
   contact     Contact management (list, info, add, remove)
   profile     Profile management (picture, name, status)

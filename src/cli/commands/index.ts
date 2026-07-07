@@ -52,6 +52,26 @@ import {
   cmdBusinessProfile,
   cmdBusinessCoverSet,
   cmdBusinessCoverRemove,
+  // Community commands
+  cmdCommunityList,
+  cmdCommunityInfo,
+  cmdCommunityCreate,
+  cmdCommunityLeave,
+  cmdCommunityNameSet,
+  cmdCommunityDescriptionSet,
+  cmdCommunityLinked,
+  cmdCommunityLink,
+  cmdCommunityUnlink,
+  cmdCommunityGroupCreate,
+  cmdCommunityMembers,
+  cmdCommunityMembersAdd,
+  cmdCommunityMembersRemove,
+  cmdCommunityMembersPromote,
+  cmdCommunityMembersDemote,
+  cmdCommunityInviteLink,
+  cmdCommunityInviteRevoke,
+  cmdCommunityInviteAccept,
+  cmdCommunityInviteInfo,
   // Media commands
   cmdMediaDownload,
   // Group commands
@@ -836,6 +856,119 @@ export async function runCommand(
           console.log(`❌ Unknown label command: ${subCommand}`);
         }
         console.log("Commands: list, chats, add, chat (add|remove)");
+        return false;
+    }
+  }
+
+  // Community commands
+  if (command === "community") {
+    const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
+    const jsonOutput = parsedArgs.json === true;
+
+    switch (subCommand) {
+      case "list":
+      case "ls":
+        return await cmdCommunityList(client, { json: jsonOutput });
+      case "info":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli community info <jid>");
+          return false;
+        }
+        return await cmdCommunityInfo(client, { jid: parsedArgs._[1], json: jsonOutput });
+      case "create":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli community create <name> [description]");
+          return false;
+        }
+        return await cmdCommunityCreate(client, {
+          name: parsedArgs._[1],
+          description: parsedArgs._[2],
+        });
+      case "leave":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli community leave <jid>");
+          return false;
+        }
+        return await cmdCommunityLeave(client, { jid: parsedArgs._[1] });
+      case "name":
+        if (!parsedArgs._[1] || !parsedArgs._[2]) {
+          console.log("❌ Usage: miaw-cli community name <jid> <name>");
+          return false;
+        }
+        return await cmdCommunityNameSet(client, { jid: parsedArgs._[1], name: parsedArgs._.slice(2).join(" ") });
+      case "description":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli community description <jid> <description>");
+          return false;
+        }
+        return await cmdCommunityDescriptionSet(client, { jid: parsedArgs._[1], description: parsedArgs._.slice(2).join(" ") });
+      case "linked":
+        if (!parsedArgs._[1]) {
+          console.log("❌ Usage: miaw-cli community linked <jid>");
+          return false;
+        }
+        return await cmdCommunityLinked(client, { jid: parsedArgs._[1], json: jsonOutput });
+      case "link":
+        if (!parsedArgs._[1] || !parsedArgs._[2]) {
+          console.log("❌ Usage: miaw-cli community link <groupJid> <communityJid>");
+          return false;
+        }
+        return await cmdCommunityLink(client, { groupJid: parsedArgs._[1], communityJid: parsedArgs._[2] });
+      case "unlink":
+        if (!parsedArgs._[1] || !parsedArgs._[2]) {
+          console.log("❌ Usage: miaw-cli community unlink <groupJid> <communityJid>");
+          return false;
+        }
+        return await cmdCommunityUnlink(client, { groupJid: parsedArgs._[1], communityJid: parsedArgs._[2] });
+      case "group":
+        if (!parsedArgs._[1] || !parsedArgs._[2]) {
+          console.log("❌ Usage: miaw-cli community group <communityJid> <name> [phones...]");
+          return false;
+        }
+        return await cmdCommunityGroupCreate(client, {
+          communityJid: parsedArgs._[1],
+          name: parsedArgs._[2],
+          phones: parsedArgs._.slice(3),
+        });
+      case "members":
+        switch (subSubCommand) {
+          case "add":
+            return await cmdCommunityMembersAdd(client, { jid: parsedArgs._[2], phones: parsedArgs._.slice(3) });
+          case "remove":
+            return await cmdCommunityMembersRemove(client, { jid: parsedArgs._[2], phones: parsedArgs._.slice(3) });
+          case "promote":
+            return await cmdCommunityMembersPromote(client, { jid: parsedArgs._[2], phones: parsedArgs._.slice(3) });
+          case "demote":
+            return await cmdCommunityMembersDemote(client, { jid: parsedArgs._[2], phones: parsedArgs._.slice(3) });
+          default:
+            if (!parsedArgs._[1]) {
+              console.log("❌ Usage: miaw-cli community members <jid> | members add|remove|promote|demote <jid> <phones...>");
+              return false;
+            }
+            return await cmdCommunityMembers(client, { jid: parsedArgs._[1], json: jsonOutput });
+        }
+      case "invite":
+        switch (subSubCommand) {
+          case "link":
+            return await cmdCommunityInviteLink(client, { jid: parsedArgs._[2] });
+          case "revoke":
+            return await cmdCommunityInviteRevoke(client, { jid: parsedArgs._[2] });
+          case "accept":
+            return await cmdCommunityInviteAccept(client, { code: parsedArgs._[2] });
+          case "info":
+            return await cmdCommunityInviteInfo(client, { code: parsedArgs._[2] });
+          default:
+            console.log("❌ Usage: miaw-cli community invite link|accept|revoke|info ...");
+            return false;
+        }
+      default:
+        if (subCommand) {
+          console.log(`❌ Unknown community command: ${subCommand}`);
+        } else {
+          console.log("Usage: community <command> ...");
+        }
+        console.log("Commands: list, info, create, leave, name, description, linked, link, unlink, group, members, invite");
         return false;
     }
   }

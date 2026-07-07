@@ -57,6 +57,28 @@ export {
   cmdBusinessCoverRemove,
 } from "./business.js";
 
+export {
+  cmdCommunityList,
+  cmdCommunityInfo,
+  cmdCommunityCreate,
+  cmdCommunityLeave,
+  cmdCommunityNameSet,
+  cmdCommunityDescriptionSet,
+  cmdCommunityLinked,
+  cmdCommunityLink,
+  cmdCommunityUnlink,
+  cmdCommunityGroupCreate,
+  cmdCommunityMembers,
+  cmdCommunityMembersAdd,
+  cmdCommunityMembersRemove,
+  cmdCommunityMembersPromote,
+  cmdCommunityMembersDemote,
+  cmdCommunityInviteLink,
+  cmdCommunityInviteRevoke,
+  cmdCommunityInviteAccept,
+  cmdCommunityInviteInfo,
+} from "./community.js";
+
 export { cmdMediaDownload } from "./media.js";
 
 export {
