@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-07-07
+
+**Status posting + business extras** - All additive.
+
+### Added
+
+#### Status / Stories
+
+- `postTextStatus(text, recipients?, opts?)` - text status (backgroundColor, font)
+- `postImageStatus(image, recipients?, opts?)` / `postVideoStatus(video, ...)` - media status (caption)
+- `recipients` sets the audience (`statusJidList`); when omitted it defaults to
+  all individual contacts in the store.
+- **CLI**: `story text | image | video` (named `story` to avoid the existing
+  `status` connection-status command).
+
+#### Business extras (WhatsApp Business)
+
+- `updateBusinessProfile(updates)` - address, `websites[]`, email, description, hours
+- `updateCoverPhoto(image)` (returns a cover id) / `removeCoverPhoto(id)`
+- `getOrderDetails(orderId, tokenBase64)` - order details (token comes from a
+  received order message)
+- `addQuickReply({ shortcut, message, keywords? })` / `removeQuickReply(timestamp)`
+- **CLI**: `business profile […]` and `business cover set|remove`
+  (order details + quick replies are library-only).
+- New types: `PostStatusOptions`, `BusinessProfileUpdate` (+ `BusinessHours`/`BusinessHoursDay`), `CoverPhotoResult`, `OrderInfo` (+ `OrderProductInfo`), `QuickReplyInput`.
+
 ## [1.7.1] - 2026-07-07
 
 **Outbound message capture** - Messages you send now appear in the message store

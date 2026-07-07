@@ -610,6 +610,23 @@ if (result.success) {
 await client.removeContact("6281234567890");
 ```
 
+## Status / Stories (v1.8.0)
+
+Post to `status@broadcast`. `recipients` is the audience — omit it to send to all
+of your contacts, or pass a subset (phone numbers or JIDs).
+
+```typescript
+// Text status (optional background color + font)
+await client.postTextStatus("Hello world!", undefined, {
+  backgroundColor: "#0a7cff",
+  font: 3,
+});
+
+// Image / video status with a caption, to a specific audience
+await client.postImageStatus("./promo.jpg", ["6281234567890"], { caption: "New!" });
+await client.postVideoStatus("./clip.mp4", ["6281234567890"]);
+```
+
 ## Group Management
 
 ### Get Group Information
@@ -908,6 +925,29 @@ await client.updateProduct("product-id", {
 
 // Delete products
 await client.deleteProducts(["product-id-1", "product-id-2"]);
+```
+
+### Business Profile & Extras (v1.8.0)
+
+```typescript
+// Update your business profile (category is read-only)
+await client.updateBusinessProfile({
+  address: "123 Main St",
+  email: "hello@shop.com",
+  description: "We sell widgets",
+  websites: ["https://shop.com"],
+});
+
+// Cover photo
+const res = await client.updateCoverPhoto("./cover.jpg");
+if (res.success) await client.removeCoverPhoto(res.coverPhotoId!);
+
+// Quick replies
+await client.addQuickReply({ shortcut: "/hi", message: "Hello! 👋", keywords: ["hi"] });
+await client.removeQuickReply("1700000000");
+
+// Order details — the token comes from a received order message
+const order = await client.getOrderDetails("orderId", "tokenBase64");
 ```
 
 ## Newsletter/Channel Features
