@@ -86,6 +86,8 @@ import {
   SendStickerOptions,
   SendPollOptions,
   PollVoteUpdate,
+  // v1.8.0 Status / Stories
+  PostStatusOptions,
 } from "../types/index.js";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -2177,6 +2179,114 @@ export class MiawClient extends EventEmitter {
     }
 
     this.emit("poll_vote", vote);
+  }
+
+  // ============================================
+  // Status / Stories (v1.8.0) — via status@broadcast
+  // ============================================
+
+  /**
+   * Resolve the audience (statusJidList) for a status post. When recipients are
+   * given they are used (formatted to JIDs); otherwise it defaults to every
+   * individual contact in the store (like the WhatsApp app's "all contacts").
+   */
+  private getStatusAudience(recipients?: string[]): string[] {
+    if (recipients && recipients.length > 0) {
+      return recipients.map((r) => MessageHandler.formatPhoneToJid(r));
+    }
+    const jids = new Set<string>();
+    for (const contact of this.contactsStore.values()) {
+      if (contact.jid?.endsWith("@s.whatsapp.net")) {
+        jids.add(contact.jid);
+      }
+    }
+    return [...jids];
+  }
+
+  /**
+   * Post a text status / story.
+   * @param text - The status text
+   * @param recipients - Audience (phone numbers or JIDs). Omit to send to all contacts.
+   * @param options - backgroundColor / font for the text status
+   */
+  async postTextStatus(
+    text: string,
+    recipients?: string[],
+    options?: PostStatusOptions
+  ): Promise<SendMessageResult> {
+    return this.postStatus({ text }, recipients, options);
+  }
+
+  /**
+   * Post an image status / story.
+   * @param image - Image source (file path, URL, or Buffer)
+   * @param recipients - Audience (phone numbers or JIDs). Omit to send to all contacts.
+   * @param options - caption for the image
+   */
+  async postImageStatus(
+    image: MediaSource,
+    recipients?: string[],
+    options?: PostStatusOptions
+  ): Promise<SendMessageResult> {
+    return this.postStatus(
+      { image: Buffer.isBuffer(image) ? image : { url: image }, caption: options?.caption },
+      recipients,
+      options
+    );
+  }
+
+  /**
+   * Post a video status / story.
+   * @param video - Video source (file path, URL, or Buffer)
+   * @param recipients - Audience (phone numbers or JIDs). Omit to send to all contacts.
+   * @param options - caption for the video
+   */
+  async postVideoStatus(
+    video: MediaSource,
+    recipients?: string[],
+    options?: PostStatusOptions
+  ): Promise<SendMessageResult> {
+    return this.postStatus(
+      { video: Buffer.isBuffer(video) ? video : { url: video }, caption: options?.caption },
+      recipients,
+      options
+    );
+  }
+
+  /** Shared status sender: builds statusJidList and posts to status@broadcast. */
+  private async postStatus(
+    content: AnyMessageContent,
+    recipients?: string[],
+    options?: PostStatusOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot post status. Connection state: ${this.connectionState}`
+        );
+      }
+
+      const statusJidList = this.getStatusAudience(recipients);
+      if (statusJidList.length === 0 && this.options.debug) {
+        this.logger.debug(
+          "[status] No audience (no recipients and empty contacts store); status will be visible only to you."
+        );
+      }
+
+      const result = await this.socket.sendMessage("status@broadcast", content, {
+        statusJidList,
+        backgroundColor: options?.backgroundColor,
+        font: options?.font,
+      });
+
+      return { success: true, messageId: result?.key?.id || undefined };
+    } catch (error) {
+      this.logger.error("Failed to post status:", error);
+      return { success: false, error: (error as Error).message };
+    }
   }
 
   /**

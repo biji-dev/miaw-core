@@ -510,6 +510,20 @@ export interface PollVoteUpdate {
 }
 
 /**
+ * Options for posting a status / story (v1.8.0)
+ */
+export interface PostStatusOptions {
+  /** Caption for image/video status */
+  caption?: string;
+
+  /** Background color for a text status (e.g. '#0a7cff' or an ARGB int as string) */
+  backgroundColor?: string;
+
+  /** Font type for a text status (numeric font id) */
+  font?: number;
+}
+
+/**
  * Result of checking if a phone number is on WhatsApp
  */
 export interface CheckNumberResult {

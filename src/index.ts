@@ -71,6 +71,8 @@ export type {
   SendStickerOptions,
   SendPollOptions,
   PollVoteUpdate,
+  // v1.8.0 Status / Stories
+  PostStatusOptions,
 } from "./types/index.js";
 
 // v1.2.0 Logger types (for custom logger implementations)

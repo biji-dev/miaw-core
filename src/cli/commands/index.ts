@@ -44,6 +44,10 @@ import {
   cmdChatUnread,
   cmdChatClear,
   cmdChatDelete,
+  // Status commands
+  cmdStatusText,
+  cmdStatusImage,
+  cmdStatusVideo,
   // Media commands
   cmdMediaDownload,
   // Group commands
@@ -374,6 +378,53 @@ export async function runCommand(
         console.log(
           "Commands: archive, unarchive, pin, unpin, mute, unmute, read, unread, clear, delete"
         );
+        return false;
+    }
+  }
+
+  // Status / Stories commands (named `story` to avoid the `status` REPL command)
+  if (command === "story") {
+    const subCommand = parsedArgs._[0] || "";
+
+    switch (subCommand) {
+      case "text":
+        if (parsedArgs._.length < 2) {
+          console.log("❌ Usage: miaw-cli story text <text> [--recipients a,b] [--bg <color>] [--font <n>]");
+          return false;
+        }
+        return await cmdStatusText(client, {
+          text: parsedArgs._.slice(1).join(" "),
+          recipients: parsedArgs.recipients,
+          bg: parsedArgs.bg,
+          font: parsedArgs.font ? parseInt(parsedArgs.font, 10) : undefined,
+        });
+      case "image":
+        if (parsedArgs._.length < 2) {
+          console.log("❌ Usage: miaw-cli story image <path> [--recipients a,b] [--caption <t>]");
+          return false;
+        }
+        return await cmdStatusImage(client, {
+          path: parsedArgs._[1],
+          recipients: parsedArgs.recipients,
+          caption: parsedArgs.caption,
+        });
+      case "video":
+        if (parsedArgs._.length < 2) {
+          console.log("❌ Usage: miaw-cli story video <path> [--recipients a,b] [--caption <t>]");
+          return false;
+        }
+        return await cmdStatusVideo(client, {
+          path: parsedArgs._[1],
+          recipients: parsedArgs.recipients,
+          caption: parsedArgs.caption,
+        });
+      default:
+        if (subCommand) {
+          console.log(`❌ Unknown story command: ${subCommand}`);
+        } else {
+          console.log("Usage: story <text|image|video> ... [--recipients a,b]");
+        }
+        console.log("Commands: text, image, video");
         return false;
     }
   }

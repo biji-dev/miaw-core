@@ -49,6 +49,8 @@ export {
   cmdChatDelete,
 } from "./chat.js";
 
+export { cmdStatusText, cmdStatusImage, cmdStatusVideo } from "./status.js";
+
 export { cmdMediaDownload } from "./media.js";
 
 export {
