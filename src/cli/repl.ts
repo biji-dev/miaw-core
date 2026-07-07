@@ -130,6 +130,22 @@ const commandTree: Record<string, CommandNode> = {
 // =============================================================================
 
 /**
+ * Split a command line into tokens, respecting single/double quotes so
+ * quoted arguments (e.g. captions) containing spaces stay intact.
+ * @param input - Raw command line input
+ * @returns Tokens with surrounding quotes stripped
+ */
+export function tokenizeCommand(input: string): string[] {
+  const regex = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  const tokens: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(input)) !== null) {
+    tokens.push(match[1] ?? match[2] ?? match[3]);
+  }
+  return tokens;
+}
+
+/**
  * Create autocomplete completer function for readline
  * @param sessionPath - Path to session directory (for dynamic instance completion)
  * @returns readline completer function
@@ -267,7 +283,7 @@ function loadHistory(sessionPath: string): string[] {
       // Return in reverse order (readline expects newest first)
       return lines.slice(-MAX_HISTORY_SIZE);
     }
-  } catch (error) {
+  } catch {
     // Silently ignore history load errors
   }
   return [];
@@ -289,7 +305,7 @@ function saveHistory(sessionPath: string, history: string[]): void {
     // Keep only the last MAX_HISTORY_SIZE entries
     const trimmedHistory = history.slice(-MAX_HISTORY_SIZE);
     fs.writeFileSync(historyPath, trimmedHistory.join("\n") + "\n", "utf8");
-  } catch (error) {
+  } catch {
     // Silently ignore history save errors
   }
 }
@@ -509,7 +525,7 @@ export async function runRepl(config: ClientConfig): Promise<void> {
       commandInput = input.slice(9).trim();
     }
 
-    const parts = commandInput.split(/\s+/);
+    const parts = tokenizeCommand(commandInput);
     const command = parts[0];
     const args = parts.slice(1);
 
