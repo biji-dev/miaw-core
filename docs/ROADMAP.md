@@ -4,7 +4,7 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 1.8.0
+**Current Version:** 1.9.0
 **Baileys Version:** 7.0.0-rc13
 **Node.js Required:** >= 18.0.0
 **Module System:** ESM-only
@@ -300,6 +300,16 @@ These shipped after the first stable release (see [CHANGELOG.md](../CHANGELOG.md
 - [x] **Status / Stories** - `postTextStatus`/`postImageStatus`/`postVideoStatus` (audience defaults to all contacts); CLI `story text|image|video`
 - [x] **Business extras** - `updateBusinessProfile`, `updateCoverPhoto`/`removeCoverPhoto`, `getOrderDetails`, `addQuickReply`/`removeQuickReply`; CLI `business profile|cover`
 
+### v1.7.2 - REPL quoted-argument fix ✅ (2026-07-07)
+
+- [x] Quote-aware REPL tokenizer so quoted multi-word args (e.g. captions) aren't split
+
+### v1.9.0 - Communities ✅ (2026-07-07)
+
+- [x] **Lifecycle** - `createCommunity`, `getCommunityInfo`, `getAllCommunities`, `updateCommunityName`/`Description`, `leaveCommunity`
+- [x] **Linking** - `createCommunityGroup`, `linkGroupToCommunity`/`unlinkGroupFromCommunity`, `getLinkedGroups`
+- [x] **Participants** - add/remove/promote/demote; **Invites** - link/accept/revoke/info; CLI `community` group
+
 ---
 
 ## Not-Yet-Implemented Baileys Features (Prioritized)
@@ -353,9 +363,10 @@ Every item below is a thin wrapper over a method that **exists in Baileys 7.0.0-
 
 - [x] `postTextStatus()` / `postImageStatus()` / `postVideoStatus()` via `sendMessage('status@broadcast', ...)`
 
-### 8. Communities (largest surface, lowest priority)
+### 8. Communities — ✅ shipped in v1.9.0 (Tier 1 core)
 
-- [ ] Full `community*` wrapper layer (~22 methods: create, metadata, link/unlink groups, participants, invites)
+- [x] Lifecycle, linking (create sub-group, link/unlink, list linked), participants, invites
+- [ ] Community admin (settings + join-requests) — deferred, alongside the equivalent group-admin work
 
 ### 9. Auth & Events
 
@@ -444,7 +455,8 @@ If you need any of these features, please:
 | v1.7.0  | Chat management (archive/pin/mute/read/clear/delete/star)  | ✅ Released |
 | v1.7.1  | Outbound message capture                                   | ✅ Released |
 | v1.8.0  | Status posting + business extras                           | ✅ Released |
-| next    | Communities (`community*` wrapper)                         | 📋 Planned  |
+| v1.9.0  | Communities (create/link/participants/invites)             | ✅ Released |
+| next    | Community + group admin (settings, join-requests)          | 📋 Planned  |
 
 ---
 
@@ -613,6 +625,6 @@ Want to help implement a feature?
 ---
 
 **Last Updated:** 2026-06-26
-**Status:** Stable (v1.8.0, Baileys 7.0.0-rc13)
+**Status:** Stable (v1.9.0, Baileys 7.0.0-rc13)
 **Next Release:** Chat management + rich messages — see [Not-Yet-Implemented Baileys Features (Prioritized)](#not-yet-implemented-baileys-features-prioritized)
 **Path So Far:** v0.1.0 → … → v0.9.0 ✅ → v1.0.0 ✅ (Stable) → v1.1.0 ✅ (Baileys v7/ESM) → v1.2.0 ✅ → v1.3.0 ✅ (Proxy) → v1.4.x ✅ (CLI + rc13)

@@ -2,7 +2,7 @@
 
 **Last Updated:** June 26, 2026  
 **Baileys Version:** 7.0.0-rc13  
-**Miaw Core Version:** 1.8.0
+**Miaw Core Version:** 1.9.0
 
 ## Overview
 
@@ -367,12 +367,12 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 
 | Feature                        | Baileys | Miaw Core | Notes                   |
 | ------------------------------ | ------- | --------- | ----------------------- |
-| **Get Community Metadata**     | ✅      | ❌        | Community information   |
-| **Get Community Sub-groups**   | ✅      | ❌        | List linked groups      |
-| **Create Community**           | ✅      | ❌        | Create new community    |
-| **Add Community Sub-group**    | ✅      | ❌        | Link group to community |
-| **Remove Community Sub-group** | ✅      | ❌        | Unlink group            |
-| **Deactivate Community**       | ✅      | ❌        | Deactivate community    |
+| **Get Community Metadata**     | ✅      | ✅        | `getCommunityInfo()` (v1.9.0) |
+| **Get Community Sub-groups**   | ✅      | ✅        | `getLinkedGroups()` (v1.9.0)  |
+| **Create Community**           | ✅      | ✅        | `createCommunity()` (v1.9.0)  |
+| **Add Community Sub-group**    | ✅      | ✅        | `linkGroupToCommunity()` (v1.9.0) |
+| **Remove Community Sub-group** | ✅      | ✅        | `unlinkGroupFromCommunity()` (v1.9.0) |
+| **Deactivate Community**       | ✅      | ❌        | No Baileys method (use `leaveCommunity()`) |
 
 ---
 
@@ -436,11 +436,11 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Newsletter/Channels**   | 19               | 19                    | 100%     |
 | **Privacy**               | 10               | 0                     | 0%       |
 | **Status/Broadcasts**     | 4                | 1                     | 25%      |
-| **Communities**           | 5                | 0                     | 0%       |
+| **Communities**           | 5                | 5                     | 100%     |
 | **Calls**                 | 5                | 0                     | 0%       |
 | **Utilities**             | 7                | 4                     | 57%      |
 | **Low-Level**             | 6                | 0                     | 0%       |
-| **TOTAL**                 | ~175             | ~130                  | ~74%     |
+| **TOTAL**                 | ~175             | ~135                  | ~77%     |
 
 ### What Miaw Core Focuses On
 
@@ -521,4 +521,4 @@ These are all backed by methods that exist in Baileys 7.0.0-rc13 and can be wrap
 
 ---
 
-_This analysis was last updated on July 7, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.8.0._
+_This analysis was last updated on July 7, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.9.0._
