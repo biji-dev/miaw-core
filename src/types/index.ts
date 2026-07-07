@@ -286,6 +286,33 @@ export interface MessageReaction {
 }
 
 /**
+ * A message-receipt update (v1.9.1) — the delivery/read/played status of a
+ * message (usually one you sent) changed. Emitted on the `message_receipt` event.
+ */
+export interface MessageReceiptUpdate {
+  /** ID of the message whose receipt changed */
+  messageId: string;
+
+  /** Chat JID the message belongs to */
+  chatId: string;
+
+  /** JID of the user who acknowledged the message */
+  recipientId: string;
+
+  /** Receipt type: delivered to device, read/opened, or voice-note played */
+  type: "delivery" | "read" | "played";
+
+  /** Receipt timestamp (Unix seconds), if provided */
+  timestamp?: number;
+
+  /** Whether the receipt is for a message you sent */
+  fromMe: boolean;
+
+  /** Original raw Baileys receipt for advanced use */
+  raw?: any;
+}
+
+/**
  * Events emitted by MiawClient
  */
 export interface MiawClientEvents {
@@ -306,6 +333,9 @@ export interface MiawClientEvents {
 
   /** Emitted when a message receives a reaction */
   message_reaction: (reaction: MessageReaction) => void;
+
+  /** Emitted when a sent message's delivery/read/played status changes */
+  message_receipt: (receipt: MessageReceiptUpdate) => void;
 
   /** Emitted when someone votes on a poll (carries the aggregated tally) */
   poll_vote: (vote: PollVoteUpdate) => void;
