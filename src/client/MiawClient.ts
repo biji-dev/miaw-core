@@ -51,6 +51,11 @@ import {
   CreateGroupResult,
   GroupOperationResult,
   GroupInviteInfo,
+  // v1.9.0 Communities
+  CommunityInfo,
+  LinkedGroup,
+  CreateCommunityResult,
+  CommunityOperationResult,
   // v0.8.0 Profile Management
   ProfileOperationResult,
   // v0.9.0 Labels
@@ -4865,6 +4870,464 @@ export class MiawClient extends EventEmitter {
       };
     } catch (error) {
       this.logger.error("Failed to get group invite info:", error);
+      return null;
+    }
+  }
+
+  // ============================================
+  // Community Methods (v1.9.0)
+  // ============================================
+
+  /**
+   * Map Baileys GroupMetadata (communities share the shape) to CommunityInfo.
+   */
+  private mapToCommunityInfo(metadata: any): CommunityInfo {
+    const participants: GroupParticipant[] = (metadata.participants || []).map(
+      (p: any) => ({
+        jid: this.resolveLidToJid(p.id),
+        role:
+          p.admin === "superadmin"
+            ? "superadmin"
+            : p.admin === "admin"
+            ? "admin"
+            : "member",
+      })
+    );
+    return {
+      jid: metadata.id,
+      name: metadata.subject,
+      description: metadata.desc || undefined,
+      owner: metadata.owner ? this.resolveLidToJid(metadata.owner) : undefined,
+      createdAt: metadata.creation,
+      participantCount: (metadata.participants || []).length,
+      participants,
+      announce: metadata.announce,
+      restrict: metadata.restrict,
+    };
+  }
+
+  /**
+   * Create a new community.
+   * @param name - Community name/subject
+   * @param description - Optional community description
+   */
+  async createCommunity(
+    name: string,
+    description?: string
+  ): Promise<CreateCommunityResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot create community. Connection state: ${this.connectionState}`
+        );
+      }
+      const nameValidation = validateGroupName(name);
+      if (!nameValidation.valid) {
+        return { success: false, error: nameValidation.error };
+      }
+      const metadata = await this.socket.communityCreate(name, description || "");
+      if (!metadata) {
+        return { success: true };
+      }
+      const info = this.mapToCommunityInfo(metadata);
+      return { success: true, communityJid: info.jid, communityInfo: info };
+    } catch (error) {
+      this.logger.error("Failed to create community:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** Get community metadata/information. */
+  async getCommunityInfo(
+    communityJid: string
+  ): Promise<CommunityInfo | null> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get community info. Connection state: ${this.connectionState}`
+        );
+      }
+      const metadata = await this.socket.communityMetadata(communityJid);
+      return metadata ? this.mapToCommunityInfo(metadata) : null;
+    } catch (error) {
+      this.logger.error("Failed to get community info:", error);
+      return null;
+    }
+  }
+
+  /** Get a community's participants. */
+  async getCommunityParticipants(
+    communityJid: string
+  ): Promise<GroupParticipant[] | null> {
+    const info = await this.getCommunityInfo(communityJid);
+    return info?.participants || null;
+  }
+
+  /** Fetch all communities the account participates in. */
+  async getAllCommunities(): Promise<CommunityInfo[]> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot fetch communities. Connection state: ${this.connectionState}`
+        );
+      }
+      const all = await this.socket.communityFetchAllParticipating();
+      return Object.values(all || {}).map((m) => this.mapToCommunityInfo(m));
+    } catch (error) {
+      this.logger.error("Failed to fetch communities:", error);
+      return [];
+    }
+  }
+
+  /** Update a community's name/subject. */
+  async updateCommunityName(
+    communityJid: string,
+    name: string
+  ): Promise<CommunityOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update community. Connection state: ${this.connectionState}`
+        );
+      }
+      await this.socket.communityUpdateSubject(communityJid, name);
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to update community name:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** Update a community's description. */
+  async updateCommunityDescription(
+    communityJid: string,
+    description?: string
+  ): Promise<CommunityOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update community. Connection state: ${this.connectionState}`
+        );
+      }
+      await this.socket.communityUpdateDescription(communityJid, description);
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to update community description:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** Leave a community. */
+  async leaveCommunity(
+    communityJid: string
+  ): Promise<CommunityOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot leave community. Connection state: ${this.connectionState}`
+        );
+      }
+      await this.socket.communityLeave(communityJid);
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to leave community:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Create a new group inside a community.
+   * @param communityJid - Parent community JID
+   * @param name - Group name/subject
+   * @param participants - Initial members (phone numbers or JIDs)
+   */
+  async createCommunityGroup(
+    communityJid: string,
+    name: string,
+    participants: string[] = []
+  ): Promise<CreateGroupResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot create community group. Connection state: ${this.connectionState}`
+        );
+      }
+      const nameValidation = validateGroupName(name);
+      if (!nameValidation.valid) {
+        return { success: false, error: nameValidation.error };
+      }
+      const formatted = participants.map((p) =>
+        MessageHandler.formatPhoneToJid(p)
+      );
+      const metadata = await this.socket.communityCreateGroup(
+        name,
+        formatted,
+        communityJid
+      );
+      if (!metadata) {
+        return { success: true };
+      }
+      const info = this.mapToCommunityInfo(metadata);
+      return {
+        success: true,
+        groupJid: info.jid,
+        groupInfo: {
+          jid: info.jid,
+          name: info.name,
+          description: info.description,
+          owner: info.owner,
+          createdAt: info.createdAt,
+          participantCount: info.participantCount,
+          participants: info.participants,
+          announce: info.announce,
+          restrict: info.restrict,
+        },
+      };
+    } catch (error) {
+      this.logger.error("Failed to create community group:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** Link an existing group to a community. */
+  async linkGroupToCommunity(
+    groupJid: string,
+    communityJid: string
+  ): Promise<CommunityOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot link group. Connection state: ${this.connectionState}`
+        );
+      }
+      await this.socket.communityLinkGroup(groupJid, communityJid);
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to link group to community:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** Unlink a group from a community. */
+  async unlinkGroupFromCommunity(
+    groupJid: string,
+    communityJid: string
+  ): Promise<CommunityOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot unlink group. Connection state: ${this.connectionState}`
+        );
+      }
+      await this.socket.communityUnlinkGroup(groupJid, communityJid);
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to unlink group from community:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** List the groups linked inside a community. */
+  async getLinkedGroups(communityJid: string): Promise<LinkedGroup[]> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot fetch linked groups. Connection state: ${this.connectionState}`
+        );
+      }
+      const result = await this.socket.communityFetchLinkedGroups(communityJid);
+      return (result?.linkedGroups || []).map((g) => ({
+        id: g.id,
+        subject: g.subject,
+        creation: g.creation,
+        owner: g.owner ? this.resolveLidToJid(g.owner) : undefined,
+        size: g.size,
+      }));
+    } catch (error) {
+      this.logger.error("Failed to fetch linked groups:", error);
+      return [];
+    }
+  }
+
+  /** Shared helper for community participant operations. */
+  private async communityParticipantsOperation(
+    communityJid: string,
+    participants: string[],
+    action: "add" | "remove" | "promote" | "demote"
+  ): Promise<ParticipantOperationResult[]> {
+    if (!this.socket) {
+      throw new Error("Not connected. Call connect() first.");
+    }
+    if (this.connectionState !== "connected") {
+      throw new Error(
+        `Cannot perform community operation. Connection state: ${this.connectionState}`
+      );
+    }
+    const formatted = participants.map((p) =>
+      MessageHandler.formatPhoneToJid(p)
+    );
+    const results = await this.socket.communityParticipantsUpdate(
+      communityJid,
+      formatted,
+      action
+    );
+    return results.map((r) => ({
+      jid: r.jid || "",
+      status: r.status,
+      success: r.status === "200",
+    }));
+  }
+
+  /** Add members to a community. */
+  async addCommunityMembers(
+    communityJid: string,
+    participants: string[]
+  ): Promise<ParticipantOperationResult[]> {
+    return this.communityParticipantsOperation(communityJid, participants, "add");
+  }
+
+  /** Remove members from a community. */
+  async removeCommunityMembers(
+    communityJid: string,
+    participants: string[]
+  ): Promise<ParticipantOperationResult[]> {
+    return this.communityParticipantsOperation(communityJid, participants, "remove");
+  }
+
+  /** Promote members to community admin. */
+  async promoteCommunityMembers(
+    communityJid: string,
+    participants: string[]
+  ): Promise<ParticipantOperationResult[]> {
+    return this.communityParticipantsOperation(communityJid, participants, "promote");
+  }
+
+  /** Demote community admins to members. */
+  async demoteCommunityMembers(
+    communityJid: string,
+    participants: string[]
+  ): Promise<ParticipantOperationResult[]> {
+    return this.communityParticipantsOperation(communityJid, participants, "demote");
+  }
+
+  /** Get the community invite link. */
+  async getCommunityInviteLink(communityJid: string): Promise<string | null> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get invite link. Connection state: ${this.connectionState}`
+        );
+      }
+      const code = await this.socket.communityInviteCode(communityJid);
+      return code ? `https://chat.whatsapp.com/${code}` : null;
+    } catch (error) {
+      this.logger.error("Failed to get community invite link:", error);
+      return null;
+    }
+  }
+
+  /** Revoke the community invite link and get a new one. */
+  async revokeCommunityInvite(communityJid: string): Promise<string | null> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot revoke invite. Connection state: ${this.connectionState}`
+        );
+      }
+      const code = await this.socket.communityRevokeInvite(communityJid);
+      return code ? `https://chat.whatsapp.com/${code}` : null;
+    } catch (error) {
+      this.logger.error("Failed to revoke community invite:", error);
+      return null;
+    }
+  }
+
+  /** Accept a community invite and join. */
+  async acceptCommunityInvite(inviteCode: string): Promise<string | null> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot accept invite. Connection state: ${this.connectionState}`
+        );
+      }
+      let code = inviteCode;
+      if (inviteCode.includes("chat.whatsapp.com/")) {
+        code = inviteCode.split("chat.whatsapp.com/")[1];
+      }
+      const jid = await this.socket.communityAcceptInvite(code);
+      return jid || null;
+    } catch (error) {
+      this.logger.error("Failed to accept community invite:", error);
+      return null;
+    }
+  }
+
+  /** Preview a community from an invite code without joining. */
+  async getCommunityInviteInfo(
+    inviteCode: string
+  ): Promise<GroupInviteInfo | null> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get invite info. Connection state: ${this.connectionState}`
+        );
+      }
+      let code = inviteCode;
+      if (inviteCode.includes("chat.whatsapp.com/")) {
+        code = inviteCode.split("chat.whatsapp.com/")[1];
+      }
+      const metadata = await this.socket.communityGetInviteInfo(code);
+      return {
+        jid: metadata.id,
+        name: metadata.subject,
+        description: metadata.desc || undefined,
+        participantCount: metadata.size || metadata.participants?.length || 0,
+        createdAt: metadata.creation,
+      };
+    } catch (error) {
+      this.logger.error("Failed to get community invite info:", error);
       return null;
     }
   }
