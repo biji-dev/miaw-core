@@ -805,6 +805,75 @@ export interface GroupInviteInfo {
 }
 
 // ============================================
+// Community Types (v1.9.0)
+// ============================================
+
+/**
+ * Community metadata. A community is a hub that links multiple groups.
+ * Mirrors {@link GroupInfo} (Baileys returns the same metadata shape).
+ */
+export interface CommunityInfo {
+  /** Community JID */
+  jid: string;
+  /** Community name/subject */
+  name: string;
+  /** Community description */
+  description?: string;
+  /** Community owner JID */
+  owner?: string;
+  /** Creation timestamp */
+  createdAt?: number;
+  /** Number of participants */
+  participantCount: number;
+  /** List of participants */
+  participants: GroupParticipant[];
+  /** Whether only admins can send messages */
+  announce?: boolean;
+  /** Whether only admins can edit community info */
+  restrict?: boolean;
+}
+
+/**
+ * A group linked inside a community (v1.9.0).
+ */
+export interface LinkedGroup {
+  /** Group JID */
+  id?: string;
+  /** Group name/subject */
+  subject: string;
+  /** Creation timestamp */
+  creation?: number;
+  /** Group owner JID */
+  owner?: string;
+  /** Participant count */
+  size?: number;
+}
+
+/**
+ * Result of creating a community (v1.9.0).
+ */
+export interface CreateCommunityResult {
+  /** Whether the community was created successfully */
+  success: boolean;
+  /** Community JID if successful */
+  communityJid?: string;
+  /** Community info if successful */
+  communityInfo?: CommunityInfo;
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Result of a community operation (generic) (v1.9.0).
+ */
+export interface CommunityOperationResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** Error message if failed */
+  error?: string;
+}
+
+// ============================================
 // Profile Management Types (v0.8.0)
 // ============================================
 

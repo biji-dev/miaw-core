@@ -734,6 +734,40 @@ if (preview) {
 }
 ```
 
+## Communities (v1.9.0)
+
+A community is a hub that links multiple groups. The API mirrors group management.
+
+```typescript
+// Create / inspect
+const res = await client.createCommunity("My Community", "Optional description");
+const info = await client.getCommunityInfo(res.communityJid!);
+const all = await client.getAllCommunities();
+
+// Update / leave
+await client.updateCommunityName(communityJid, "New name");
+await client.updateCommunityDescription(communityJid, "New description");
+await client.leaveCommunity(communityJid);
+
+// Linking groups (the defining feature)
+const sub = await client.createCommunityGroup(communityJid, "Class A", ["6281234567890"]);
+await client.linkGroupToCommunity("123@g.us", communityJid);
+await client.unlinkGroupFromCommunity("123@g.us", communityJid);
+const linked = await client.getLinkedGroups(communityJid); // LinkedGroup[]
+
+// Participants
+await client.addCommunityMembers(communityJid, ["6281234567890"]);
+await client.removeCommunityMembers(communityJid, ["6281234567890"]);
+await client.promoteCommunityMembers(communityJid, ["6281234567890"]);
+await client.demoteCommunityMembers(communityJid, ["6281234567890"]);
+
+// Invites
+const link = await client.getCommunityInviteLink(communityJid);
+const newLink = await client.revokeCommunityInvite(communityJid);
+await client.acceptCommunityInvite("https://chat.whatsapp.com/AbCdEf");
+const invitePreview = await client.getCommunityInviteInfo("AbCdEf");
+```
+
 ## Profile Management
 
 ### Update Profile Picture

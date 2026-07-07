@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-07-07
+
+**Communities** - Wrap Baileys' `community*` API (communities are hubs that link
+multiple groups). All additive.
+
+### Added
+
+- **Lifecycle**: `createCommunity`, `getCommunityInfo`, `getCommunityParticipants`,
+  `getAllCommunities`, `updateCommunityName`, `updateCommunityDescription`,
+  `leaveCommunity`.
+- **Linking**: `createCommunityGroup` (create a sub-group inside a community),
+  `linkGroupToCommunity` / `unlinkGroupFromCommunity`, `getLinkedGroups`.
+- **Participants**: `addCommunityMembers` / `removeCommunityMembers` /
+  `promoteCommunityMembers` / `demoteCommunityMembers`.
+- **Invites**: `getCommunityInviteLink` / `revokeCommunityInvite` /
+  `acceptCommunityInvite` / `getCommunityInviteInfo`.
+- **CLI**: `community list|info|create|leave|name|description|linked|link|unlink|group|members|invite`.
+- New types: `CommunityInfo`, `LinkedGroup`, `CreateCommunityResult`, `CommunityOperationResult`.
+
+### Notes
+
+- Community admin (settings: announce-only/member-add/join-approval/ephemeral,
+  and join-request approve/reject) is deferred to a future phase alongside the
+  equivalent group-admin work.
+
 ## [1.8.0] - 2026-07-07
 
 **Status posting + business extras** - All additive.

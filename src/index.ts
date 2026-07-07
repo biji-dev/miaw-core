@@ -35,6 +35,11 @@ export type {
   CreateGroupResult,
   GroupOperationResult,
   GroupInviteInfo,
+  // v1.9.0 Communities
+  CommunityInfo,
+  LinkedGroup,
+  CreateCommunityResult,
+  CommunityOperationResult,
   // v0.8.0 Profile Management
   ProfileOperationResult,
   // v0.9.0 Labels
