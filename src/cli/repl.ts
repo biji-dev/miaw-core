@@ -35,7 +35,7 @@ interface CommandNode {
 const commandTree: Record<string, CommandNode> = {
   // REPL-specific commands
   help: {
-    subcommands: ["instance", "get", "load", "send", "media", "chat", "group", "check", "contact", "profile", "label", "catalog"],
+    subcommands: ["instance", "get", "load", "send", "media", "chat", "story", "group", "check", "contact", "profile", "label", "business", "catalog"],
   },
   status: {},
   exit: { aliases: ["quit"] },
@@ -67,6 +67,17 @@ const commandTree: Record<string, CommandNode> = {
       "read", "unread", "clear", "delete",
     ],
     flags: ["--duration"],
+  },
+  story: {
+    subcommands: ["text", "image", "video"],
+    flags: ["--recipients", "--bg", "--font", "--caption"],
+  },
+  business: {
+    subcommands: ["profile", "cover"],
+    nestedSubcommands: {
+      cover: ["set", "remove"],
+    },
+    flags: ["--address", "--email", "--description", "--websites"],
   },
   group: {
     subcommands: [
@@ -659,11 +670,13 @@ COMMANDS (use "help <command>" for details):
   send        Send messages (text, image, document, video, audio, location, contact, poll, sticker)
   media       Media operations (download)
   chat        Chat management (archive, pin, mute, read, clear, delete)
+  story       Post status/story (text, image, video)
   group       Group management (info, participants, invites, settings)
   check       Check if phone numbers are on WhatsApp
   contact     Contact management (list, info, add, remove)
   profile     Profile management (picture, name, status)
   label       Label management (WhatsApp Business)
+  business    Business profile & cover photo (WhatsApp Business)
   catalog     Catalog management (WhatsApp Business)
 
 QUICK EXAMPLES:

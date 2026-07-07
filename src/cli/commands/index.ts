@@ -44,6 +44,14 @@ import {
   cmdChatUnread,
   cmdChatClear,
   cmdChatDelete,
+  // Status commands
+  cmdStatusText,
+  cmdStatusImage,
+  cmdStatusVideo,
+  // Business commands
+  cmdBusinessProfile,
+  cmdBusinessCoverSet,
+  cmdBusinessCoverRemove,
   // Media commands
   cmdMediaDownload,
   // Group commands
@@ -374,6 +382,53 @@ export async function runCommand(
         console.log(
           "Commands: archive, unarchive, pin, unpin, mute, unmute, read, unread, clear, delete"
         );
+        return false;
+    }
+  }
+
+  // Status / Stories commands (named `story` to avoid the `status` REPL command)
+  if (command === "story") {
+    const subCommand = parsedArgs._[0] || "";
+
+    switch (subCommand) {
+      case "text":
+        if (parsedArgs._.length < 2) {
+          console.log("❌ Usage: miaw-cli story text <text> [--recipients a,b] [--bg <color>] [--font <n>]");
+          return false;
+        }
+        return await cmdStatusText(client, {
+          text: parsedArgs._.slice(1).join(" "),
+          recipients: parsedArgs.recipients,
+          bg: parsedArgs.bg,
+          font: parsedArgs.font ? parseInt(parsedArgs.font, 10) : undefined,
+        });
+      case "image":
+        if (parsedArgs._.length < 2) {
+          console.log("❌ Usage: miaw-cli story image <path> [--recipients a,b] [--caption <t>]");
+          return false;
+        }
+        return await cmdStatusImage(client, {
+          path: parsedArgs._[1],
+          recipients: parsedArgs.recipients,
+          caption: parsedArgs.caption,
+        });
+      case "video":
+        if (parsedArgs._.length < 2) {
+          console.log("❌ Usage: miaw-cli story video <path> [--recipients a,b] [--caption <t>]");
+          return false;
+        }
+        return await cmdStatusVideo(client, {
+          path: parsedArgs._[1],
+          recipients: parsedArgs.recipients,
+          caption: parsedArgs.caption,
+        });
+      default:
+        if (subCommand) {
+          console.log(`❌ Unknown story command: ${subCommand}`);
+        } else {
+          console.log("Usage: story <text|image|video> ... [--recipients a,b]");
+        }
+        console.log("Commands: text, image, video");
         return false;
     }
   }
@@ -781,6 +836,47 @@ export async function runCommand(
           console.log(`❌ Unknown label command: ${subCommand}`);
         }
         console.log("Commands: list, chats, add, chat (add|remove)");
+        return false;
+    }
+  }
+
+  // Business commands (Business account)
+  if (command === "business") {
+    const subCommand = parsedArgs._[0] || "";
+    const subSubCommand = parsedArgs._[1] || "";
+
+    switch (subCommand) {
+      case "profile":
+        return await cmdBusinessProfile(client, {
+          address: parsedArgs.address,
+          email: parsedArgs.email,
+          description: parsedArgs.description,
+          websites: parsedArgs.websites,
+        });
+      case "cover":
+        if (subSubCommand === "set") {
+          if (!parsedArgs._[2]) {
+            console.log("❌ Usage: miaw-cli business cover set <path>");
+            return false;
+          }
+          return await cmdBusinessCoverSet(client, { path: parsedArgs._[2] });
+        }
+        if (subSubCommand === "remove") {
+          if (!parsedArgs._[2]) {
+            console.log("❌ Usage: miaw-cli business cover remove <coverPhotoId>");
+            return false;
+          }
+          return await cmdBusinessCoverRemove(client, { id: parsedArgs._[2] });
+        }
+        console.log("❌ Usage: miaw-cli business cover set <path> | business cover remove <id>");
+        return false;
+      default:
+        if (subCommand) {
+          console.log(`❌ Unknown business command: ${subCommand}`);
+        } else {
+          console.log("Usage: business profile [--address --email --description --websites a,b] | business cover set|remove");
+        }
+        console.log("Commands: profile, cover (set|remove)");
         return false;
     }
   }

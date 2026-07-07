@@ -10,6 +10,7 @@ import makeWASocket, {
   AnyMessageContent,
   ChatModification,
   LastMessageList,
+  WAMediaUpload,
   downloadMediaMessage,
   jidNormalizedUser,
   getAggregateVotesInPollMessage,
@@ -86,6 +87,13 @@ import {
   SendStickerOptions,
   SendPollOptions,
   PollVoteUpdate,
+  // v1.8.0 Status / Stories
+  PostStatusOptions,
+  // v1.8.0 Business extras
+  BusinessProfileUpdate,
+  CoverPhotoResult,
+  OrderInfo,
+  QuickReplyInput,
 } from "../types/index.js";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -2179,6 +2187,114 @@ export class MiawClient extends EventEmitter {
     this.emit("poll_vote", vote);
   }
 
+  // ============================================
+  // Status / Stories (v1.8.0) — via status@broadcast
+  // ============================================
+
+  /**
+   * Resolve the audience (statusJidList) for a status post. When recipients are
+   * given they are used (formatted to JIDs); otherwise it defaults to every
+   * individual contact in the store (like the WhatsApp app's "all contacts").
+   */
+  private getStatusAudience(recipients?: string[]): string[] {
+    if (recipients && recipients.length > 0) {
+      return recipients.map((r) => MessageHandler.formatPhoneToJid(r));
+    }
+    const jids = new Set<string>();
+    for (const contact of this.contactsStore.values()) {
+      if (contact.jid?.endsWith("@s.whatsapp.net")) {
+        jids.add(contact.jid);
+      }
+    }
+    return [...jids];
+  }
+
+  /**
+   * Post a text status / story.
+   * @param text - The status text
+   * @param recipients - Audience (phone numbers or JIDs). Omit to send to all contacts.
+   * @param options - backgroundColor / font for the text status
+   */
+  async postTextStatus(
+    text: string,
+    recipients?: string[],
+    options?: PostStatusOptions
+  ): Promise<SendMessageResult> {
+    return this.postStatus({ text }, recipients, options);
+  }
+
+  /**
+   * Post an image status / story.
+   * @param image - Image source (file path, URL, or Buffer)
+   * @param recipients - Audience (phone numbers or JIDs). Omit to send to all contacts.
+   * @param options - caption for the image
+   */
+  async postImageStatus(
+    image: MediaSource,
+    recipients?: string[],
+    options?: PostStatusOptions
+  ): Promise<SendMessageResult> {
+    return this.postStatus(
+      { image: Buffer.isBuffer(image) ? image : { url: image }, caption: options?.caption },
+      recipients,
+      options
+    );
+  }
+
+  /**
+   * Post a video status / story.
+   * @param video - Video source (file path, URL, or Buffer)
+   * @param recipients - Audience (phone numbers or JIDs). Omit to send to all contacts.
+   * @param options - caption for the video
+   */
+  async postVideoStatus(
+    video: MediaSource,
+    recipients?: string[],
+    options?: PostStatusOptions
+  ): Promise<SendMessageResult> {
+    return this.postStatus(
+      { video: Buffer.isBuffer(video) ? video : { url: video }, caption: options?.caption },
+      recipients,
+      options
+    );
+  }
+
+  /** Shared status sender: builds statusJidList and posts to status@broadcast. */
+  private async postStatus(
+    content: AnyMessageContent,
+    recipients?: string[],
+    options?: PostStatusOptions
+  ): Promise<SendMessageResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot post status. Connection state: ${this.connectionState}`
+        );
+      }
+
+      const statusJidList = this.getStatusAudience(recipients);
+      if (statusJidList.length === 0 && this.options.debug) {
+        this.logger.debug(
+          "[status] No audience (no recipients and empty contacts store); status will be visible only to you."
+        );
+      }
+
+      const result = await this.socket.sendMessage("status@broadcast", content, {
+        statusJidList,
+        backgroundColor: options?.backgroundColor,
+        font: options?.font,
+      });
+
+      return { success: true, messageId: result?.key?.id || undefined };
+    } catch (error) {
+      this.logger.error("Failed to post status:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
   /**
    * Download media from a received message
    * @param message - The MiawMessage containing media (must have raw field with original Baileys message)
@@ -2479,6 +2595,169 @@ export class MiawClient extends EventEmitter {
     } catch (error) {
       this.logger.error("Failed to get business profile:", error);
       return null;
+    }
+  }
+
+  // ============================================
+  // Business extras (v1.8.0) — WhatsApp Business only
+  // ============================================
+
+  /**
+   * Update your own business profile (address, websites, email, description,
+   * hours). Category is read-only and cannot be changed here.
+   */
+  async updateBusinessProfile(
+    updates: BusinessProfileUpdate
+  ): Promise<ProfileOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update business profile. Connection state: ${this.connectionState}`
+        );
+      }
+      const socket = this.socket;
+      await socket.updateBussinesProfile(
+        updates as Parameters<typeof socket.updateBussinesProfile>[0]
+      );
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to update business profile:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Set the business cover photo.
+   * @param image - Image source (file path, URL, or Buffer)
+   * @returns The uploaded cover photo id (pass to removeCoverPhoto)
+   */
+  async updateCoverPhoto(image: MediaSource): Promise<CoverPhotoResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot update cover photo. Connection state: ${this.connectionState}`
+        );
+      }
+      const photo = (
+        Buffer.isBuffer(image) ? image : { url: image }
+      ) as WAMediaUpload;
+      const id = await this.socket.updateCoverPhoto(photo);
+      return { success: true, coverPhotoId: id != null ? String(id) : undefined };
+    } catch (error) {
+      this.logger.error("Failed to update cover photo:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** Remove a business cover photo by its id. */
+  async removeCoverPhoto(coverPhotoId: string): Promise<ProfileOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot remove cover photo. Connection state: ${this.connectionState}`
+        );
+      }
+      await this.socket.removeCoverPhoto(coverPhotoId);
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to remove cover photo:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Fetch details for a business order. The `tokenBase64` comes from a received
+   * order message (`orderMessage.token`) — this is only usable after a customer
+   * sends an order.
+   */
+  async getOrderDetails(
+    orderId: string,
+    tokenBase64: string
+  ): Promise<OrderInfo | null> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot get order details. Connection state: ${this.connectionState}`
+        );
+      }
+      const details = await this.socket.getOrderDetails(orderId, tokenBase64);
+      if (!details) {
+        return null;
+      }
+      const price = (details.price ?? {}) as { total?: number; currency?: string };
+      return {
+        currency: price.currency,
+        total: price.total,
+        products: (details.products ?? []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          imageUrl: p.imageUrl,
+          quantity: p.quantity,
+          currency: p.currency,
+          price: p.price,
+        })),
+      };
+    } catch (error) {
+      this.logger.error("Failed to get order details:", error);
+      return null;
+    }
+  }
+
+  /** Add or edit a business quick reply. */
+  async addQuickReply(
+    quickReply: QuickReplyInput
+  ): Promise<ProfileOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot add quick reply. Connection state: ${this.connectionState}`
+        );
+      }
+      await this.socket.addOrEditQuickReply({
+        shortcut: quickReply.shortcut,
+        message: quickReply.message,
+        keywords: quickReply.keywords ?? [],
+        count: 0,
+        deleted: false,
+      });
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to add quick reply:", error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /** Remove a business quick reply by its timestamp. */
+  async removeQuickReply(timestamp: string): Promise<ProfileOperationResult> {
+    try {
+      if (!this.socket) {
+        throw new Error("Not connected. Call connect() first.");
+      }
+      if (this.connectionState !== "connected") {
+        throw new Error(
+          `Cannot remove quick reply. Connection state: ${this.connectionState}`
+        );
+      }
+      await this.socket.removeQuickReply(timestamp);
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Failed to remove quick reply:", error);
+      return { success: false, error: (error as Error).message };
     }
   }
 

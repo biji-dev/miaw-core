@@ -4,7 +4,7 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 1.7.0
+**Current Version:** 1.8.0
 **Baileys Version:** 7.0.0-rc13
 **Node.js Required:** >= 18.0.0
 **Module System:** ESM-only
@@ -291,6 +291,15 @@ These shipped after the first stable release (see [CHANGELOG.md](../CHANGELOG.md
 - [x] **Message ops** - `starMessage` / `unstarMessage`
 - [x] **CLI** - `chat archive|unarchive|pin|unpin|mute|unmute|read|unread|clear|delete`
 
+### v1.7.1 - Outbound message capture ✅ (2026-07-07)
+
+- [x] **`messages.upsert` stores `append`/outbound messages** (direction via `key.fromMe`) through a deduping `storeMessage()` helper, so `getChatMessages` / CLI `get messages` include your own sends
+
+### v1.8.0 - Status Posting + Business Extras ✅ (2026-07-07)
+
+- [x] **Status / Stories** - `postTextStatus`/`postImageStatus`/`postVideoStatus` (audience defaults to all contacts); CLI `story text|image|video`
+- [x] **Business extras** - `updateBusinessProfile`, `updateCoverPhoto`/`removeCoverPhoto`, `getOrderDetails`, `addQuickReply`/`removeQuickReply`; CLI `business profile|cover`
+
 ---
 
 ## Not-Yet-Implemented Baileys Features (Prioritized)
@@ -333,16 +342,16 @@ Every item below is a thin wrapper over a method that **exists in Baileys 7.0.0-
 - [ ] `call` event surfaced from the Baileys `call` event
 - [ ] `createCallLink()` (`createCallLink`)
 
-### 6. Business Extras
+### 6. Business Extras — ✅ shipped in v1.8.0
 
-- [ ] `updateBusinessProfile()` (`updateBussinesProfile`)
-- [ ] `updateCoverPhoto()` / `removeCoverPhoto()`
-- [ ] `getOrderDetails()` (`getOrderDetails`)
-- [ ] quick replies (`addOrEditQuickReply` / `removeQuickReply`)
+- [x] `updateBusinessProfile()` (`updateBussinesProfile`)
+- [x] `updateCoverPhoto()` / `removeCoverPhoto()`
+- [x] `getOrderDetails()` (`getOrderDetails`)
+- [x] quick replies (`addQuickReply` / `removeQuickReply`)
 
-### 7. Status / Stories
+### 7. Status / Stories — ✅ shipped in v1.8.0
 
-- [ ] `postTextStatus()` / `postImageStatus()` / `postVideoStatus()` via `sendMessage('status@broadcast', ...)`
+- [x] `postTextStatus()` / `postImageStatus()` / `postVideoStatus()` via `sendMessage('status@broadcast', ...)`
 
 ### 8. Communities (largest surface, lowest priority)
 
@@ -433,7 +442,9 @@ If you need any of these features, please:
 | v1.6.0  | Rich messages (location/contact/poll/sticker/mentions) + pairing code | ✅ Released |
 | v1.6.1  | Fresh-login 428 fix + connection hardening                 | ✅ Released |
 | v1.7.0  | Chat management (archive/pin/mute/read/clear/delete/star)  | ✅ Released |
-| next    | Status posting + business extras; then communities         | 📋 Planned  |
+| v1.7.1  | Outbound message capture                                   | ✅ Released |
+| v1.8.0  | Status posting + business extras                           | ✅ Released |
+| next    | Communities (`community*` wrapper)                         | 📋 Planned  |
 
 ---
 
@@ -602,6 +613,6 @@ Want to help implement a feature?
 ---
 
 **Last Updated:** 2026-06-26
-**Status:** Stable (v1.7.0, Baileys 7.0.0-rc13)
+**Status:** Stable (v1.8.0, Baileys 7.0.0-rc13)
 **Next Release:** Chat management + rich messages — see [Not-Yet-Implemented Baileys Features (Prioritized)](#not-yet-implemented-baileys-features-prioritized)
 **Path So Far:** v0.1.0 → … → v0.9.0 ✅ → v1.0.0 ✅ (Stable) → v1.1.0 ✅ (Baileys v7/ESM) → v1.2.0 ✅ → v1.3.0 ✅ (Proxy) → v1.4.x ✅ (CLI + rc13)

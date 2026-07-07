@@ -2,7 +2,7 @@
 
 **Last Updated:** June 26, 2026  
 **Baileys Version:** 7.0.0-rc13  
-**Miaw Core Version:** 1.7.0
+**Miaw Core Version:** 1.8.0
 
 ## Overview
 
@@ -287,23 +287,23 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Create Product**    | ✅      | ✅        | `createProduct()`  |
 | **Update Product**    | ✅      | ✅        | `updateProduct()`  |
 | **Delete Products**   | ✅      | ✅        | `deleteProducts()` |
-| **Get Order Details** | ✅      | ❌        | Order information  |
+| **Get Order Details** | ✅      | ✅        | `getOrderDetails()` (v1.8.0) |
 
 ### 9.3 Business Profile
 
 | Feature                     | Baileys | Miaw Core | Notes                       |
 | --------------------------- | ------- | --------- | --------------------------- |
 | **Get Business Profile**    | ✅      | ✅        | `getBusinessProfile()`      |
-| **Update Business Profile** | ✅      | ❌        | Update address, hours, etc. |
-| **Update Cover Photo**      | ✅      | ❌        | Business cover image        |
-| **Remove Cover Photo**      | ✅      | ❌        | Remove business cover       |
+| **Update Business Profile** | ✅      | ✅        | `updateBusinessProfile()` (v1.8.0) |
+| **Update Cover Photo**      | ✅      | ✅        | `updateCoverPhoto()` (v1.8.0) |
+| **Remove Cover Photo**      | ✅      | ✅        | `removeCoverPhoto()` (v1.8.0) |
 
 ### 9.4 Quick Replies (Business)
 
 | Feature                | Baileys | Miaw Core | Notes              |
 | ---------------------- | ------- | --------- | ------------------ |
-| **Add Quick Reply**    | ✅      | ❌        | Create quick reply |
-| **Remove Quick Reply** | ✅      | ❌        | Delete quick reply |
+| **Add Quick Reply**    | ✅      | ✅        | `addQuickReply()` (v1.8.0) |
+| **Remove Quick Reply** | ✅      | ✅        | `removeQuickReply()` (v1.8.0) |
 
 ---
 
@@ -356,7 +356,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 
 | Feature                        | Baileys | Miaw Core | Notes                     |
 | ------------------------------ | ------- | --------- | ------------------------- |
-| **Send Status/Story**          | ✅      | ❌        | Post to status            |
+| **Send Status/Story**          | ✅      | ✅        | `postTextStatus()` etc. (v1.8.0) |
 | **Delete Status**              | ✅      | ❌        | Delete status post        |
 | **Send Broadcast**             | ✅      | ❌        | Send to broadcast list    |
 | **Query Broadcast Recipients** | ✅      | ❌        | List broadcast recipients |
@@ -431,16 +431,16 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Profile Management**    | 5                | 5                     | 100%     |
 | **Group Management**      | 18               | 14                    | 78%      |
 | **Business (Labels)**     | 6                | 6                     | 100%     |
-| **Business (Catalog)**    | 6                | 5                     | 83%      |
-| **Business (Profile/QR)** | 4                | 1                     | 25%      |
+| **Business (Catalog)**    | 6                | 6                     | 100%     |
+| **Business (Profile/QR)** | 4                | 4                     | 100%     |
 | **Newsletter/Channels**   | 19               | 19                    | 100%     |
 | **Privacy**               | 10               | 0                     | 0%       |
-| **Status/Broadcasts**     | 4                | 0                     | 0%       |
+| **Status/Broadcasts**     | 4                | 1                     | 25%      |
 | **Communities**           | 5                | 0                     | 0%       |
 | **Calls**                 | 5                | 0                     | 0%       |
 | **Utilities**             | 7                | 4                     | 57%      |
 | **Low-Level**             | 6                | 0                     | 0%       |
-| **TOTAL**                 | ~175             | ~125                  | ~71%     |
+| **TOTAL**                 | ~175             | ~130                  | ~74%     |
 
 ### What Miaw Core Focuses On
 
@@ -521,4 +521,4 @@ These are all backed by methods that exist in Baileys 7.0.0-rc13 and can be wrap
 
 ---
 
-_This analysis was last updated on July 7, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.7.0._
+_This analysis was last updated on July 7, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.8.0._
