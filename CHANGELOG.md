@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2026-07-07
+
+**REPL quoted-argument fix** - Quoted multi-word arguments (e.g. captions) no
+longer get split apart in the interactive REPL.
+
+### Fixed
+
+- **REPL command parsing broke quoted multi-word args**: the REPL split raw
+  input on whitespace only (`commandInput.split(/\s+/)`), so
+  `send image <phone> <path> "Ini ok"` produced two broken tokens (`"Ini` and
+  `ok"`) instead of one caption. Added a quote-aware tokenizer (respects
+  `"..."` and `'...'`) used for REPL command dispatch. One-shot CLI usage
+  (`npx miaw-cli ...`) was unaffected — the shell already handles quoting there.
+
 ## [1.7.1] - 2026-07-07
 
 **Outbound message capture** - Messages you send now appear in the message store
