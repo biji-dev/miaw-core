@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-07-07
+
+**Message receipts** - Observe delivery/read/played status of messages you send.
+
+### Added
+
+- New `message_receipt` event (`MessageReceiptUpdate`) surfaced from Baileys'
+  `message-receipt.update`: `{ messageId, chatId, recipientId, type, timestamp, fromMe }`
+  where `type` is `'delivery' | 'read' | 'played'` (derived from the receipt
+  timestamps). This is the observe half of read-receipts — `markAsRead` sends
+  them, `message_receipt` now reports incoming ones.
+- Added `docs/DEFERRED_FEATURES.md` tracking the remaining deferred backlog
+  (group/community admin, privacy & blocklist, calls, leftover message types).
+
 ## [1.9.0] - 2026-07-07
 
 **Communities** - Wrap Baileys' `community*` API (communities are hubs that link

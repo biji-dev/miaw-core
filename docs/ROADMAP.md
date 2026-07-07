@@ -4,7 +4,7 @@ This roadmap focuses on **essential bot features** (< 1.0.0) that 90% of WhatsAp
 
 ## Version Status
 
-**Current Version:** 1.9.0
+**Current Version:** 1.9.1
 **Baileys Version:** 7.0.0-rc13
 **Node.js Required:** >= 18.0.0
 **Module System:** ESM-only
@@ -368,11 +368,11 @@ Every item below is a thin wrapper over a method that **exists in Baileys 7.0.0-
 - [x] Lifecycle, linking (create sub-group, link/unlink, list linked), participants, invites
 - [ ] Community admin (settings + join-requests) — deferred, alongside the equivalent group-admin work
 
-### 9. Auth & Events
+### 9. Auth & Events — ✅ shipped
 
-> ✅ Shipped in **v1.6.0**: `requestPairingCode()` (pairing-code auth). Remaining:
+> ✅ Shipped in **v1.6.0**: `requestPairingCode()` (pairing-code auth). ✅ **v1.9.1**: `message_receipt` event.
 
-- [ ] Surface `message-receipt.update` as a miaw receipt event
+- [x] Surface `message-receipt.update` as a miaw receipt event (v1.9.1)
 
 ---
 
@@ -625,6 +625,6 @@ Want to help implement a feature?
 ---
 
 **Last Updated:** 2026-06-26
-**Status:** Stable (v1.9.0, Baileys 7.0.0-rc13)
+**Status:** Stable (v1.9.1, Baileys 7.0.0-rc13)
 **Next Release:** Chat management + rich messages — see [Not-Yet-Implemented Baileys Features (Prioritized)](#not-yet-implemented-baileys-features-prioritized)
 **Path So Far:** v0.1.0 → … → v0.9.0 ✅ → v1.0.0 ✅ (Stable) → v1.1.0 ✅ (Baileys v7/ESM) → v1.2.0 ✅ → v1.3.0 ✅ (Proxy) → v1.4.x ✅ (CLI + rc13)

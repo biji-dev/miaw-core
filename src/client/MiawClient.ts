@@ -38,6 +38,7 @@ import {
   MessageEdit,
   MessageDelete,
   MessageReaction,
+  MessageReceiptUpdate,
   CheckNumberResult,
   ContactInfo,
   ContactProfile,
@@ -799,6 +800,13 @@ export class MiawClient extends EventEmitter {
       }
     });
 
+    // Message receipts (delivery / read / played)
+    this.socket.ev.on("message-receipt.update", (updates) => {
+      for (const { key, receipt } of updates) {
+        this.handleReceiptUpdate(key, receipt);
+      }
+    });
+
     // Poll votes (messages.update carries pollUpdates when someone votes)
     this.socket.ev.on("messages.update", (updates) => {
       for (const { key, update } of updates) {
@@ -908,6 +916,7 @@ export class MiawClient extends EventEmitter {
     this.socket.ev.removeAllListeners("messaging-history.set");
     this.socket.ev.removeAllListeners("messages.upsert");
     this.socket.ev.removeAllListeners("messages.reaction");
+    this.socket.ev.removeAllListeners("message-receipt.update");
     this.socket.ev.removeAllListeners("messages.update");
     this.socket.ev.removeAllListeners("presence.update");
     this.socket.ev.removeAllListeners("labels.edit");
@@ -2190,6 +2199,59 @@ export class MiawClient extends EventEmitter {
     }
 
     this.emit("poll_vote", vote);
+  }
+
+  /**
+   * Map a Baileys message-receipt update to a MessageReceiptUpdate and emit
+   * the `message_receipt` event. The receipt type is derived from which
+   * timestamp is set (played > read > delivery).
+   */
+  private handleReceiptUpdate(
+    key: {
+      id?: string | null;
+      remoteJid?: string | null;
+      participant?: string | null;
+      fromMe?: boolean | null;
+    },
+    receipt: any
+  ): void {
+    if (!receipt) {
+      return;
+    }
+
+    let type: MessageReceiptUpdate["type"];
+    let timestamp: number | undefined;
+    if (receipt.playedTimestamp) {
+      type = "played";
+      timestamp = Number(receipt.playedTimestamp);
+    } else if (receipt.readTimestamp) {
+      type = "read";
+      timestamp = Number(receipt.readTimestamp);
+    } else {
+      type = "delivery";
+      timestamp = receipt.receiptTimestamp ? Number(receipt.receiptTimestamp) : undefined;
+    }
+
+    const recipientRaw =
+      receipt.userJid || key.participant || key.remoteJid || "";
+
+    const update: MessageReceiptUpdate = {
+      messageId: key.id || "",
+      chatId: key.remoteJid || "",
+      recipientId: this.resolveLidToJid(recipientRaw),
+      type,
+      timestamp,
+      fromMe: Boolean(key.fromMe),
+      raw: { key, receipt },
+    };
+
+    if (this.options.debug) {
+      this.logger.debug("\n========== MESSAGE RECEIPT ==========");
+      this.logger.debug(JSON.stringify(update, null, 2));
+      this.logger.debug("=====================================\n");
+    }
+
+    this.emit("message_receipt", update);
   }
 
   // ============================================

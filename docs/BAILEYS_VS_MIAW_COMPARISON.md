@@ -2,7 +2,7 @@
 
 **Last Updated:** June 26, 2026  
 **Baileys Version:** 7.0.0-rc13  
-**Miaw Core Version:** 1.9.0
+**Miaw Core Version:** 1.9.1
 
 ## Overview
 
@@ -131,7 +131,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Message Reaction Event**   | ✅      | ✅        | `message_reaction` event           |
 | **History Sync**             | ✅      | 🔶        | Chats/contacts synced to stores    |
 | **Poll Updates**             | ✅      | ✅        | `poll_vote` event (v1.6.0)         |
-| **Receipt Events**           | ✅      | ❌        | Delivery/read receipts             |
+| **Receipt Events**           | ✅      | ✅        | `message_receipt` event (v1.9.1)   |
 | **Call Events**              | ✅      | ❌        | Incoming/outgoing calls            |
 | **Label Association Events** | ✅      | ❌        | Label add/remove events            |
 
@@ -424,7 +424,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | ------------------------- | ---------------- | --------------------- | -------- |
 | **Connection & Auth**     | 14               | 12                    | 86%      |
 | **Sending Messages**      | 33               | 26                    | 79%      |
-| **Receiving & Events**    | 17               | 13                    | 76%      |
+| **Receiving & Events**    | 17               | 14                    | 82%      |
 | **Media**                 | 4                | 2                     | 50%      |
 | **Chat Management**       | 11               | 10                    | 91%      |
 | **User & Contacts**       | 10               | 8                     | 80%      |
@@ -440,7 +440,7 @@ This document provides a comprehensive comparison between [Baileys](https://gith
 | **Calls**                 | 5                | 0                     | 0%       |
 | **Utilities**             | 7                | 4                     | 57%      |
 | **Low-Level**             | 6                | 0                     | 0%       |
-| **TOTAL**                 | ~175             | ~135                  | ~77%     |
+| **TOTAL**                 | ~175             | ~136                  | ~78%     |
 
 ### What Miaw Core Focuses On
 
@@ -521,4 +521,4 @@ These are all backed by methods that exist in Baileys 7.0.0-rc13 and can be wrap
 
 ---
 
-_This analysis was last updated on July 7, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.9.0._
+_This analysis was last updated on July 7, 2026, based on Baileys v7.0.0-rc13 and Miaw Core v1.9.1._

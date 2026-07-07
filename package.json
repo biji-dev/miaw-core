@@ -1,6 +1,6 @@
 {
   "name": "miaw-core",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "Simplified WhatsApp API wrapper for Baileys - Multiple Instance of Awesome WhatsApp",
   "type": "module",
   "main": "dist/index.js",

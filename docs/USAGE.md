@@ -1294,6 +1294,12 @@ client.on("message_reaction", (reaction) => {
   console.log(`${reaction.reactorId} reacted with ${reaction.emoji}`);
   console.log("Is removal:", reaction.isRemoval);
 });
+
+// Receipt for a message you sent (delivery / read / played)
+client.on("message_receipt", (receipt) => {
+  console.log(`Message ${receipt.messageId} ${receipt.type} by ${receipt.recipientId}`);
+  // receipt.type: 'delivery' | 'read' | 'played'
+});
 ```
 
 ### Filter Messages
@@ -1539,6 +1545,7 @@ const client = new MiawClient({
 | `message_edit`    | `(edit: MessageEdit)`      | Message was edited                   |
 | `message_delete`  | `(deletion: MessageDelete)`| Message was deleted                  |
 | `message_reaction`| `(reaction: MessageReaction)` | Message received reaction         |
+| `message_receipt` | `(receipt: MessageReceiptUpdate)` | Sent message delivered/read/played |
 | `presence`        | `(update: PresenceUpdate)` | Contact's presence changed           |
 | `connection`      | `(state: ConnectionState)` | Connection state changed             |
 | `disconnected`    | `(reason?: string)`        | Client disconnected                  |

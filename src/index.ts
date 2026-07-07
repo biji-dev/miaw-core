@@ -23,6 +23,7 @@ export type {
   MessageEdit,
   MessageDelete,
   MessageReaction,
+  MessageReceiptUpdate,
   CheckNumberResult,
   ContactInfo,
   BusinessProfile,
