@@ -124,7 +124,7 @@ const commandTree: Record<string, CommandNode> = {
  * @param input - Raw command line input
  * @returns Tokens with surrounding quotes stripped
  */
-function tokenizeCommand(input: string): string[] {
+export function tokenizeCommand(input: string): string[] {
   const regex = /"([^"]*)"|'([^']*)'|(\S+)/g;
   const tokens: string[] = [];
   let match: RegExpExecArray | null;
