@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-07-09
+
+**CommonJS-consumer fix** - Let `require()` resolve the package.
+
+### Fixed
+
+- The `exports` map only declared the `import` condition, so CommonJS /
+  `require()` resolution (e.g. `ts-node` compiling to CJS) failed with
+  `ERR_PACKAGE_PATH_NOT_EXPORTED`. Added a `default` condition pointing at the
+  same ESM build; on Node >=22.12 `require(esm)` now resolves it. The package
+  stays ESM-only — no separate CJS build was added.
+
 ## [1.9.1] - 2026-07-07
 
 **Message receipts** - Observe delivery/read/played status of messages you send.
