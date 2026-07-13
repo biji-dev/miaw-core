@@ -217,6 +217,11 @@ export class MiawClient extends EventEmitter {
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private disposed = false;
+  // Ids of messages sent via this client's API. Used to suppress the echo that
+  // baileys replays through messages.upsert, so only phone-originated own-sends
+  // surface as `message_own`. Bounded FIFO — the echo arrives within seconds.
+  private selfSentIds = new Set<string>();
+  private selfSentOrder: string[] = [];
   // Cached WA Web version (resolved once, reused across reconnects)
   private cachedVersion: WAVersion | null = null;
   private loggingOut = false;
@@ -367,6 +372,16 @@ export class MiawClient extends EventEmitter {
         ...(proxyAgents?.wsAgent ? { agent: proxyAgents.wsAgent as import("node:https").Agent } : {}),
         ...(proxyAgents?.fetchAgent ? { fetchAgent: proxyAgents.fetchAgent as import("node:https").Agent } : {}),
       });
+
+      // Record ids of our own API sends so their echo (replayed via
+      // messages.upsert) is not misclassified as a phone-originated own-send.
+      const rawSendMessage = this.socket.sendMessage.bind(this.socket);
+      (this.socket as any).sendMessage = async (...args: any[]) => {
+        const result = await (rawSendMessage as any)(...args);
+        const id = result?.key?.id;
+        if (id) this.recordSelfSent(id);
+        return result;
+      };
 
       // Register event handlers
       this.registerSocketEvents(saveCreds);
@@ -765,15 +780,22 @@ export class MiawClient extends EventEmitter {
             }
           }
 
-          // Store message in messagesStore (deduped by id). Outbound messages
-          // (fromMe) — our own sends and messages sent from the user's phone —
-          // are stored so getChatMessages / CLI `get messages` include them,
-          // but are NOT emitted on "message" so existing bots don't reply to
-          // their own sends. Emit only newly-stored INBOUND messages, so
-          // reconnect re-delivery of already-stored messages never re-fires.
+          // Store message in messagesStore (deduped by id). Inbound messages
+          // fire "message". Own outgoing (fromMe) are stored but only surfaced
+          // on "message_own" when they were NOT sent via our API (i.e. typed on
+          // the paired phone) — API sends are matched via selfSentIds and
+          // suppressed so bots don't react to their own sends. isNew gates both
+          // so reconnect re-delivery of stored messages never re-fires.
           const isNew = this.storeMessage(normalized);
           if (isNew && !normalized.fromMe) {
             this.emit("message", normalized);
+          } else if (
+            isNew &&
+            normalized.fromMe &&
+            normalized.id &&
+            !this.consumeSelfSent(normalized.id)
+          ) {
+            this.emit("message_own", normalized);
           }
         }
       }
@@ -2308,6 +2330,25 @@ export class MiawClient extends EventEmitter {
     };
 
     this.emit("message_receipt", update);
+  }
+
+  /** Record an id sent via our API (bounded FIFO). */
+  private recordSelfSent(id: string): void {
+    if (this.selfSentIds.has(id)) return;
+    this.selfSentIds.add(id);
+    this.selfSentOrder.push(id);
+    if (this.selfSentOrder.length > 2000) {
+      const oldest = this.selfSentOrder.shift();
+      if (oldest) this.selfSentIds.delete(oldest);
+    }
+  }
+
+  /** True if `id` was one of our API sends, consuming it so the one-time echo
+   *  is suppressed exactly once. */
+  private consumeSelfSent(id: string): boolean {
+    if (!this.selfSentIds.has(id)) return false;
+    this.selfSentIds.delete(id);
+    return true;
   }
 
   // ============================================

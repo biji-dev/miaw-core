@@ -325,6 +325,11 @@ export interface MiawClientEvents {
   /** Emitted when a new message is received */
   message: (message: MiawMessage) => void;
 
+  /** Emitted for our own outgoing messages NOT sent via this client's API
+   *  (e.g. typed on the paired phone), so consumers can record them without
+   *  bots reacting to their own API sends. */
+  message_own: (message: MiawMessage) => void;
+
   /** Emitted when a message is edited */
   message_edit: (edit: MessageEdit) => void;
 
