@@ -808,18 +808,25 @@ export class MiawClient extends EventEmitter {
       }
     });
 
-    // Poll votes (messages.update carries pollUpdates when someone votes)
+    // messages.update carries poll votes (pollUpdates) AND delivery/read/played
+    // acks for our own sent messages (a numeric `status`). In 1:1 chats those
+    // acks arrive here, NOT via message-receipt.update, so surface them too.
     this.socket.ev.on("messages.update", (updates) => {
       for (const { key, update } of updates) {
         const pollUpdates = (update as { pollUpdates?: unknown[] }).pollUpdates;
-        if (!pollUpdates?.length) {
+        if (pollUpdates?.length) {
+          this.handlePollVote(key, pollUpdates).catch((err) => {
+            if (this.options.debug) {
+              this.logger.debug("Failed to process poll vote:", err);
+            }
+          });
           continue;
         }
-        this.handlePollVote(key, pollUpdates).catch((err) => {
-          if (this.options.debug) {
-            this.logger.debug("Failed to process poll vote:", err);
-          }
-        });
+
+        const status = (update as { status?: number }).status;
+        if (typeof status === "number") {
+          this.handleMessageStatusUpdate(key, status);
+        }
       }
     });
 
@@ -2259,6 +2266,46 @@ export class MiawClient extends EventEmitter {
       this.logger.debug(JSON.stringify(update, null, 2));
       this.logger.debug("=====================================\n");
     }
+
+    this.emit("message_receipt", update);
+  }
+
+  /**
+   * Map a WebMessageInfo.Status update to a message_receipt event. Delivery/read/
+   * played acks for our own sent 1:1 messages arrive via messages.update.status
+   * rather than message-receipt.update.
+   */
+  private handleMessageStatusUpdate(
+    key: {
+      id?: string | null;
+      remoteJid?: string | null;
+      participant?: string | null;
+      fromMe?: boolean | null;
+    },
+    status: number
+  ): void {
+    // WebMessageInfo.Status: 3=DELIVERY_ACK, 4=READ, 5=PLAYED. Lower values
+    // (pending/server-ack) are already reflected by the send response.
+    let type: MessageReceiptUpdate["type"];
+    if (status >= 5) {
+      type = "played";
+    } else if (status === 4) {
+      type = "read";
+    } else if (status === 3) {
+      type = "delivery";
+    } else {
+      return;
+    }
+
+    const update: MessageReceiptUpdate = {
+      messageId: key.id || "",
+      chatId: key.remoteJid || "",
+      recipientId: this.resolveLidToJid(key.participant || key.remoteJid || ""),
+      type,
+      timestamp: undefined,
+      fromMe: Boolean(key.fromMe),
+      raw: { key, status },
+    };
 
     this.emit("message_receipt", update);
   }
