@@ -216,6 +216,7 @@ export class MiawClient extends EventEmitter {
   private connectionWatchdogTimer: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  private disposed = false;
   // Cached WA Web version (resolved once, reused across reconnects)
   private cachedVersion: WAVersion | null = null;
   private loggingOut = false;
@@ -1468,6 +1469,10 @@ export class MiawClient extends EventEmitter {
    * Dispose client and clean up resources
    */
   async dispose(): Promise<void> {
+    // Mark disposed first so any in-flight connect/reconnect attempt bails out
+    // before emitting (an unhandled 'error' emit would crash the process).
+    this.disposed = true;
+
     // Clear reconnect timer
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -1540,6 +1545,10 @@ export class MiawClient extends EventEmitter {
    * Schedule reconnection attempt
    */
   private scheduleReconnect(): void {
+    // A disposed client must never emit or reschedule — an in-flight attempt can
+    // reach here after teardown; bail silently instead of crashing the process.
+    if (this.disposed) return;
+
     // Sessions that have never registered (fresh QR/pairing logins) are capped at
     // a small number of attempts: if WhatsApp rejects the registration handshake
     // (e.g. statusCode 428) before issuing a QR, retrying ~40 times/2min just
