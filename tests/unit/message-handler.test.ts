@@ -427,6 +427,85 @@ describe("MessageHandler", () => {
       expect(result?.media?.viewOnce).toBe(true);
     });
 
+    it("should extract quotedMessageId from a reply (contextInfo.stanzaId)", () => {
+      const baileysMessage = {
+        messages: [
+          {
+            key: {
+              id: "reply1",
+              remoteJid: "1234567890@s.whatsapp.net",
+              senderPn: "1234567890",
+              fromMe: false,
+            },
+            pushName: "John Doe",
+            message: {
+              extendedTextMessage: {
+                text: "a reply",
+                contextInfo: { stanzaId: "ORIGINALID" },
+              },
+            },
+            messageTimestamp: 1234567890,
+          },
+        ],
+        type: "notify" as const,
+      };
+
+      const result = MessageHandler.normalize(baileysMessage);
+      expect(result?.type).toBe("text");
+      expect(result?.quotedMessageId).toBe("ORIGINALID");
+    });
+
+    it("should extract quotedMessageId from a media reply", () => {
+      const baileysMessage = {
+        messages: [
+          {
+            key: {
+              id: "reply2",
+              remoteJid: "1234567890@s.whatsapp.net",
+              senderPn: "1234567890",
+              fromMe: false,
+            },
+            pushName: "John Doe",
+            message: {
+              imageMessage: {
+                caption: "reply with image",
+                mimetype: "image/jpeg",
+                contextInfo: { stanzaId: "ORIGINALIMG" },
+              },
+            },
+            messageTimestamp: 1234567890,
+          },
+        ],
+        type: "notify" as const,
+      };
+
+      const result = MessageHandler.normalize(baileysMessage);
+      expect(result?.type).toBe("image");
+      expect(result?.quotedMessageId).toBe("ORIGINALIMG");
+    });
+
+    it("should leave quotedMessageId undefined for a non-reply", () => {
+      const baileysMessage = {
+        messages: [
+          {
+            key: {
+              id: "plain1",
+              remoteJid: "1234567890@s.whatsapp.net",
+              senderPn: "1234567890",
+              fromMe: false,
+            },
+            pushName: "John Doe",
+            message: { conversation: "no reply here" },
+            messageTimestamp: 1234567890,
+          },
+        ],
+        type: "notify" as const,
+      };
+
+      const result = MessageHandler.normalize(baileysMessage);
+      expect(result?.quotedMessageId).toBeUndefined();
+    });
+
     it("should normalize group message", () => {
       const baileysMessage = {
         messages: [

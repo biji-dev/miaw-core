@@ -208,6 +208,9 @@ export interface MiawMessage {
   /** Media metadata (only present for media messages: image, video, audio, document, sticker) */
   media?: MediaInfo;
 
+  /** Id of the quoted (replied-to) message, if this message is a reply */
+  quotedMessageId?: string;
+
   /** Original raw message from Baileys (for advanced use) */
   raw?: any;
 }

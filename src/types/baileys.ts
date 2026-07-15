@@ -33,6 +33,15 @@ export interface BaileysMessageKey {
 }
 
 /**
+ * Reply/quote metadata attached to a message. `stanzaId` is the id of the
+ * quoted (replied-to) message.
+ */
+export interface BaileysContextInfo {
+  stanzaId?: string | null;
+  participant?: string | null;
+}
+
+/**
  * Media message metadata
  */
 export interface BaileysImageMessage {
@@ -42,6 +51,7 @@ export interface BaileysImageMessage {
   fileLength?: number;  // Alternative name used by Baileys
   width?: number;
   height?: number;
+  contextInfo?: BaileysContextInfo;
 }
 
 export interface BaileysVideoMessage {
@@ -54,6 +64,7 @@ export interface BaileysVideoMessage {
   width?: number;
   height?: number;
   gifPlayback?: boolean;
+  contextInfo?: BaileysContextInfo;
 }
 
 export interface BaileysDocumentMessage {
@@ -62,6 +73,7 @@ export interface BaileysDocumentMessage {
   fileName?: string;
   fileSize?: number;
   fileLength?: number;  // Alternative name used by Baileys
+  contextInfo?: BaileysContextInfo;
 }
 
 export interface BaileysAudioMessage {
@@ -71,6 +83,7 @@ export interface BaileysAudioMessage {
   fileSize?: number;
   fileLength?: number;  // Alternative name used by Baileys
   ptt?: boolean;  // Push-to-talk (voice note)
+  contextInfo?: BaileysContextInfo;
 }
 
 export interface BaileyStickerMessage {
@@ -79,6 +92,7 @@ export interface BaileyStickerMessage {
   fileLength?: number;  // Alternative name used by Baileys
   width?: number;
   height?: number;
+  contextInfo?: BaileysContextInfo;
 }
 
 /**
@@ -88,6 +102,7 @@ export interface BaileysMessageContent {
   conversation?: string;
   extendedTextMessage?: {
     text?: string;
+    contextInfo?: BaileysContextInfo;
   };
   imageMessage?: BaileysImageMessage;
   videoMessage?: BaileysVideoMessage;

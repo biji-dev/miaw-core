@@ -2,6 +2,7 @@ import { MiawMessage, MediaInfo } from "../types/index.js";
 import type { MiawLogger } from "../types/logger.js";
 import {
   BaileysMessageUpsert,
+  BaileysMessageContent,
   BaileysImageMessage,
   BaileysVideoMessage,
   BaileysDocumentMessage,
@@ -111,6 +112,7 @@ export class MessageHandler {
         fromMe: message.key.fromMe ?? false,
         type,
         media,
+        quotedMessageId: MessageHandler.extractQuotedId(actualMessage),
         raw: message,
       };
 
@@ -125,6 +127,27 @@ export class MessageHandler {
       }
       return null;
     }
+  }
+
+  /**
+   * Extract the quoted (replied-to) message id from a message's contextInfo.
+   * Baileys attaches contextInfo to the concrete message sub-object
+   * (extendedTextMessage / imageMessage / …), so probe whichever is present.
+   * @param msg - Baileys message content (view-once already unwrapped)
+   * @returns The quoted message id, or undefined if this is not a reply
+   */
+  private static extractQuotedId(
+    msg: BaileysMessageContent | null | undefined
+  ): string | undefined {
+    const container =
+      msg?.extendedTextMessage ??
+      msg?.imageMessage ??
+      msg?.videoMessage ??
+      msg?.documentMessage ??
+      msg?.audioMessage ??
+      msg?.stickerMessage;
+
+    return container?.contextInfo?.stanzaId ?? undefined;
   }
 
   /**
