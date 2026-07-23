@@ -327,6 +327,42 @@ describe("MessageHandler", () => {
       expect(result?.media?.fileName).toBe("document.pdf");
     });
 
+    it("should normalize document wrapped in documentWithCaptionMessage", () => {
+      const baileysMessage = {
+        messages: [
+          {
+            key: {
+              id: "msg127b",
+              remoteJid: "1234567890@s.whatsapp.net",
+              senderPn: "1234567890",
+              fromMe: false,
+            },
+            pushName: "John Doe",
+            message: {
+              documentWithCaptionMessage: {
+                message: {
+                  documentMessage: {
+                    caption: "Wrapped doc caption",
+                    mimetype: "application/pdf",
+                    fileLength: 50000,
+                    fileName: "wrapped.pdf",
+                  },
+                },
+              },
+            },
+            messageTimestamp: 1234567890,
+          },
+        ],
+        type: "notify" as const,
+      };
+
+      const result = MessageHandler.normalize(baileysMessage);
+      expect(result?.type).toBe("document");
+      expect(result?.text).toBe("Wrapped doc caption");
+      expect(result?.media?.mimetype).toBe("application/pdf");
+      expect(result?.media?.fileName).toBe("wrapped.pdf");
+    });
+
     it("should normalize audio message with metadata", () => {
       const baileysMessage = {
         messages: [

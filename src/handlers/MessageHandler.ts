@@ -64,7 +64,12 @@ export class MessageHandler {
         message.message?.viewOnceMessage?.message ||
         message.message?.viewOnceMessageV2?.message ||
         message.message?.viewOnceMessageV2Extension?.message;
-      const actualMessage = viewOnceMessage || message.message;
+      // WhatsApp wraps a captioned document as documentWithCaptionMessage;
+      // unwrap it so the documentMessage branch below sees the real content.
+      const documentWithCaption =
+        message.message?.documentWithCaptionMessage?.message;
+      const actualMessage =
+        viewOnceMessage || documentWithCaption || message.message;
       const isViewOnce = !!viewOnceMessage;
 
       if (actualMessage?.conversation) {

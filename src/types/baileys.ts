@@ -112,6 +112,7 @@ export interface BaileysMessageContent {
   viewOnceMessage?: { message?: BaileysMessageContent };
   viewOnceMessageV2?: { message?: BaileysMessageContent };
   viewOnceMessageV2Extension?: { message?: BaileysMessageContent };
+  documentWithCaptionMessage?: { message?: BaileysMessageContent };
 }
 
 /**
